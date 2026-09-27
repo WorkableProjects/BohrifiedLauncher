@@ -197,6 +197,27 @@ body {
 
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 
+/*
+ * Home ⇄ Board. The lesson opens as a circle growing from the tap (clip-path
+ * leaves layout untouched, so the glass toolbars measure correctly) while
+ * Home sinks back; closing plays it in reverse.
+ */
+@keyframes screen-reveal {
+  from { clip-path: circle(0px at var(--ox) var(--oy)); }
+  to { clip-path: circle(var(--r) at var(--ox) var(--oy)); }
+}
+@keyframes screen-conceal {
+  from { clip-path: circle(var(--r) at var(--ox) var(--oy)); }
+  to { clip-path: circle(0px at var(--ox) var(--oy)); }
+}
+@keyframes home-recede { to { transform: scale(0.94); opacity: 0.4; } }
+@keyframes home-return { from { transform: scale(0.94); opacity: 0.4; } }
+.screen-held { clip-path: circle(0px at var(--ox) var(--oy)); }
+.screen-reveal { animation: screen-reveal 560ms var(--ease) both; }
+.screen-conceal { animation: screen-conceal 440ms cubic-bezier(0.4, 0, 0.6, 1) both; }
+.home-recede { animation: home-recede 560ms var(--ease) both; }
+.home-return { animation: home-return 440ms var(--ease) both; }
+
 /* Screen Hider: the shade rises from the bottom edge and lowers away. */
 @keyframes curtain-in { from { transform: translateY(100%); } to { transform: none; } }
 @keyframes curtain-out { from { transform: none; } to { transform: translateY(100%); } }

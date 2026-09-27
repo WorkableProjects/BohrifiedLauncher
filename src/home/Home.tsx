@@ -144,10 +144,10 @@ export function Home({ onOpen }: { onOpen: () => void }) {
     <div className="fade-in h-full overflow-y-auto bg-grouped" style={{ touchAction: 'pan-y' }}>
       <div className="mx-auto max-w-[1080px] px-4 pt-[max(16px,env(safe-area-inset-top))] pb-16 sm:px-8">
         {/* Nav bar */}
-        <header className="flex h-14 items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <Logo size={32} className="drop-shadow-[0_2px_6px_var(--tint-glow)]" />
-            <span className="text-headline font-semibold tracking-title">Flow</span>
+        <header className="flex h-[72px] items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Logo size={52} className="drop-shadow-[0_4px_12px_var(--tint-glow)]" />
+            <span className="text-title-2 font-bold tracking-title">Flow</span>
           </div>
           <button
             ref={settingsRef}

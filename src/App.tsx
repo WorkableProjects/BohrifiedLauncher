@@ -51,7 +51,7 @@ export default function App({ onHome }: { onHome: () => void }) {
   return (
     <GlassProvider root={stage} enabled={liquid}>
       {/* Stage: the Liquid Glass root. Glass bars must be its direct children. */}
-      <main ref={stage} className="fade-in fixed inset-0 overflow-hidden" data-liquid="off">
+      <main ref={stage} className="fixed inset-0 overflow-hidden" data-liquid="off">
         <BoardCanvas appearance={appearance} events={events} />
         <Curtain />
         {editing && <TextEditor key={editing.element.id} request={editing} appearance={appearance} onDone={() => setEditing(null)} />}
