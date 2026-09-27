@@ -14,12 +14,12 @@ const SPARKLES = 46;
 const MASK = { WebkitMaskImage: 'url(/logo-512.png)', maskImage: 'url(/logo-512.png)', WebkitMaskSize: '100% 100%', maskSize: '100% 100%' };
 
 /**
- * Home's brand mark: the Flow logo at full strength, bleeding off the left
- * edge. Home's background matches the icon tile, so only the lettering
- * reads, as if written on the page. A soft glitter twinkles inside the
- * logo's shape (the sparkle layer is masked by the logo's own alpha).
+ * Home's background: the Flow logo, full window height, fixed behind the
+ * page and running off the left edge. Home's page color matches the icon
+ * tile, so mostly the lettering reads. A barely-there glitter twinkles
+ * inside the logo's shape (the sparkle layer is masked by its alpha).
  */
-export function BrandBackdrop({ className = '' }: { className?: string }) {
+export function BrandBackdrop() {
   const sparkles = useMemo(() => {
     const rnd = seeded(7);
     return Array.from({ length: SPARKLES }, () => ({
@@ -32,9 +32,9 @@ export function BrandBackdrop({ className = '' }: { className?: string }) {
   }, []);
 
   return (
-    <div aria-hidden className={`pointer-events-none relative aspect-square shrink-0 select-none ${className}`}>
+    <div aria-hidden className="brand-backdrop pointer-events-none fixed top-0 left-[-9vh] aspect-square h-dvh select-none">
       <Logo size="100%" className="absolute inset-0" />
-      <div className="absolute inset-0 overflow-hidden" style={MASK}>
+      <div className="glitter absolute inset-0 overflow-hidden" style={MASK}>
         <div className="glitter-sheen absolute inset-0" />
         {sparkles.map((p, i) => (
           <span

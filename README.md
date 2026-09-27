@@ -47,7 +47,7 @@ npm run perf       # canvas benchmark in Chromium (after build)
 - **Motion:** the selected tool is a single liquid bubble that flows between buttons (leading edge first, trailing edge catching up). Pages slide, paper and appearance changes crossfade, menus and sheets animate out as well as in
 - **Material:** toolbar glass has soft blur and gentle rim refraction, with no specular highlights or white glow and only a trace of shadow, so it sits in the canvas rather than floating over it
 - **Contextual layout:** a compact shelf above the dock changes with the tool (colors and weights for ink, kinds for shapes, Text / Sticky for text, sizes for the eraser) and swaps places with the selection bar, which adds formatting for text and Edit for equations
-- **Brand:** primary accent `#FF6083` is the app tint; secondary accent `#FFD3D6` backs tinted controls. The logo has light and dark artwork; on Home it sits full-strength off the left edge on a page tinted to match its tile (`#FFD8DA` / `#070005`), with a soft glitter
+- **Brand:** primary accent `#FF6083` is the app tint; secondary accent `#FFD3D6` backs tinted controls. The logo has light and dark artwork; on Home it fills the window height as a fixed background (50%, running off the left edge) on a page tinted to match its tile (`#FFD8DA` / `#070005`), with a barely-visible glitter
 
 ## Architecture
 

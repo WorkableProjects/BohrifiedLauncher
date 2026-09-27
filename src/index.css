@@ -301,6 +301,8 @@ input[type='range'].slider::-moz-range-thumb {
 /* ─── Home brand backdrop ──────────────────────────────────────────── */
 
 /* Home's page color matches the icon tile, so the logo reads as part of the page. */
+.brand-backdrop { opacity: 0.5; }
+.brand-backdrop .glitter { opacity: 0.06; }
 .home-bg { background: #ffd8da; }
 :root[data-appearance='dark'] .home-bg { background: #070005; }
 

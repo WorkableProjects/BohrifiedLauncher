@@ -142,6 +142,7 @@ export function Home({ onOpen }: { onOpen: () => void }) {
 
   return (
     <div className="home-bg fade-in relative h-full overflow-x-hidden overflow-y-auto" style={{ touchAction: 'pan-y' }}>
+      <BrandBackdrop />
       <div className="relative mx-auto max-w-[1080px] px-4 pt-[max(16px,env(safe-area-inset-top))] pb-16 sm:px-8">
         {/* Nav bar */}
         <header className="flex h-14 items-center justify-end">
@@ -157,10 +158,7 @@ export function Home({ onOpen }: { onOpen: () => void }) {
         </header>
 
         {/* Hero */}
-        <section className="mt-2 flex items-center gap-8 max-lg:flex-col max-lg:items-start max-lg:gap-2">
-          {/* The logo runs off the left edge of the window, like the app icon tucked into the page. */}
-          <BrandBackdrop className="ml-[calc((100%-100vw)/2-20px)] w-[260px] lg:ml-[calc((100%-100vw)/2-36px)] lg:w-[440px]" />
-          <div className="min-w-0">
+        <section className="mt-6 sm:mt-10">
           <p className="text-subhead font-semibold text-label-2">{name ? `${greeting()}, ${name}` : greeting()}</p>
           <h1 className="mt-1 text-large-title font-bold tracking-title sm:text-[44px] sm:leading-[1.1]">
             {name ? (
@@ -187,7 +185,6 @@ export function Home({ onOpen }: { onOpen: () => void }) {
             >
               <Icon name="folder" size={18} /> Open File…
             </button>
-          </div>
           </div>
         </section>
 
