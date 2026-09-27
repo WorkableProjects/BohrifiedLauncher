@@ -20,6 +20,9 @@
   --tint: #007aff;
   --tint-soft: rgba(0, 122, 255, 0.14);
   --danger: #ff3b30;
+  /* Grouped surfaces (Settings-style): page vs. raised cell. */
+  --grouped: #f2f2f7;
+  --cell: #ffffff;
 
   /* Glass: control layer only, never content. */
   --glass: rgba(255, 255, 255, 0.62);
@@ -54,6 +57,8 @@
   --tint: #0a84ff;
   --tint-soft: rgba(10, 132, 255, 0.24);
   --danger: #ff453a;
+  --grouped: #000000;
+  --cell: #1c1c1e;
   --glass: rgba(44, 44, 48, 0.62);
   --glass-live: rgba(30, 30, 34, 0.38);
   --glass-rim: rgba(255, 255, 255, 0.14);
@@ -76,6 +81,8 @@
   --color-tint: var(--tint);
   --color-tint-soft: var(--tint-soft);
   --color-danger: var(--danger);
+  --color-grouped: var(--grouped);
+  --color-cell: var(--cell);
   --ease-apple: var(--ease);
   --radius-bar: var(--radius-bar);
   --radius-card: var(--radius-card);
@@ -222,3 +229,7 @@ input[type='range'].slider::-moz-range-thumb {
 }
 
 :focus-visible { outline: 2px solid var(--tint); outline-offset: 2px; }
+
+/* Device preference (chosen at first launch): touch-first vs pointer + keyboard. */
+@custom-variant mobile (&:where([data-device='mobile'], [data-device='mobile'] *));
+@custom-variant desktop (&:where([data-device='desktop'], [data-device='desktop'] *));

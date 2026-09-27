@@ -42,8 +42,8 @@ try {
   // (not Flow) dominates. Set DPR=2 to see the Retina worst case.
   deviceScaleFactor: Number(process.env.DPR ?? 1) });
   // Measure the canvas pipeline itself; glass is GPU work benchmarked separately on real hardware.
-  await page.addInitScript(() => localStorage.setItem('flow:prefs:v1', JSON.stringify({ liquidGlass: false, tool: 'pen' })));
-  await page.goto(`http://localhost:${PORT}/?bench`);
+  await page.addInitScript(() => localStorage.setItem('flow:prefs:v1', JSON.stringify({ liquidGlass: false, tool: 'pen', device: 'desktop' })));
+  await page.goto(`http://localhost:${PORT}/?lesson=new&bench`);
   await page.waitForFunction(() => !!window.__flowBoard && !!window.__flowPerf);
   await page.waitForTimeout(500);
 

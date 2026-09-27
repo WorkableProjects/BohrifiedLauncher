@@ -1,11 +1,11 @@
 import { getController } from '../canvas/instance';
 import { pageToPng } from '../engine/export';
 import { elementBounds, translateElement, uid, unionRects } from '../engine/geometry';
-import { downloadBlob, exportDocument, readDocumentFile, readImageFile, safeFilename } from '../engine/persistence';
-import { createDocument } from '../engine/store';
+import { downloadBlob, exportDocument, listLessons, readImageFile, safeFilename } from '../engine/persistence';
 import { boardTheme, type Appearance } from '../engine/theme';
 import type { BoardElement } from '../engine/types';
 import { board } from './board';
+import { closeCurrent, importLesson, newLesson } from './lessons';
 import { toast, ui } from './ui';
 
 const selected = () => {
@@ -169,19 +169,26 @@ export function saveDocument() {
 }
 
 export function openDocument() {
-  pickFile('.flow,application/json', async (f) => {
-    try {
-      board.load(await readDocumentFile(f));
-      toast(`Opened “${board.doc.title}”`);
-    } catch {
-      toast('That isn’t a Flow file');
-    }
-  });
+  pickFile('.flow,application/json', (f) => openFlowFile(f));
 }
 
-export function newDocument() {
-  if (board.doc.pages.some((p) => p.elements.length) && !window.confirm('Start a new lesson? The current board will be replaced (save it first to keep a copy).')) return;
-  board.load(createDocument());
+/** Open a .flow file as a lesson; the current lesson is saved first. */
+export async function openFlowFile(f: File) {
+  try {
+    await closeCurrent();
+    const existing = new Set((await listLessons()).map((l) => l.id));
+    await importLesson(f, existing);
+    toast(`Opened “${board.doc.title}”`);
+  } catch {
+    toast('That isn’t a Flow file');
+  }
+}
+
+/** Start a fresh lesson — the current one stays in Recents. */
+export async function newDocument() {
+  await closeCurrent();
+  newLesson(board.page.background);
+  toast('New lesson');
 }
 
 export function goToPage(delta: number) {

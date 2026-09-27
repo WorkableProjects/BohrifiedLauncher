@@ -8,6 +8,13 @@ export interface ToolStyle {
 
 export type AppearancePref = 'system' | 'light' | 'dark';
 
+/**
+ * Chosen at first launch. 'mobile' = touch-first (tablets & phones):
+ * finger/Pencil drawing, pinch to zoom, no hover-only controls.
+ * 'desktop' = mouse, trackpad & keyboard: zoom bar, shortcut hints.
+ */
+export type DevicePref = 'mobile' | 'desktop';
+
 export interface UIState {
   tool: Tool;
   shapeKind: Exclude<ShapeKind, 'polygon'>;
@@ -20,6 +27,8 @@ export interface UIState {
   /** Hold the pen still at the end of a stroke to snap it into a shape. */
   snapShapes: boolean;
   appearance: AppearancePref;
+  /** null until the first-run question is answered. */
+  device: DevicePref | null;
   /** WebGL Liquid Glass on toolbars (falls back to CSS blur when off). */
   liquidGlass: boolean;
   selection: ReadonlySet<string>;
@@ -31,7 +40,7 @@ export interface UIState {
 }
 
 const PREFS_KEY = 'flow:prefs:v1';
-const PERSISTED: (keyof UIState)[] = ['pen', 'highlighter', 'shape', 'text', 'noteTint', 'eraserSize', 'snapShapes', 'appearance', 'liquidGlass', 'shapeKind'];
+const PERSISTED: (keyof UIState)[] = ['pen', 'highlighter', 'shape', 'text', 'noteTint', 'eraserSize', 'snapShapes', 'appearance', 'liquidGlass', 'shapeKind', 'device'];
 
 const initial: UIState = {
   tool: 'pen',
@@ -44,6 +53,7 @@ const initial: UIState = {
   eraserSize: 16,
   snapShapes: true,
   appearance: 'system',
+  device: null,
   liquidGlass: true,
   selection: new Set(),
   pagesOpen: false,

@@ -1,24 +1,26 @@
 import { useEffect } from 'react';
-import { saveAutosave } from '../engine/persistence';
 import { board } from '../state/board';
+import { closeCurrent, saveCurrent } from '../state/lessons';
 
-/** Persist the document to IndexedDB shortly after each edit (camera included). */
+/** Persist the open lesson shortly after each edit, and on leave/hide. */
 export function useAutosave() {
   useEffect(() => {
     let t = 0;
-    const flush = () => saveAutosave(board.doc);
-    const off = board.subscribe(() => {
+    const off = board.subscribe((c) => {
       clearTimeout(t);
-      t = window.setTimeout(flush, 600);
+      // Camera moves are saved too, just lazily.
+      t = window.setTimeout(saveCurrent, c.type === 'camera' ? 1500 : 600);
     });
-    const onHide = () => document.visibilityState === 'hidden' && flush();
+    const onHide = () => document.visibilityState === 'hidden' && saveCurrent();
     document.addEventListener('visibilitychange', onHide);
-    window.addEventListener('pagehide', flush);
+    window.addEventListener('pagehide', saveCurrent);
     return () => {
       off();
       clearTimeout(t);
       document.removeEventListener('visibilitychange', onHide);
-      window.removeEventListener('pagehide', flush);
+      window.removeEventListener('pagehide', saveCurrent);
     };
   }, []);
 }
+
+export { closeCurrent };

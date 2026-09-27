@@ -2,48 +2,121 @@ import { isFlowDocument } from './store';
 import type { FlowDocument } from './types';
 
 /**
- * Autosave to IndexedDB (documents with images easily exceed the ~5 MB
- * localStorage quota) plus .flow file import/export.
+ * Lesson library in IndexedDB (documents with images easily exceed the
+ * ~5 MB localStorage quota) plus .flow file import/export.
  */
 
 const DB = 'flow';
-const STORE = 'documents';
-const KEY = 'current';
+const DB_VERSION = 2;
+/** v1 single-document store, migrated on upgrade. */
+const LEGACY = 'documents';
+const LESSONS = 'lessons';
+const SUMMARIES = 'summaries';
 
-function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB, 1);
-    req.onupgradeneeded = () => req.result.createObjectStore(STORE);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
+/** Lightweight index entry for the Home screen (no element data). */
+export interface LessonSummary {
+  id: string;
+  title: string;
+  updatedAt: number;
+  pages: number;
+  /** Small PNG data URL of the first page. */
+  thumb?: string;
 }
 
-export async function loadAutosave(): Promise<FlowDocument | null> {
+export const summarize = (doc: FlowDocument, thumb?: string): LessonSummary => ({
+  id: doc.id,
+  title: doc.title,
+  updatedAt: doc.updatedAt,
+  pages: doc.pages.length,
+  thumb,
+});
+
+let dbPromise: Promise<IDBDatabase> | null = null;
+
+function openDb(): Promise<IDBDatabase> {
+  dbPromise ??= new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB, DB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(LESSONS)) db.createObjectStore(LESSONS);
+      if (!db.objectStoreNames.contains(SUMMARIES)) db.createObjectStore(SUMMARIES);
+      // Carry the pre-1.0 autosave over as the first lesson.
+      if (db.objectStoreNames.contains(LEGACY)) {
+        const tx = req.transaction!;
+        const get = tx.objectStore(LEGACY).get('current');
+        get.onsuccess = () => {
+          const doc = get.result;
+          if (isFlowDocument(doc)) {
+            tx.objectStore(LESSONS).put(doc, doc.id);
+            tx.objectStore(SUMMARIES).put(summarize(doc), doc.id);
+          }
+          db.deleteObjectStore(LEGACY);
+        };
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => {
+      dbPromise = null;
+      reject(req.error);
+    };
+  });
+  return dbPromise;
+}
+
+function request<T>(store: string, mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+  return openDb().then(
+    (db) =>
+      new Promise<T>((resolve, reject) => {
+        const req = fn(db.transaction(store, mode).objectStore(store));
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      }),
+  );
+}
+
+/** Recent lessons, most recently edited first. */
+export async function listLessons(): Promise<LessonSummary[]> {
   try {
-    const db = await openDb();
-    return await new Promise((resolve) => {
-      const req = db.transaction(STORE).objectStore(STORE).get(KEY);
-      req.onsuccess = () => resolve(isFlowDocument(req.result) ? req.result : null);
-      req.onerror = () => resolve(null);
-    });
+    const all = await request<LessonSummary[]>(SUMMARIES, 'readonly', (s) => s.getAll());
+    return all.filter((x) => x && typeof x.id === 'string').sort((a, b) => b.updatedAt - a.updatedAt);
+  } catch {
+    return [];
+  }
+}
+
+export async function loadLesson(id: string): Promise<FlowDocument | null> {
+  try {
+    const doc = await request<unknown>(LESSONS, 'readonly', (s) => s.get(id));
+    return isFlowDocument(doc) ? doc : null;
   } catch {
     return null;
   }
 }
 
-export async function saveAutosave(doc: FlowDocument): Promise<void> {
+export async function saveLesson(doc: FlowDocument, thumb?: string): Promise<void> {
   try {
     const db = await openDb();
     await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(STORE, 'readwrite');
-      tx.objectStore(STORE).put(doc, KEY);
+      const tx = db.transaction([LESSONS, SUMMARIES], 'readwrite');
+      tx.objectStore(LESSONS).put(doc, doc.id);
+      tx.objectStore(SUMMARIES).put(summarize(doc, thumb), doc.id);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
   } catch (err) {
-    console.warn('Flow: autosave failed', err);
+    console.warn('Flow: save failed', err);
   }
+}
+
+export async function deleteLesson(id: string): Promise<void> {
+  const db = await openDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction([LESSONS, SUMMARIES], 'readwrite');
+    tx.objectStore(LESSONS).delete(id);
+    tx.objectStore(SUMMARIES).delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
 }
 
 export function downloadBlob(blob: Blob, filename: string) {

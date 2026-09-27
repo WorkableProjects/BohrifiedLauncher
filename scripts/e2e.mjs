@@ -5,8 +5,9 @@
  *   npm run build && npm run e2e
  *
  * Drives real pointer input through Chromium and checks the document model:
- * ink, shape snapping, erasing, undo/redo, pages, autosave reload, and the
- * tutor → student-view live sync over BroadcastChannel.
+ * first-run onboarding, Home (new lesson, recents), ink, shape snapping,
+ * erasing, undo/redo, pages, autosave, and the tutor → student-view live
+ * sync over BroadcastChannel.
  */
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -34,7 +35,18 @@ try {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(`http://localhost:${PORT}/?bench`);
+
+  // First launch: welcome sheet asks for the device type.
+  const welcome = page.getByRole('dialog', { name: 'Welcome to Flow' });
+  check('first launch asks mobile vs desktop', await welcome.isVisible());
+  await page.getByRole('radio', { name: /Desktop or Laptop/ }).click();
+  await page.getByRole('button', { name: 'Continue' }).click();
+  check('device choice is applied', (await page.evaluate(() => document.documentElement.dataset.device)) === 'desktop' && !(await welcome.isVisible()));
+  check('home shows empty recents', await page.getByText('No lessons yet').isVisible());
+
+  await page.getByRole('button', { name: 'New Lesson' }).click();
   await page.waitForFunction(() => !!window.__flowBoard);
+  await page.getByTestId('board').waitFor();
   const count = () => page.evaluate(() => window.__flowBoard.page.elements.length);
   const types = () => page.evaluate(() => window.__flowBoard.page.elements.map((e) => e.type === 'shape' ? e.kind : e.type));
   const draw = async (pts, holdMs = 0) => {
@@ -93,11 +105,22 @@ try {
   await viewer.waitForTimeout(300);
   check('student view follows page changes', (await viewer.evaluate(() => window.__flowBoard.doc.pages.length)) === 2);
 
-  await page.waitForTimeout(900); // autosave debounce
+  await page.getByRole('button', { name: 'All lessons' }).click();
+  const card = page.getByRole('button', { name: /Untitled Lesson.*2 pages/ });
+  await card.waitFor({ timeout: 5000 }).catch(() => {});
+  check('lesson appears in Recent Lessons', await card.isVisible());
+  check('onboarding does not reappear', !(await welcome.isVisible()));
+
+  await page.getByRole('button', { name: 'New Lesson' }).click();
+  await page.getByRole('button', { name: 'All lessons' }).click();
+  await page.waitForTimeout(300);
+  check('untouched new lessons are not kept', (await page.getByRole('button', { name: /^Untitled Lesson/ }).count()) === 1);
+
   await page.reload();
-  await page.waitForFunction(() => !!window.__flowBoard);
+  await page.getByRole('button', { name: /Untitled Lesson.*2 pages/ }).click();
+  await page.waitForFunction(() => window.__flowBoard.doc.pages.length === 2);
   const persisted = await page.evaluate(() => window.__flowBoard.doc.pages.map((p) => p.elements.length));
-  check('autosave survives reload', persisted.join() === `${n},0`, persisted.join());
+  check('lesson reopens from Recents after reload', persisted.join() === `${n},0`, persisted.join());
 
   check('no uncaught errors', errors.length === 0, errors.join(' | '));
 } finally {

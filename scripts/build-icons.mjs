@@ -73,6 +73,17 @@ const ICONS = {
   fn: 'function',
   eye: 'eye',
   eyeSlash: 'eye.slash',
+  home: 'square.grid.2x2',
+  tablet: 'ipad.landscape',
+  desktop: 'desktopcomputer',
+  search: 'magnifyingglass',
+  folder: 'folder',
+  clock: 'clock',
+  scribble: 'pencil.and.scribble',
+  keyboard: 'keyboard',
+  handDraw: 'hand.draw',
+  books: 'books.vertical',
+  checkFill: 'checkmark.circle.fill',
 };
 
 async function load(name) {

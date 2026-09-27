@@ -64,7 +64,7 @@ export function PagesPanel({ appearance }: { appearance: Appearance }) {
                 aria-label={`Page ${i + 1} name`}
                 className="min-w-0 flex-1 truncate rounded-md bg-transparent px-1 text-footnote font-medium text-label outline-none focus:bg-fill"
               />
-              <div className="flex opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+              <div className="flex opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 mobile:opacity-100">
                 <button type="button" title="Move up" aria-label="Move page up" disabled={i === 0} onClick={() => board.movePage(p.id, -1)} className="flex h-7 w-7 items-center justify-center rounded-full text-label-2 hover:bg-fill disabled:opacity-30">
                   <Icon name="chevronLeft" size={10} className="rotate-90" />
                 </button>

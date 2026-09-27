@@ -18,7 +18,7 @@ import {
   undo,
 } from '../state/actions';
 import { board, useBoard } from '../state/board';
-import { ui, useUI, type AppearancePref } from '../state/ui';
+import { ui, useUI, type AppearancePref, type DevicePref } from '../state/ui';
 import { channelSupported } from '../engine/sync';
 import { Divider, Segmented, Toggle, ToolButton } from './controls';
 import { Glass } from './Glass';
@@ -26,7 +26,7 @@ import { Popover } from './Popover';
 
 // ─── Top-left: identity, title, pages ────────────────────────────────
 
-export function TitleBar() {
+export function TitleBar({ onHome }: { onHome: () => void }) {
   const title = useBoard((b) => b.doc.title);
   const pageIndex = useBoard((b) => b.doc.pages.findIndex((p) => p.id === b.doc.activePage));
   const pageCount = useBoard((b) => b.doc.pages.length);
@@ -36,9 +36,16 @@ export function TitleBar() {
   return (
     <Glass radius={26} className="absolute top-[max(16px,env(safe-area-inset-top))] left-4 z-20" role="toolbar" aria-label="Lesson">
       <div className="flex items-center gap-0.5 p-1.5">
-        <div className="flex h-11 w-11 items-center justify-center max-sm:hidden" aria-hidden>
+        <button
+          type="button"
+          onClick={onHome}
+          aria-label="All lessons"
+          title="All lessons"
+          className="spring flex h-11 items-center gap-0.5 rounded-full pr-1.5 pl-2 text-tint hover:bg-fill active:scale-[0.94]"
+        >
+          <Icon name="chevronLeft" size={14} />
           <img src="/favicon.svg" alt="" className="h-7 w-7 rounded-[8px]" />
-        </div>
+        </button>
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -54,7 +61,7 @@ export function TitleBar() {
         <span className="max-sm:hidden"><Divider /></span>
         <ToolButton icon="pages" label="Pages" shortcut="⌥P" active={useUI((s) => s.pagesOpen)} onClick={() => ui.set({ pagesOpen: !ui.get().pagesOpen })} />
         <ToolButton icon="chevronLeft" label="Previous page" shortcut="PgUp" iconSize={15} disabled={pageIndex <= 0} onClick={() => goToPage(-1)} className="max-sm:hidden" />
-        <span className="min-w-12 text-center text-subhead font-semibold text-label tabular-nums" aria-live="polite">
+        <span className="min-w-12 text-center text-subhead font-semibold text-label tabular-nums max-sm:hidden" aria-live="polite">
           {pageIndex + 1}
           <span className="text-label-2"> / {pageCount}</span>
         </span>
@@ -64,6 +71,7 @@ export function TitleBar() {
           shortcut="PgDn"
           iconSize={15}
           onClick={() => (pageIndex >= pageCount - 1 ? board.addPage() : goToPage(1))}
+          className="max-sm:hidden"
         />
       </div>
     </Glass>
@@ -113,7 +121,7 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
         <ToolButton ref={paperRef} icon={BACKGROUNDS.find((b) => b.value === background)?.icon ?? 'bgDots'} label="Paper" active={menu === 'paper'} onClick={() => toggle('paper')} className="max-sm:hidden" />
         <ToolButton icon="timer" label="Session timer" active={timerOpen} onClick={() => ui.set({ timerOpen: !timerOpen })} className="max-sm:hidden" />
         <ToolButton icon="curtain" label="Reveal curtain" shortcut="C" active={curtain} onClick={() => ui.set({ curtain: { ...ui.get().curtain, on: !curtain } })} className="max-sm:hidden" />
-        {channelSupported() && <ToolButton icon="present" label="Student view" onClick={openPresenter} className="max-md:hidden" />}
+        {channelSupported() && <ToolButton icon="present" label="Student view" onClick={openPresenter} className="max-md:hidden mobile:hidden" />}
         <span className="max-sm:hidden"><Divider /></span>
         <ToolButton ref={shareRef} icon="share" label="Share & export" active={menu === 'share'} onClick={() => toggle('share')} />
         <ToolButton ref={settingsRef} icon="settings" label="Settings" active={menu === 'settings'} onClick={() => toggle('settings')} />
@@ -183,7 +191,17 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
           </div>
           <Toggle checked={s.liquidGlass} onChange={(v) => ui.set({ liquidGlass: v })} label="Liquid Glass" />
         </div>
-        <div className="mt-3 border-t border-hairline pt-3">
+        <p className="mt-4 mb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Device</p>
+        <Segmented<DevicePref>
+          label="Device"
+          value={s.device ?? 'desktop'}
+          onChange={(v) => ui.set({ device: v })}
+          options={[
+            { value: 'mobile', label: <span className="flex items-center gap-1.5"><Icon name="tablet" size={15} />Mobile</span> },
+            { value: 'desktop', label: <span className="flex items-center gap-1.5"><Icon name="desktop" size={15} />Desktop</span> },
+          ]}
+        />
+        <div className="mt-3 border-t border-hairline pt-3 mobile:hidden">
           <p className="mb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Shortcuts</p>
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-footnote">
             {[
@@ -216,7 +234,7 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
 export function ZoomBar() {
   const z = useBoard((b) => b.page.camera.z);
   return (
-    <Glass radius={26} className="absolute right-4 bottom-[max(16px,env(safe-area-inset-bottom))] z-20 max-lg:hidden" role="toolbar" aria-label="Zoom">
+    <Glass radius={26} className="absolute right-4 bottom-[max(16px,env(safe-area-inset-bottom))] z-20 max-lg:hidden mobile:hidden" role="toolbar" aria-label="Zoom">
       <div className="flex items-center gap-0.5 p-1.5">
         <ToolButton icon="minus" label="Zoom out" shortcut="⌘−" iconSize={15} onClick={() => getController()?.zoomBy(1 / 1.25)} />
         <button

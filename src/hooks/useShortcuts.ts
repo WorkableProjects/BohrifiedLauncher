@@ -9,6 +9,7 @@ import {
   handlePaste,
   insertImage,
   openDocument,
+  openFlowFile,
   pickImage,
   redo,
   reorderSelection,
@@ -17,9 +18,8 @@ import {
   undo,
 } from '../state/actions';
 import { board } from '../state/board';
-import { readDocumentFile } from '../engine/persistence';
 import { screenToWorld } from '../engine/geometry';
-import { toast, ui } from '../state/ui';
+import { ui } from '../state/ui';
 import { selectToolByKey } from '../ui/ToolDock';
 
 const isTyping = (t: EventTarget | null) => {
@@ -112,11 +112,7 @@ export function useShortcuts() {
       e.preventDefault();
       const flow = files.find((f) => f.name.endsWith('.flow'));
       if (flow) {
-        try {
-          board.load(await readDocumentFile(flow));
-        } catch {
-          toast('That isn’t a Flow file');
-        }
+        await openFlowFile(flow);
         return;
       }
       const ctrl = getController();

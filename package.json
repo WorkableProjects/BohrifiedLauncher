@@ -1,7 +1,7 @@
 {
   "name": "flow",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "description": "Flow \u2014 a fluid, Apple-grade whiteboard for online tutoring.",
   "scripts": {
