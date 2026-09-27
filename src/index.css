@@ -297,3 +297,35 @@ input[type='range'].slider::-moz-range-thumb {
 /* Device preference (chosen at first launch): touch-first vs pointer + keyboard. */
 @custom-variant mobile (&:where([data-device='mobile'], [data-device='mobile'] *));
 @custom-variant desktop (&:where([data-device='desktop'], [data-device='desktop'] *));
+
+/* ─── Home brand backdrop ──────────────────────────────────────────── */
+
+.brand-backdrop { opacity: 0.32; }
+:root[data-appearance='dark'] .brand-backdrop { opacity: 0.2; mix-blend-mode: screen; }
+
+.glitter-sheen {
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.55) 48%, transparent 60%);
+  background-size: 250% 100%;
+  animation: glitter-sheen 7s ease-in-out infinite;
+}
+@keyframes glitter-sheen {
+  from { background-position: 120% 0; }
+  to { background-position: -120% 0; }
+}
+
+/* Four-point sparkle. */
+.glitter-dot {
+  background: radial-gradient(circle, #fff 0 18%, rgba(255, 255, 255, 0.7) 30%, transparent 62%);
+  clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%);
+  opacity: 0;
+  animation: glitter-twinkle 3.6s ease-in-out infinite;
+}
+@keyframes glitter-twinkle {
+  0%, 100% { opacity: 0; transform: scale(0.4) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.15) rotate(45deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glitter-sheen { animation: none; background: none; }
+  .glitter-dot { animation: none; opacity: 0.6; transform: none; }
+}

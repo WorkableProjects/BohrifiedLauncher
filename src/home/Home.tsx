@@ -5,7 +5,7 @@ import type { Background } from '../engine/types';
 import { importLesson, newLesson, openLesson } from '../state/lessons';
 import { resetProfile, toast, ui, useUI, type AppearancePref, type DevicePref } from '../state/ui';
 import { Segmented } from '../ui/controls';
-import { Logo } from '../ui/Logo';
+import { BrandBackdrop } from './BrandBackdrop';
 import { Popover } from '../ui/Popover';
 
 declare const __APP_VERSION__: string;
@@ -141,14 +141,11 @@ export function Home({ onOpen }: { onOpen: () => void }) {
   };
 
   return (
-    <div className="fade-in h-full overflow-y-auto bg-grouped" style={{ touchAction: 'pan-y' }}>
-      <div className="mx-auto max-w-[1080px] px-4 pt-[max(16px,env(safe-area-inset-top))] pb-16 sm:px-8">
+    <div className="fade-in relative h-full overflow-x-hidden overflow-y-auto bg-grouped" style={{ touchAction: 'pan-y' }}>
+      <BrandBackdrop />
+      <div className="relative mx-auto max-w-[1080px] px-4 pt-[max(16px,env(safe-area-inset-top))] pb-16 sm:px-8">
         {/* Nav bar */}
-        <header className="flex h-[72px] items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Logo size={52} className="drop-shadow-[0_4px_12px_var(--tint-glow)]" />
-            <span className="text-title-2 font-bold tracking-title">Flow</span>
-          </div>
+        <header className="flex h-14 items-center justify-end">
           <button
             ref={settingsRef}
             type="button"
