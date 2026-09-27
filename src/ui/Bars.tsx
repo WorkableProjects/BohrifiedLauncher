@@ -219,7 +219,7 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
             { value: 'system', label: 'Auto' },
           ]}
         />
-        <div className="mt-3 flex min-h-11 items-center justify-between gap-3">
+        <div className="mt-3 flex min-h-11 items-center justify-between gap-3 mobile:hidden">
           <div>
             <p className="text-subhead text-label">Liquid Glass</p>
             <p className="text-footnote text-label-2">WebGL refraction on toolbars</p>

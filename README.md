@@ -45,6 +45,7 @@ npm run perf       # canvas benchmark in Chromium (after build)
 - Liquid Glass only on the control layer, never on content, and no glass-on-glass: menus render in a separate sheet layer
 - 44 pt targets, concentric radii, a 4/8 spacing rhythm, SF type ramp (`-apple-system`, Inter as fallback)
 - Spring easing (`cubic-bezier(.32,.72,0,1)`). Honors Reduce Motion and Reduce Transparency
+- **Mobile performance:** with the Mobile device selected, decorative motion is dropped (no Home ⇄ Board circle reveal, no canvas page slide or crossfade, no Home glitter), WebGL Liquid Glass is off and glass blur is lighter. Toolbars, the tool bubble and menus stay
 - **Motion:** the selected tool is a single liquid bubble that flows between buttons (leading edge first, trailing edge catching up). Pages slide, paper and appearance changes crossfade, menus and sheets animate out as well as in
 - **Material:** toolbar glass has soft blur and gentle rim refraction, with no specular highlights or white glow and only a trace of shadow, so it sits in the canvas rather than floating over it
 - **Contextual layout:** a compact shelf above the dock changes with the tool (colors and weights for ink, kinds for shapes, Text / Sticky for text, colors, sizes and Snap for dots, sizes for the eraser) and swaps places with the selection bar, which adds formatting for text and Edit for equations
@@ -52,7 +53,7 @@ npm run perf       # canvas benchmark in Chromium (after build)
 
 ## Version
 
-Current release: **1.0.55** (shown at the bottom of Home).
+Current release: **1.0.56** (shown at the bottom of Home).
 
 ## Architecture
 

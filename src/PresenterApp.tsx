@@ -15,7 +15,7 @@ import { useUI } from './state/ui';
  */
 export function PresenterApp() {
   const appearance = useAppearance();
-  const liquid = useUI((s) => s.liquidGlass);
+  const liquid = useUI((s) => s.liquidGlass && s.device !== 'mobile');
   const stage = useRef<HTMLDivElement>(null);
   const [connected, setConnected] = useState(false);
   const title = useBoard((b) => b.doc.title);

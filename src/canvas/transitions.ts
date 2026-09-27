@@ -5,6 +5,8 @@
  * animate that away over the freshly painted board.
  */
 
+import { lightweight } from '../state/ui';
+
 const EASE = 'cubic-bezier(0.32, 0.72, 0, 1)';
 
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
@@ -14,7 +16,7 @@ export type CanvasTransition = { kind: 'slide'; direction: 1 | -1 } | { kind: 'f
 let current: HTMLCanvasElement | null = null;
 
 export function transitionCanvas(scene: HTMLCanvasElement, above: Element, t: CanvasTransition) {
-  if (reducedMotion() || !scene.width || !scene.height || typeof scene.animate !== 'function') return;
+  if (reducedMotion() || lightweight() || !scene.width || !scene.height || typeof scene.animate !== 'function') return;
   // A transition already in flight hands over to the new one.
   current?.remove();
   const snap = document.createElement('canvas');

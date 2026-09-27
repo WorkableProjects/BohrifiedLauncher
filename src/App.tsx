@@ -23,7 +23,7 @@ import type { ControllerEvents } from './canvas/controller';
 
 export default function App({ onHome }: { onHome: () => void }) {
   const appearance = useAppearance();
-  const liquid = useUI((s) => s.liquidGlass);
+  const liquid = useUI((s) => s.liquidGlass && s.device !== 'mobile');
   const timer = usePresence(useUI((s) => s.timerOpen));
   const stage = useRef<HTMLDivElement>(null);
   const [editing, setEditing] = useState<EditRequest | null>(null);
