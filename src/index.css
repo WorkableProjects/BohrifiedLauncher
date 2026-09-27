@@ -17,8 +17,14 @@
   --fill-2: rgba(120, 120, 128, 0.2);
   --separator: #c6c6c8;
   --hairline: rgba(60, 60, 67, 0.18);
-  --tint: #007aff;
-  --tint-soft: rgba(0, 122, 255, 0.14);
+  /* Brand: primary accent is the app tint; secondary accent backs tinted controls. */
+  --brand: #ff6083;
+  --brand-2: #ffd3d6;
+  --tint: var(--brand);
+  --tint-soft: var(--brand-2);
+  /* Label on a tint-soft fill (the brand pink alone is too light to read there). */
+  --on-tint-soft: #b82a52;
+  --tint-glow: rgba(255, 96, 131, 0.32);
   --danger: #ff3b30;
   /* Grouped surfaces (Settings-style): page vs. raised cell. */
   --grouped: #f2f2f7;
@@ -54,8 +60,10 @@
   --fill-2: rgba(120, 120, 128, 0.36);
   --separator: #38383a;
   --hairline: rgba(235, 235, 245, 0.16);
-  --tint: #0a84ff;
-  --tint-soft: rgba(10, 132, 255, 0.24);
+  --tint: var(--brand);
+  --tint-soft: rgba(255, 96, 131, 0.22);
+  --on-tint-soft: #ff8fa8;
+  --tint-glow: rgba(255, 96, 131, 0.4);
   --danger: #ff453a;
   --grouped: #000000;
   --cell: #1c1c1e;
@@ -80,6 +88,9 @@
   --color-hairline: var(--hairline);
   --color-tint: var(--tint);
   --color-tint-soft: var(--tint-soft);
+  --color-on-tint-soft: var(--on-tint-soft);
+  --color-brand: var(--brand);
+  --color-brand-2: var(--brand-2);
   --color-danger: var(--danger);
   --color-grouped: var(--grouped);
   --color-cell: var(--cell);
@@ -172,7 +183,46 @@ body {
 }
 .pop-in { animation: pop-in 320ms var(--ease) both; transform-origin: var(--origin, 50% 100%); }
 
+@keyframes pop-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(4px) scale(0.96); }
+}
+.pop-out { animation: pop-out 180ms var(--ease) both; transform-origin: var(--origin, 50% 100%); pointer-events: none; }
+
+@keyframes icon-swap {
+  from { opacity: 0; transform: scale(0.6) rotate(-10deg); }
+  to { opacity: 1; transform: none; }
+}
+.icon-swap { animation: icon-swap 300ms var(--ease) both; }
+
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+/*
+ * Home ⇄ Board. The lesson opens as a circle growing from the tap (clip-path
+ * leaves layout untouched, so the glass toolbars measure correctly) while
+ * Home sinks back; closing plays it in reverse.
+ */
+@keyframes screen-reveal {
+  from { clip-path: circle(0px at var(--ox) var(--oy)); }
+  to { clip-path: circle(var(--r) at var(--ox) var(--oy)); }
+}
+@keyframes screen-conceal {
+  from { clip-path: circle(var(--r) at var(--ox) var(--oy)); }
+  to { clip-path: circle(0px at var(--ox) var(--oy)); }
+}
+@keyframes home-recede { to { transform: scale(0.94); opacity: 0.4; } }
+@keyframes home-return { from { transform: scale(0.94); opacity: 0.4; } }
+.screen-held { clip-path: circle(0px at var(--ox) var(--oy)); }
+.screen-reveal { animation: screen-reveal 560ms var(--ease) both; }
+.screen-conceal { animation: screen-conceal 440ms cubic-bezier(0.4, 0, 0.6, 1) both; }
+.home-recede { animation: home-recede 560ms var(--ease) both; }
+.home-return { animation: home-return 440ms var(--ease) both; }
+
+/* Screen Hider: the shade rises from the bottom edge and lowers away. */
+@keyframes curtain-in { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes curtain-out { from { transform: none; } to { transform: translateY(100%); } }
+.curtain-in { animation: curtain-in 420ms var(--ease) both; }
+.curtain-out { animation: curtain-out 240ms var(--ease) both; pointer-events: none; }
 .fade-in { animation: fade-in 220ms var(--ease) both; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -182,7 +232,7 @@ body {
   }
 }
 
-/* Canvas text editor: matches canvas typography exactly. */
+/* Canvas rich text editor: matches canvas typography exactly. */
 .board-editor {
   font-family: var(--font);
   font-weight: 500;
@@ -190,7 +240,6 @@ body {
   background: transparent;
   border: 0;
   outline: none;
-  resize: none;
   overflow: hidden;
   padding: 0;
   margin: 0;
@@ -198,7 +247,22 @@ body {
   -webkit-user-select: text;
   user-select: text;
   caret-color: var(--tint);
+  cursor: text;
 }
+.board-editor:focus-visible { outline: none; }
+.board-editor b,
+.board-editor strong { font-weight: 700; }
+.board-editor u {
+  text-decoration-thickness: 0.065em;
+  text-underline-offset: 0.12em;
+}
+.board-editor[data-empty='true']::before {
+  content: attr(data-placeholder);
+  color: var(--label-3);
+  pointer-events: none;
+}
+.board-editor::selection,
+.board-editor *::selection { background: rgba(255, 96, 131, 0.28); }
 
 input, textarea { -webkit-user-select: text; user-select: text; }
 
@@ -233,3 +297,38 @@ input[type='range'].slider::-moz-range-thumb {
 /* Device preference (chosen at first launch): touch-first vs pointer + keyboard. */
 @custom-variant mobile (&:where([data-device='mobile'], [data-device='mobile'] *));
 @custom-variant desktop (&:where([data-device='desktop'], [data-device='desktop'] *));
+
+/* ─── Home brand backdrop ──────────────────────────────────────────── */
+
+/* Home's page color matches the icon tile, so the logo reads as part of the page. */
+.brand-backdrop { opacity: 0.5; }
+.brand-backdrop .glitter { opacity: 0.06; }
+.home-bg { background: #ffd8da; }
+:root[data-appearance='dark'] .home-bg { background: #070005; }
+
+.glitter-sheen {
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.55) 48%, transparent 60%);
+  background-size: 250% 100%;
+  animation: glitter-sheen 7s ease-in-out infinite;
+}
+@keyframes glitter-sheen {
+  from { background-position: 120% 0; }
+  to { background-position: -120% 0; }
+}
+
+/* Four-point sparkle. */
+.glitter-dot {
+  background: radial-gradient(circle, #fff 0 18%, rgba(255, 255, 255, 0.7) 30%, transparent 62%);
+  clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%);
+  opacity: 0;
+  animation: glitter-twinkle 3.6s ease-in-out infinite;
+}
+@keyframes glitter-twinkle {
+  0%, 100% { opacity: 0; transform: scale(0.4) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.15) rotate(45deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glitter-sheen { animation: none; background: none; }
+  .glitter-dot { animation: none; opacity: 0.6; transform: none; }
+}

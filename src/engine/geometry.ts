@@ -1,4 +1,5 @@
-import type { BoardElement, Camera, Rect, ShapeElement, Vec } from './types';
+import { lineWidth, splitLines, type RunMeasure } from './richtext';
+import type { BoardElement, Camera, Rect, ShapeElement, TextSpan, Vec } from './types';
 
 export const uid = (): string =>
   Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -69,18 +70,22 @@ const boundsCache = new WeakMap<BoardElement, Rect>();
 
 export const LINE_HEIGHT = 1.3;
 
-type TextMeasurer = (line: string, fontSize: number) => number;
-
 /** Approximate width without a DOM; the renderer swaps in canvas metrics. */
-let measureLine: TextMeasurer = (line, fontSize) => line.length * fontSize * 0.56;
+let measureRun: RunMeasure = (text, fontSize, marks) => text.length * fontSize * (marks?.bold ? 0.6 : 0.56);
 
-export function setTextMeasurer(fn: TextMeasurer) {
-  measureLine = fn;
+export function setTextMeasurer(fn: RunMeasure) {
+  measureRun = fn;
 }
 
+export const getTextMeasurer = () => measureRun;
+
 export function measureText(text: string, fontSize: number) {
-  const lines = text.split('\n');
-  const w = lines.reduce((m, l) => Math.max(m, measureLine(l, fontSize)), fontSize * 0.5);
+  return measureSpans([{ text }], fontSize);
+}
+
+export function measureSpans(spans: TextSpan[], fontSize: number) {
+  const lines = splitLines(spans);
+  const w = lines.reduce((m, l) => Math.max(m, lineWidth(l, fontSize, measureRun)), fontSize * 0.5);
   return { w, h: lines.length * fontSize * LINE_HEIGHT };
 }
 
@@ -114,13 +119,17 @@ export function elementBounds(el: BoardElement): Rect {
     case 'text': {
       if (el.note) r = { x: el.x, y: el.y, w: el.note.w, h: el.note.h };
       else {
-        const m = measureText(el.text || ' ', el.fontSize);
+        const m = el.spans ? measureSpans(el.spans, el.fontSize) : measureText(el.text || ' ', el.fontSize);
         r = { x: el.x, y: el.y, w: m.w, h: m.h };
       }
       break;
     }
     case 'image':
+    case 'equation':
       r = { x: el.x, y: el.y, w: el.w, h: el.h };
+      break;
+    case 'dot':
+      r = { x: el.x - el.r, y: el.y - el.r, w: el.r * 2, h: el.r * 2 };
       break;
   }
   boundsCache.set(el, r);
@@ -227,7 +236,10 @@ export function hitTestPoint(el: BoardElement, p: Vec, r: number): boolean {
     }
     case 'text':
     case 'image':
+    case 'equation':
       return true;
+    case 'dot':
+      return (p.x - el.x) ** 2 + (p.y - el.y) ** 2 <= (el.r + r) ** 2;
   }
 }
 
@@ -255,7 +267,10 @@ export function hitTestSegment(el: BoardElement, ax: number, ay: number, bx: num
     }
     case 'text':
     case 'image':
+    case 'equation':
       return hitTestPoint(el, { x: bx, y: by }, r);
+    case 'dot':
+      return distToSegmentSq(el.x, el.y, ax, ay, bx, by) <= (el.r + r) ** 2;
   }
 }
 
@@ -276,6 +291,8 @@ export function translateElement<T extends BoardElement>(el: T, dx: number, dy: 
       };
     case 'text':
     case 'image':
+    case 'equation':
+    case 'dot':
       return { ...el, x: el.x + dx, y: el.y + dy };
   }
   return el;
@@ -305,7 +322,10 @@ export function scaleElement<T extends BoardElement>(el: T, ox: number, oy: numb
         note: el.note && { ...el.note, w: el.note.w * s, h: el.note.h * s },
       };
     case 'image':
+    case 'equation':
       return { ...el, x: sx(el.x), y: sy(el.y), w: el.w * s, h: el.h * s };
+    case 'dot':
+      return { ...el, x: sx(el.x), y: sy(el.y), r: el.r * s };
   }
   return el;
 }

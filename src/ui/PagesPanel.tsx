@@ -6,6 +6,7 @@ import { board, useBoard } from '../state/board';
 import { ui, useUI } from '../state/ui';
 import { Icon } from '../icons/Icon';
 import { ToolButton } from './controls';
+import { usePresence } from '../hooks/usePresence';
 
 /**
  * Lesson pages sidebar: thumbnails, reorder, duplicate, delete.
@@ -17,6 +18,7 @@ export function PagesPanel({ appearance }: { appearance: Appearance }) {
   const active = useBoard((b) => b.doc.activePage);
   const version = useBoard((b) => b.version);
   const [thumbs, setThumbs] = useState<Record<string, string>>({});
+  const { mounted, leaving } = usePresence(open);
 
   // Thumbnails regenerate lazily while the panel is open (debounced).
   useEffect(() => {
@@ -30,10 +32,10 @@ export function PagesPanel({ appearance }: { appearance: Appearance }) {
     return () => clearTimeout(t);
   }, [open, version, appearance]);
 
-  if (!open) return null;
+  if (!mounted) return null;
   return createPortal(
     <aside
-      className="sheet pop-in fixed top-[calc(max(16px,env(safe-area-inset-top))+64px)] bottom-[calc(max(16px,env(safe-area-inset-bottom))+72px)] left-4 z-40 flex w-[228px] flex-col"
+      className={`sheet ${leaving ? 'pop-out' : 'pop-in'} fixed top-[calc(max(16px,env(safe-area-inset-top))+64px)] bottom-[calc(max(16px,env(safe-area-inset-bottom))+72px)] left-4 z-40 flex w-[228px] flex-col`}
       style={{ ['--origin' as string]: '0% 0%' }}
       aria-label="Pages"
     >
@@ -83,7 +85,7 @@ export function PagesPanel({ appearance }: { appearance: Appearance }) {
         ))}
       </ol>
       <footer className="border-t border-hairline p-2">
-        <button type="button" onClick={() => board.addPage()} className="spring flex h-11 w-full items-center justify-center gap-2 rounded-full bg-tint-soft text-subhead font-semibold text-tint active:scale-[0.97]">
+        <button type="button" onClick={() => board.addPage()} className="spring flex h-11 w-full items-center justify-center gap-2 rounded-full bg-tint-soft text-subhead font-semibold text-on-tint-soft active:scale-[0.97]">
           <Icon name="plus" size={14} /> Add Page
         </button>
       </footer>

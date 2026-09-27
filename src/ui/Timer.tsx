@@ -37,7 +37,7 @@ function chime() {
  * Session timer for timed practice: count up (stopwatch) or count down
  * from a preset. Floats top-centre as its own glass capsule.
  */
-export function Timer() {
+export function Timer({ leaving = false }: { leaving?: boolean }) {
   const [mode, setMode] = useState<'up' | 'down'>('down');
   const [duration, setDuration] = useState(5 * 60_000);
   const [elapsed, setElapsed] = useState(0);
@@ -81,7 +81,7 @@ export function Timer() {
   const progress = mode === 'down' ? Math.min(1, elapsed / duration) : 0;
 
   return (
-    <Glass radius={26} className="pop-in absolute top-[calc(max(16px,env(safe-area-inset-top))+72px)] right-4 z-20" role="timer" aria-label="Session timer" style={{ ['--origin' as string]: '100% 0%' }}>
+    <Glass radius={26} className={`${leaving ? 'pop-out' : 'pop-in'} absolute top-[calc(max(16px,env(safe-area-inset-top))+72px)] right-4 z-20`} role="timer" aria-label="Session timer" style={{ ['--origin' as string]: '100% 0%' }}>
       <div className="flex items-center gap-1 p-1.5">
         <button
           type="button"

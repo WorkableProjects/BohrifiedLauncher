@@ -3,6 +3,7 @@ import { Icon, type IconName } from '../icons/Icon';
 import { NOTE_TINTS, PALETTE, swatch, type Appearance } from '../engine/theme';
 import type { ColorToken, ShapeKind } from '../engine/types';
 import { ui, useUI, type UIState } from '../state/ui';
+import { BubbleGroup } from './Bubble';
 import { Toggle } from './controls';
 import { Popover } from './Popover';
 
@@ -14,21 +15,22 @@ export const SHAPES: { kind: Exclude<ShapeKind, 'polygon'>; icon: IconName; labe
   { kind: 'arrow', icon: 'arrow', label: 'Arrow', key: 'A' },
 ];
 
-const SIZES: Record<'pen' | 'highlighter' | 'shape' | 'text', { min: number; max: number; presets: number[] }> = {
+export const SIZES: Record<'pen' | 'highlighter' | 'shape' | 'text' | 'dot', { min: number; max: number; presets: number[] }> = {
   pen: { min: 1, max: 24, presets: [2, 4, 8] },
   highlighter: { min: 8, max: 48, presets: [14, 22, 34] },
   shape: { min: 1, max: 16, presets: [2, 4, 7] },
   text: { min: 12, max: 96, presets: [20, 28, 44] },
+  dot: { min: 4, max: 40, presets: [8, 12, 20] },
 };
 
-const COLOR_NAMES: Record<string, string> = {
+export const COLOR_NAMES: Record<string, string> = {
   label: 'Black', blue: 'Blue', red: 'Red', green: 'Green', orange: 'Orange', yellow: 'Yellow', purple: 'Purple', pink: 'Pink',
 };
 
-type StyledTool = 'pen' | 'highlighter' | 'shape' | 'text';
+type StyledTool = 'pen' | 'highlighter' | 'shape' | 'text' | 'dot';
 
 function styledTool(s: UIState): StyledTool {
-  if (s.tool === 'highlighter' || s.tool === 'shape' || s.tool === 'text') return s.tool;
+  if (s.tool === 'highlighter' || s.tool === 'shape' || s.tool === 'text' || s.tool === 'dot') return s.tool;
   return 'pen';
 }
 
@@ -122,7 +124,7 @@ export function Inspector({ open, onClose, anchor, appearance }: { open: boolean
   return (
     <Popover open={open} onClose={onClose} anchor={anchor} label="Tool options" className="w-[392px] max-w-[calc(100vw-24px)] p-4">
       {key === 'shape' && (
-        <div className="mb-3 flex justify-between rounded-full bg-fill p-0.5" role="radiogroup" aria-label="Shape">
+        <BubbleGroup active={s.shapeKind} variant="raised" role="radiogroup" label="Shape" className="mb-3 flex justify-between rounded-full bg-fill p-0.5">
           {SHAPES.map((sh) => (
             <button
               key={sh.kind}
@@ -131,13 +133,14 @@ export function Inspector({ open, onClose, anchor, appearance }: { open: boolean
               aria-checked={s.shapeKind === sh.kind}
               aria-label={sh.label}
               title={sh.key ? `${sh.label} (${sh.key})` : sh.label}
+              data-bubble={sh.kind}
               onClick={() => ui.set({ shapeKind: sh.kind, tool: 'shape' })}
-              className={`spring flex h-10 flex-1 items-center justify-center rounded-full ${s.shapeKind === sh.kind ? 'bg-bg text-tint shadow-[0_1px_4px_rgba(0,0,0,0.12)] dark:bg-fill-2' : 'text-label-2'}`}
+              className={`spring relative flex h-10 flex-1 items-center justify-center rounded-full ${s.shapeKind === sh.kind ? 'text-tint' : 'text-label-2'}`}
             >
               <Icon name={sh.icon} size={18} />
             </button>
           ))}
-        </div>
+        </BubbleGroup>
       )}
 
       <Swatches value={style.color} colors={PALETTE} onPick={(c) => setStyle({ color: c })} appearance={appearance} />
@@ -158,8 +161,8 @@ export function Inspector({ open, onClose, anchor, appearance }: { open: boolean
                 <span
                   className="block rounded-full"
                   style={{
-                    width: Math.max(4, Math.min(26, p * (key === 'highlighter' ? 0.75 : 2.2))),
-                    height: Math.max(4, Math.min(26, p * (key === 'highlighter' ? 0.75 : 2.2))),
+                    width: Math.max(4, Math.min(26, p * (key === 'highlighter' ? 0.75 : key === 'dot' ? 1 : 2.2))),
+                    height: Math.max(4, Math.min(26, p * (key === 'highlighter' ? 0.75 : key === 'dot' ? 1 : 2.2))),
                     background: swatch(style.color, appearance),
                     opacity: key === 'highlighter' ? 0.5 : 1,
                   }}
@@ -186,6 +189,14 @@ export function Inspector({ open, onClose, anchor, appearance }: { open: boolean
             <Toggle checked={s.snapShapes} onChange={(v) => ui.set({ snapShapes: v })} label="Hold to snap shapes" />
           </Row>
           <p className="text-footnote text-label-2">Draw a line, circle or polygon and pause — it snaps to a clean shape.</p>
+        </div>
+      )}
+      {key === 'dot' && (
+        <div className="mt-2 border-t border-hairline pt-2">
+          <Row label="Snap to rings">
+            <Toggle checked={s.snapDots} onChange={(v) => ui.set({ snapDots: v })} label="Snap dots to rings" />
+          </Row>
+          <p className="text-footnote text-label-2">Tap near a circle, such as a Bohr model orbit, and the dot lands right on it.</p>
         </div>
       )}
       {key === 'shape' && (

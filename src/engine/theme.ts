@@ -65,7 +65,7 @@ export function boardTheme(appearance: Appearance): BoardTheme {
     background: dark ? '#141416' : '#FFFFFF',
     pattern: dark ? 'rgba(235,235,245,0.14)' : 'rgba(60,60,67,0.16)',
     patternStrong: dark ? 'rgba(235,235,245,0.32)' : 'rgba(60,60,67,0.36)',
-    selection: dark ? '#0A84FF' : '#007AFF',
+    selection: '#FF6083',
     resolve: (c) => map[c] ?? c,
     noteFill: (c) => notes[c] ?? notes.yellow,
   };

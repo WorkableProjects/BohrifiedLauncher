@@ -18,10 +18,15 @@ import {
   undo,
 } from '../state/actions';
 import { board, useBoard } from '../state/board';
-import { ui, useUI, type AppearancePref, type DevicePref } from '../state/ui';
+import { openElements, openEquation, setTool, ui, useUI, type AppearancePref, type DevicePref } from '../state/ui';
+import { markIsOn, setMark, spansOf, withSpans } from '../engine/richtext';
+import type { EquationElement, TextElement } from '../engine/types';
+import { FormatButtons, FORMATS, type FormatSpec, type MarkState } from './FormatBar';
 import { channelSupported } from '../engine/sync';
+import { BubbleGroup } from './Bubble';
 import { Divider, Segmented, Toggle, ToolButton } from './controls';
 import { Glass } from './Glass';
+import { Logo } from './Logo';
 import { Popover } from './Popover';
 
 // ─── Top-left: identity, title, pages ────────────────────────────────
@@ -44,7 +49,7 @@ export function TitleBar({ onHome }: { onHome: () => void }) {
           className="spring flex h-11 items-center gap-0.5 rounded-full pr-1.5 pl-2 text-tint hover:bg-fill active:scale-[0.94]"
         >
           <Icon name="chevronLeft" size={14} />
-          <img src="/favicon.svg" alt="" className="h-7 w-7 rounded-[8px]" />
+          <Logo size={30} />
         </button>
         <input
           value={draft}
@@ -98,14 +103,39 @@ function MenuItem({ icon, label, hint, onClick }: { icon: IconName; label: strin
   );
 }
 
+/** A tile in the Apps menu: colored symbol, name, and live state. */
+function AppTile({ icon, color, label, detail, on, shortcut, onClick }: { icon: IconName; color: string; label: string; detail: string; on?: boolean; shortcut?: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={on}
+      title={shortcut ? `${label} (${shortcut})` : label}
+      className={`spring flex min-h-[76px] flex-col items-start justify-between gap-2 rounded-[16px] p-3 text-left active:scale-[0.96] ${on ? 'bg-tint-soft' : 'bg-fill hover:bg-fill-2'}`}
+    >
+      <span className="flex w-full items-center justify-between">
+        <span className="flex h-8 w-8 items-center justify-center rounded-[9px] text-white" style={{ background: color }}>
+          <Icon name={icon} size={17} />
+        </span>
+        {on && <Icon name="checkFill" size={18} className="text-tint" />}
+      </span>
+      <span>
+        <span className={`block text-subhead leading-tight font-semibold ${on ? 'text-on-tint-soft' : 'text-label'}`}>{label}</span>
+        <span className={`block text-caption ${on ? 'text-on-tint-soft' : 'text-label-2'}`}>{detail}</span>
+      </span>
+    </button>
+  );
+}
+
 export function ActionsBar({ appearance }: { appearance: Appearance }) {
   const canUndo = useBoard((b) => b.canUndo);
   const canRedo = useBoard((b) => b.canRedo);
   const background = useBoard((b) => b.page.background);
   const timerOpen = useUI((s) => s.timerOpen);
   const curtain = useUI((s) => s.curtain.on);
-  const [menu, setMenu] = useState<null | 'share' | 'paper' | 'settings'>(null);
+  const [menu, setMenu] = useState<null | 'share' | 'paper' | 'settings' | 'apps'>(null);
   const shareRef = useRef<HTMLButtonElement>(null);
+  const appsRef = useRef<HTMLButtonElement>(null);
   const paperRef = useRef<HTMLButtonElement>(null);
   const settingsRef = useRef<HTMLButtonElement>(null);
   const close = () => setMenu(null);
@@ -119,30 +149,43 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
         <ToolButton icon="redo" label="Redo" shortcut="⇧⌘Z" disabled={!canRedo} onClick={redo} />
         <Divider />
         <ToolButton ref={paperRef} icon={BACKGROUNDS.find((b) => b.value === background)?.icon ?? 'bgDots'} label="Paper" active={menu === 'paper'} onClick={() => toggle('paper')} className="max-sm:hidden" />
-        <ToolButton icon="timer" label="Session timer" active={timerOpen} onClick={() => ui.set({ timerOpen: !timerOpen })} className="max-sm:hidden" />
-        <ToolButton icon="curtain" label="Reveal curtain" shortcut="C" active={curtain} onClick={() => ui.set({ curtain: { ...ui.get().curtain, on: !curtain } })} className="max-sm:hidden" />
         {channelSupported() && <ToolButton icon="present" label="Student view" onClick={openPresenter} className="max-md:hidden mobile:hidden" />}
-        <span className="max-sm:hidden"><Divider /></span>
+        <ToolButton ref={appsRef} icon="apps" label="Apps" iconSize={19} active={menu === 'apps'} onClick={() => toggle('apps')}>
+          {(timerOpen || curtain) && menu !== 'apps' && <span aria-hidden className="absolute top-2 right-2 h-2 w-2 rounded-full bg-tint shadow-[0_0_0_2px_var(--bg)]" />}
+        </ToolButton>
+        <Divider />
         <ToolButton ref={shareRef} icon="share" label="Share & export" active={menu === 'share'} onClick={() => toggle('share')} />
         <ToolButton ref={settingsRef} icon="settings" label="Settings" active={menu === 'settings'} onClick={() => toggle('settings')} />
       </div>
 
+      <Popover open={menu === 'apps'} onClose={close} anchor={appsRef} placement="bottom" label="Apps" className="w-[320px] max-w-[calc(100vw-24px)] p-2">
+        <p className="px-2 pt-1 pb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Apps</p>
+        <div className="grid grid-cols-2 gap-1.5 [&>*:last-child:nth-child(odd)]:col-span-2">
+          <AppTile icon="timer" color="#FF9500" label="Timer" detail={timerOpen ? 'On' : 'Countdown'} on={timerOpen} onClick={() => ui.set({ timerOpen: !timerOpen })} />
+          <AppTile icon="curtain" color="#5856D6" label="Screen Hider" detail={curtain ? 'On' : 'Reveal steps'} on={curtain} shortcut="C" onClick={() => ui.set({ curtain: { ...ui.get().curtain, on: !curtain } })} />
+          <AppTile icon="equation" color="var(--brand)" label="LaTeX Equation" detail="Typeset math" onClick={() => { close(); openEquation(); }} />
+          <AppTile icon="atom" color="#34C759" label="Elements" detail="Bohr model & more" onClick={() => { close(); openElements(); }} />
+          <AppTile icon="textBox" color="#007AFF" label="Text" detail="Rich text & notes" shortcut="T" onClick={() => { close(); setTool(ui.get().textKind); }} />
+        </div>
+      </Popover>
+
       <Popover open={menu === 'paper'} onClose={close} anchor={paperRef} placement="bottom" label="Paper" className="w-[300px] p-2">
         <p className="px-2 pt-1 pb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Paper for this page</p>
-        <div className="grid grid-cols-5 gap-1">
+        <BubbleGroup active={background} variant="soft" className="grid grid-cols-5 gap-1 [&>span]:rounded-2xl!">
           {BACKGROUNDS.map((b) => (
             <button
               key={b.value}
               type="button"
               aria-pressed={background === b.value}
+              data-bubble={b.value}
               onClick={() => board.setPageProps({ background: b.value })}
-              className={`spring flex flex-col items-center gap-1 rounded-2xl py-2 text-caption font-medium ${background === b.value ? 'bg-tint-soft text-tint' : 'text-label hover:bg-fill'}`}
+              className={`spring relative flex flex-col items-center gap-1 rounded-2xl py-2 text-caption font-medium ${background === b.value ? 'text-on-tint-soft' : 'text-label hover:bg-fill'}`}
             >
               <Icon name={b.icon} size={24} />
               {b.label}
             </button>
           ))}
-        </div>
+        </BubbleGroup>
       </Popover>
 
       <Popover open={menu === 'share'} onClose={close} anchor={shareRef} placement="bottom" label="Share and export" className="w-[280px] p-1.5">
@@ -164,14 +207,6 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
             onChange={(v) => board.setPageProps({ background: v })}
             options={BACKGROUNDS.map((b) => ({ value: b.value, label: <Icon name={b.icon} size={17} />, title: b.label }))}
           />
-          <div className="mt-2 flex min-h-11 items-center justify-between">
-            <span className="text-subhead text-label">Session timer</span>
-            <Toggle checked={timerOpen} onChange={(v) => ui.set({ timerOpen: v })} label="Session timer" />
-          </div>
-          <div className="flex min-h-11 items-center justify-between">
-            <span className="text-subhead text-label">Reveal curtain</span>
-            <Toggle checked={curtain} onChange={(v) => ui.set({ curtain: { ...ui.get().curtain, on: v } })} label="Reveal curtain" />
-          </div>
         </div>
         <p className="mb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Appearance</p>
         <Segmented<AppearancePref>
@@ -208,13 +243,15 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
               ['V · H', 'Select · Pan'],
               ['P · M · E', 'Pen · Highlighter · Eraser'],
               ['L', 'Laser pointer'],
+              ['D', 'Dot (snaps to rings)'],
               ['S · R · O · A', 'Shapes · Rect · Ellipse · Arrow'],
-              ['T · N · I', 'Text · Note · Image'],
+              ['T · N · I', 'Text · Sticky note · Image'],
+              ['⌘B · ⌘I · ⌘U', 'Bold · Italic · Underline'],
               ['Space + drag', 'Pan'],
               ['⌘ + scroll / pinch', 'Zoom'],
               ['⌘0 · ⌘1', 'Actual size · Fit'],
               ['⌘D · ⌫', 'Duplicate · Delete'],
-              ['C', 'Reveal curtain'],
+              ['C', 'Screen Hider'],
               ['PgUp · PgDn', 'Previous · Next page'],
             ].map(([k, v]) => (
               <div key={k} className="contents">
@@ -255,9 +292,22 @@ export function ZoomBar() {
 // ─── Contextual selection actions ────────────────────────────────────
 
 export function SelectionBar() {
-  const count = useUI((s) => s.selection.size);
+  const selection = useUI((s) => s.selection);
   const tool = useUI((s) => s.tool);
+  const elements = useBoard((b) => b.page.elements);
+  const count = selection.size;
   const visible = count > 0 && tool === 'select';
+  const tab = visible ? 0 : -1;
+
+  // Contextual actions: formatting for text, re-editing for an equation.
+  const selected = elements.filter((e) => selection.has(e.id));
+  const texts = selected.filter((e): e is TextElement => e.type === 'text');
+  const allText = texts.length > 0 && texts.length === selected.length;
+  const equation = selected.length === 1 && selected[0].type === 'equation' ? (selected[0] as EquationElement) : null;
+  const marks: MarkState = {};
+  if (allText) for (const f of FORMATS) marks[f.mark] = texts.every((t) => markIsOn(spansOf(t), f.mark));
+  const toggle = (f: FormatSpec) => board.replaceElements(texts.map((t) => withSpans(t, setMark(spansOf(t), f.mark, !marks[f.mark]))));
+
   return (
     <Glass
       radius={24}
@@ -267,11 +317,30 @@ export function SelectionBar() {
       aria-label="Selection"
     >
       <div className="flex items-center gap-0.5 p-1">
-        <span className="px-3 text-footnote font-semibold text-label-2 tabular-nums">{count} selected</span>
-        <ToolButton icon="duplicate" label="Duplicate" shortcut="⌘D" iconSize={19} tabIndex={visible ? 0 : -1} onClick={duplicateSelection} />
-        <ToolButton icon="chevronRight" label="Bring to front" shortcut="]" iconSize={14} className="-rotate-90" tabIndex={visible ? 0 : -1} onClick={() => reorderSelection(true)} />
-        <ToolButton icon="chevronLeft" label="Send to back" shortcut="[" iconSize={14} className="-rotate-90" tabIndex={visible ? 0 : -1} onClick={() => reorderSelection(false)} />
-        <ToolButton icon="trash" label="Delete" shortcut="⌫" iconSize={19} className="text-danger!" tabIndex={visible ? 0 : -1} onClick={deleteSelection} />
+        <span className="px-3 text-footnote font-semibold whitespace-nowrap text-label-2 tabular-nums">{count} selected</span>
+        {allText && (
+          <>
+            <FormatButtons state={marks} onToggle={toggle} tabIndex={tab} />
+            <Divider />
+          </>
+        )}
+        {equation && (
+          <>
+            <button
+              type="button"
+              tabIndex={tab}
+              onClick={() => openEquation(equation.id)}
+              className="spring flex h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-subhead font-semibold text-tint hover:bg-fill active:scale-[0.94]"
+            >
+              <Icon name="equation" size={17} /> Edit
+            </button>
+            <Divider />
+          </>
+        )}
+        <ToolButton icon="duplicate" label="Duplicate" shortcut="⌘D" iconSize={19} tabIndex={tab} onClick={duplicateSelection} />
+        <ToolButton icon="chevronRight" label="Bring to front" shortcut="]" iconSize={14} className="-rotate-90" tabIndex={tab} onClick={() => reorderSelection(true)} />
+        <ToolButton icon="chevronLeft" label="Send to back" shortcut="[" iconSize={14} className="-rotate-90" tabIndex={tab} onClick={() => reorderSelection(false)} />
+        <ToolButton icon="trash" label="Delete" shortcut="⌫" iconSize={19} className="text-danger!" tabIndex={tab} onClick={deleteSelection} />
       </div>
     </Glass>
   );

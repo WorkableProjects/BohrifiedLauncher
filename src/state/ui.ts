@@ -23,24 +23,36 @@ export interface UIState {
   shape: ToolStyle & { fill: boolean };
   text: ToolStyle;
   noteTint: ColorToken;
+  /** Dot tool: color and diameter in screen px. */
+  dot: ToolStyle;
+  /** Dots dropped near a circle land exactly on it (Bohr model orbits). */
+  snapDots: boolean;
+  /** Which kind the Text tool places: a free text box or a sticky note. */
+  textKind: 'text' | 'note';
   eraserSize: number;
   /** Hold the pen still at the end of a stroke to snap it into a shape. */
   snapShapes: boolean;
   appearance: AppearancePref;
   /** null until the first-run question is answered. */
   device: DevicePref | null;
+  /** First name for the Home welcome; null until asked, '' if skipped. */
+  name: string | null;
   /** WebGL Liquid Glass on toolbars (falls back to CSS blur when off). */
   liquidGlass: boolean;
   selection: ReadonlySet<string>;
   pagesOpen: boolean;
   timerOpen: boolean;
   curtain: { on: boolean; y: number };
+  /** LaTeX equation sheet; `editId` re-edits an existing equation. */
+  equation: { open: boolean; editId: string | null };
+  /** Elements app (science presets such as the Bohr model). */
+  elementsOpen: boolean;
   /** Transient HUD message (e.g. "Shape snapped"). */
   toast: string | null;
 }
 
 const PREFS_KEY = 'flow:prefs:v1';
-const PERSISTED: (keyof UIState)[] = ['pen', 'highlighter', 'shape', 'text', 'noteTint', 'eraserSize', 'snapShapes', 'appearance', 'liquidGlass', 'shapeKind', 'device'];
+const PERSISTED: (keyof UIState)[] = ['pen', 'highlighter', 'shape', 'text', 'noteTint', 'dot', 'snapDots', 'textKind', 'eraserSize', 'snapShapes', 'appearance', 'liquidGlass', 'shapeKind', 'device', 'name'];
 
 const initial: UIState = {
   tool: 'pen',
@@ -50,15 +62,21 @@ const initial: UIState = {
   shape: { color: 'blue', size: 4, fill: false },
   text: { color: 'label', size: 28 },
   noteTint: 'yellow',
+  dot: { color: 'label', size: 12 },
+  snapDots: true,
+  textKind: 'text',
   eraserSize: 16,
   snapShapes: true,
   appearance: 'system',
   device: null,
+  name: null,
   liquidGlass: true,
   selection: new Set(),
   pagesOpen: false,
   timerOpen: false,
   curtain: { on: false, y: 0.45 },
+  equation: { open: false, editId: null },
+  elementsOpen: false,
   toast: null,
 };
 
@@ -106,4 +124,16 @@ export function toast(message: string) {
   toastTimer = window.setTimeout(() => ui.set({ toast: null }), 1600);
 }
 
-export const setTool = (tool: Tool) => ui.set({ tool, selection: tool === 'select' ? state.selection : new Set() });
+export const setTool = (tool: Tool) =>
+  ui.set({
+    tool,
+    selection: tool === 'select' ? state.selection : new Set(),
+    ...(tool === 'text' || tool === 'note' ? { textKind: tool } : {}),
+  });
+
+// The two app sheets share a spot at the top right, so opening one closes the other.
+export const openEquation = (editId: string | null = null) => ui.set({ equation: { open: true, editId }, elementsOpen: false });
+export const openElements = () => ui.set({ elementsOpen: true, equation: { open: false, editId: null } });
+
+/** Forget the user profile so the first-launch welcome runs again. Lessons are kept. */
+export const resetProfile = () => ui.set({ name: null, device: null });

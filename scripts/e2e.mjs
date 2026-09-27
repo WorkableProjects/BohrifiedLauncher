@@ -6,7 +6,7 @@
  *
  * Drives real pointer input through Chromium and checks the document model:
  * first-run onboarding, Home (new lesson, recents), ink, shape snapping,
- * erasing, undo/redo, pages, autosave, and the tutor → student-view live
+ * erasing, undo/redo, rich text, Apps (Screen Hider, LaTeX), pages, autosave, and the tutor → student-view live
  * sync over BroadcastChannel.
  */
 import { spawn } from 'node:child_process';
@@ -38,11 +38,15 @@ try {
 
   // First launch: welcome sheet asks for the device type.
   const welcome = page.getByRole('dialog', { name: 'Welcome to Flow' });
-  check('first launch asks mobile vs desktop', await welcome.isVisible());
+  check('first launch asks for a first name', await page.getByRole('textbox', { name: 'First name' }).isVisible());
+  await page.getByRole('textbox', { name: 'First name' }).fill('Caden');
+  await page.getByRole('button', { name: 'Continue' }).click();
+  check('then asks mobile vs desktop', await page.getByRole('radio', { name: /Desktop or Laptop/ }).isVisible());
   await page.getByRole('radio', { name: /Desktop or Laptop/ }).click();
   await page.getByRole('button', { name: 'Continue' }).click();
   check('device choice is applied', (await page.evaluate(() => document.documentElement.dataset.device)) === 'desktop' && !(await welcome.isVisible()));
   check('home shows empty recents', await page.getByText('No lessons yet').isVisible());
+  check('home welcomes the user by name', await page.getByRole('heading', { name: 'Welcome, Caden.' }).isVisible());
 
   await page.getByRole('button', { name: 'New Lesson' }).click();
   await page.waitForFunction(() => !!window.__flowBoard);
@@ -90,11 +94,63 @@ try {
   const text = await page.evaluate(() => window.__flowBoard.page.elements.find((e) => e.type === 'text')?.text);
   check('text tool', text === 'Area = πr²', String(text));
 
+  // Rich text: bold a word while typing, then check the stored spans.
+  await page.mouse.click(600, 120);
+  await page.keyboard.type('Rich ');
+  await page.keyboard.press('Control+b');
+  await page.keyboard.type('bold');
+  await page.keyboard.press('Escape');
+  const rich = await page.evaluate(() => window.__flowBoard.page.elements.find((e) => e.type === 'text' && e.text.startsWith('Rich')));
+  check('rich text keeps formatting', rich?.text === 'Rich bold' && rich.spans?.some((s) => s.text === 'bold' && s.marks?.bold), JSON.stringify(rich?.spans));
+
+  // Apps: Screen Hider toggles, LaTeX typesets and inserts a vector equation.
+  await page.getByRole('button', { name: 'Apps' }).click();
+  await page.getByRole('button', { name: /Screen Hider/ }).click();
+  check('Screen Hider opens from Apps', await page.getByRole('slider', { name: 'Curtain position' }).isVisible());
+  await page.getByRole('button', { name: /Screen Hider/ }).click();
+  await page.getByRole('button', { name: /LaTeX Equation/ }).click();
+  await page.getByRole('textbox', { name: 'LaTeX source' }).fill('\\frac{a}{b} = \\sqrt{x^2}');
+  const insert = page.getByRole('button', { name: 'Insert', exact: true });
+  await page.waitForFunction(() => !document.querySelector('[aria-label="LaTeX equation"] button:disabled'), null, { timeout: 15000 }).catch(() => {});
+  await insert.click();
+  const eq = await page.evaluate(() => window.__flowBoard.page.elements.find((e) => e.type === 'equation'));
+  check('LaTeX equation is inserted as vector SVG', !!eq && eq.svg.startsWith('<svg') && eq.svg.includes('<path') && eq.w > 0, eq?.latex);
+  await page.keyboard.press('Control+z');
+  check('equation insert is undoable', !(await types()).includes('equation'));
+
+  // Elements: a Bohr model with three energy levels = nucleus + 3 rings + p/n labels.
+  const before = (await types()).filter((t) => t === 'ellipse').length;
+  await page.getByRole('button', { name: 'Apps' }).click();
+  await page.getByRole('button', { name: /Elements/ }).click();
+  await page.getByRole('radio', { name: '3 energy levels' }).click();
+  await page.getByRole('dialog', { name: 'Elements' }).getByRole('button', { name: 'Insert', exact: true }).click();
+  const bohr = await page.evaluate(() => {
+    const els = window.__flowBoard.page.elements;
+    return { rings: els.filter((e) => e.type === 'shape' && e.kind === 'ellipse').length, labels: els.filter((e) => e.type === 'text' && /^[pn] =$/.test(e.text)).length };
+  });
+  check('Elements inserts a Bohr model with 3 energy levels', bohr.rings - before === 4 && bohr.labels === 2, JSON.stringify(bohr));
+
+  // Dot tool: a tap near the outer orbit lands exactly on it.
+  const orbit = await page.evaluate(() => {
+    const els = window.__flowBoard.page.elements.filter((e) => e.type === 'shape' && e.kind === 'ellipse');
+    const o = els[els.length - 1];
+    const cam = window.__flowBoard.page.camera;
+    const cx = (o.x1 + o.x2) / 2, cy = (o.y1 + o.y2) / 2, r = (o.x2 - o.x1) / 2;
+    return { sx: (cx + r - cam.x) * cam.z - 6, sy: (cy - cam.y) * cam.z + 3, cx, cy, r };
+  });
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('d');
+  await page.mouse.click(orbit.sx, orbit.sy);
+  const dot = await page.evaluate(() => window.__flowBoard.page.elements.find((e) => e.type === 'dot'));
+  check('dot tool snaps onto a Bohr orbit', !!dot && Math.abs(Math.hypot(dot.x - orbit.cx, dot.y - orbit.cy) - orbit.r) < 0.01, JSON.stringify(dot && { x: dot.x, y: dot.y }));
+  await page.keyboard.press('Control+z');
+  await page.keyboard.press('Control+z');
+
   await page.keyboard.press('v');
   await page.keyboard.press('Control+a');
   await page.keyboard.press('Control+d');
   const n = await count();
-  check('select all + duplicate', n === 6, `${n} elements`);
+  check('select all + duplicate', n === 8, `${n} elements`);
 
   await viewer.waitForTimeout(300);
   const viewerCount = await viewer.evaluate(() => window.__flowBoard.page.elements.length);
@@ -121,6 +177,13 @@ try {
   await page.waitForFunction(() => window.__flowBoard.doc.pages.length === 2);
   const persisted = await page.evaluate(() => window.__flowBoard.doc.pages.map((p) => p.elements.length));
   check('lesson reopens from Recents after reload', persisted.join() === `${n},0`, persisted.join());
+
+  // Reset Profile brings back the first-launch welcome.
+  await page.getByRole('button', { name: 'All lessons' }).click().catch(() => {});
+  page.once('dialog', (d) => d.accept());
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('button', { name: 'Reset Profile' }).click();
+  check('Reset Profile shows the welcome again', await page.getByRole('textbox', { name: 'First name' }).isVisible());
 
   check('no uncaught errors', errors.length === 0, errors.join(' | '));
 } finally {

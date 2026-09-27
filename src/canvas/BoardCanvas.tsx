@@ -6,6 +6,7 @@ import { ui } from '../state/ui';
 import { useGlass } from '../ui/GlassProvider';
 import { CanvasController, type ControllerEvents } from './controller';
 import { setController } from './instance';
+import { transitionCanvas } from './transitions';
 
 interface BoardCanvasProps {
   appearance: Appearance;
@@ -45,9 +46,38 @@ export function BoardCanvas({ appearance, readOnly = false, events }: BoardCanva
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const firstTheme = useRef(true);
   useEffect(() => {
+    // Light ⇄ dark crossfades instead of snapping.
+    if (!firstTheme.current && sceneRef.current && liveRef.current) transitionCanvas(sceneRef.current, liveRef.current, { kind: 'fade' });
+    firstTheme.current = false;
     ctrl.current?.setTheme(boardTheme(appearance));
   }, [appearance]);
+
+  // Page changes slide; paper changes crossfade.
+  useEffect(() => {
+    const indexOf = (id: string) => board.doc.pages.findIndex((p) => p.id === id);
+    let pageId = board.doc.activePage;
+    let index = indexOf(pageId);
+    let background = board.page.background;
+    return board.subscribe((c) => {
+      if (c.type === 'camera') return;
+      const scene = sceneRef.current, live = liveRef.current;
+      const nextId = board.doc.activePage;
+      const nextBg = board.page.background;
+      if (scene && live && c.type !== 'replace') {
+        if (nextId !== pageId) {
+          const nextIndex = indexOf(nextId);
+          transitionCanvas(scene, live, { kind: 'slide', direction: nextIndex >= index ? 1 : -1 });
+        } else if (nextBg !== background) {
+          transitionCanvas(scene, live, { kind: 'fade' });
+        }
+      }
+      pageId = nextId;
+      index = indexOf(nextId);
+      background = nextBg;
+    });
+  }, []);
 
   useEffect(() => {
     if (ctrl.current) ctrl.current.readOnly = readOnly;

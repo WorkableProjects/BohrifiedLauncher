@@ -3,8 +3,9 @@ import { Icon, type IconName } from '../icons/Icon';
 import { deleteLesson, listLessons, type LessonSummary } from '../engine/persistence';
 import type { Background } from '../engine/types';
 import { importLesson, newLesson, openLesson } from '../state/lessons';
-import { toast, ui, useUI, type AppearancePref, type DevicePref } from '../state/ui';
+import { resetProfile, toast, ui, useUI, type AppearancePref, type DevicePref } from '../state/ui';
 import { Segmented } from '../ui/controls';
+import { BrandBackdrop } from './BrandBackdrop';
 import { Popover } from '../ui/Popover';
 
 declare const __APP_VERSION__: string;
@@ -91,6 +92,7 @@ export function Home({ onOpen }: { onOpen: () => void }) {
   const settingsRef = useRef<HTMLButtonElement>(null);
   const appearance = useUI((s) => s.appearance);
   const device = useUI((s) => s.device);
+  const name = useUI((s) => s.name);
 
   const refresh = () => listLessons().then(setLessons);
   useEffect(() => {
@@ -139,14 +141,11 @@ export function Home({ onOpen }: { onOpen: () => void }) {
   };
 
   return (
-    <div className="fade-in h-full overflow-y-auto bg-grouped" style={{ touchAction: 'pan-y' }}>
-      <div className="mx-auto max-w-[1080px] px-4 pt-[max(16px,env(safe-area-inset-top))] pb-16 sm:px-8">
+    <div className="home-bg fade-in relative h-full overflow-x-hidden overflow-y-auto" style={{ touchAction: 'pan-y' }}>
+      <BrandBackdrop />
+      <div className="relative mx-auto max-w-[1080px] px-4 pt-[max(16px,env(safe-area-inset-top))] pb-16 sm:px-8">
         {/* Nav bar */}
-        <header className="flex h-14 items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <img src="/favicon.svg" alt="" className="h-8 w-8 rounded-[9px] shadow-[0_2px_6px_rgba(88,86,214,0.35)]" />
-            <span className="text-headline font-semibold tracking-title">Flow</span>
-          </div>
+        <header className="flex h-14 items-center justify-end">
           <button
             ref={settingsRef}
             type="button"
@@ -160,20 +159,29 @@ export function Home({ onOpen }: { onOpen: () => void }) {
 
         {/* Hero */}
         <section className="mt-6 sm:mt-10">
-          <p className="text-subhead font-semibold text-label-2">{greeting()}</p>
-          <h1 className="mt-1 text-large-title font-bold tracking-title sm:text-[44px] sm:leading-[1.1]">Ready to teach?</h1>
+          <p className="text-subhead font-semibold text-label-2">{name ? `${greeting()}, ${name}` : greeting()}</p>
+          <h1 className="mt-1 text-large-title font-bold tracking-title sm:text-[44px] sm:leading-[1.1]">
+            {name ? (
+              <>
+                Welcome, <span className="text-tint">{name}</span>.
+              </>
+            ) : (
+              'Ready to teach?'
+            )}
+          </h1>
+          {name && <p className="mt-2 text-body text-label-2">Ready to teach? Start a lesson or pick up where you left off.</p>}
           <div className="mt-6 flex flex-wrap gap-3">
             <button
               type="button"
               onClick={() => start('dots')}
-              className="spring flex h-[50px] items-center gap-2 rounded-full bg-tint px-6 text-headline font-semibold text-white shadow-[0_4px_14px_rgba(0,122,255,0.35)] hover:brightness-110 active:scale-[0.97]"
+              className="spring flex h-[50px] items-center gap-2 rounded-full bg-tint px-6 text-headline font-semibold text-white shadow-[0_4px_14px_var(--tint-glow)] hover:brightness-110 active:scale-[0.97]"
             >
               <Icon name="plus" size={16} /> New Lesson
             </button>
             <button
               type="button"
               onClick={importFile}
-              className="spring flex h-[50px] items-center gap-2 rounded-full bg-tint-soft px-6 text-headline font-semibold text-tint active:scale-[0.97]"
+              className="spring flex h-[50px] items-center gap-2 rounded-full bg-cell px-6 text-headline font-semibold text-on-tint-soft shadow-[0_0_0_0.5px_var(--hairline)] active:scale-[0.97]"
             >
               <Icon name="folder" size={18} /> Open File…
             </button>
@@ -224,7 +232,7 @@ export function Home({ onOpen }: { onOpen: () => void }) {
 
           {lessons === null ? null : lessons.length === 0 ? (
             <div className="mt-3 flex flex-col items-center rounded-[26px] bg-cell px-6 py-12 text-center shadow-[0_0_0_0.5px_var(--hairline)]">
-              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-tint-soft text-tint"><Icon name="books" size={28} /></span>
+              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-tint-soft text-on-tint-soft"><Icon name="books" size={28} /></span>
               <p className="mt-4 text-headline font-semibold">No lessons yet</p>
               <p className="mt-1 max-w-sm text-subhead text-label-2">Lessons save automatically as you work and show up here, ready for your next session.</p>
             </div>
@@ -264,6 +272,31 @@ export function Home({ onOpen }: { onOpen: () => void }) {
             { value: 'system', label: 'Auto' },
           ]}
         />
+        <div className="mt-4 border-t border-hairline pt-3">
+          <p className="mb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Profile</p>
+          <label className="flex min-h-11 items-center gap-3">
+            <Icon name="person" size={22} className="text-label-2" />
+            <input
+              value={name ?? ''}
+              onChange={(e) => ui.set({ name: e.target.value.slice(0, 40) })}
+              onBlur={(e) => ui.set({ name: e.target.value.trim().replace(/\s+/g, ' ') })}
+              placeholder="First name"
+              aria-label="First name"
+              className="h-9 min-w-0 flex-1 rounded-[10px] bg-fill px-3 text-body text-label outline-none placeholder:text-label-3 focus:shadow-[0_0_0_2px_var(--tint)]"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              if (!window.confirm('Reset your profile? Flow will forget your name and device choice and show the welcome again. Your lessons are kept.')) return;
+              setSettings(false);
+              resetProfile();
+            }}
+            className="spring mt-2 flex h-11 w-full items-center justify-center rounded-full bg-fill text-subhead font-semibold text-danger hover:bg-fill-2 active:scale-[0.98]"
+          >
+            Reset Profile
+          </button>
+        </div>
       </Popover>
     </div>
   );

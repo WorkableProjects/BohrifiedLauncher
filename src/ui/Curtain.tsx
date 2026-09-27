@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { ui, useUI } from '../state/ui';
 import { useGlass } from './GlassProvider';
+import { usePresence } from '../hooks/usePresence';
 
 /**
  * Reveal curtain — the classic overhead-projector trick. An opaque shade
@@ -12,20 +13,21 @@ export function Curtain() {
   const ref = useRef<HTMLDivElement>(null);
   const drag = useRef<{ id: number } | null>(null);
   const { markChanged } = useGlass();
+  const { mounted, leaving } = usePresence(on, 240);
 
   useEffect(() => {
     if (ref.current) markChanged(ref.current);
   }, [on, y, markChanged]);
 
-  if (!on) return null;
+  if (!mounted) return null;
   const set = (clientY: number) => ui.set({ curtain: { on: true, y: Math.min(0.97, Math.max(0.05, clientY / window.innerHeight)) } });
 
   return (
     <div
       ref={ref}
-      className="fade-in absolute inset-x-0 bottom-0 z-10"
+      className={`absolute inset-x-0 bottom-0 z-10 ${leaving ? 'curtain-out' : 'curtain-in'}`}
       style={{ top: `${y * 100}%`, background: 'var(--bg-2)', boxShadow: '0 -10px 30px rgba(0,0,0,0.12)' }}
-      aria-label="Reveal curtain"
+      aria-label="Screen Hider"
     >
       <div
         role="slider"
