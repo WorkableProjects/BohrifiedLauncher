@@ -22,7 +22,7 @@ import { quantizeScale, TileCache } from '../engine/tiles';
 import type { BoardStore, Change } from '../engine/store';
 import type { BoardTheme } from '../engine/theme';
 import type { BoardElement, Camera, Rect, ShapeElement, StrokeElement, TextElement, Vec } from '../engine/types';
-import { toast, ui } from '../state/ui';
+import { openEquation, toast, ui } from '../state/ui';
 
 /** Live, not-yet-committed stroke — also what we broadcast to viewers. */
 export interface LiveStroke {
@@ -642,7 +642,7 @@ export class CanvasController {
     // editor) from being stolen and stops text selection mid-stroke.
     e.preventDefault();
     const active = document.activeElement;
-    const wasEditing = active instanceof HTMLTextAreaElement || active instanceof HTMLInputElement;
+    const wasEditing = active instanceof HTMLTextAreaElement || active instanceof HTMLInputElement || (active instanceof HTMLElement && active.isContentEditable);
     if (active instanceof HTMLElement && active !== document.body) active.blur();
     if (e.pointerType === 'pen') this.penSeen = true;
     const p = this.localPoint(e);
@@ -1016,5 +1016,6 @@ export class CanvasController {
     const world = screenToWorld(this.camera, p.x, p.y);
     const hit = this.hitTop(world, 4 / this.camera.z);
     if (hit?.type === 'text') this.events.onEditText?.({ element: hit, isNew: false });
+    else if (hit?.type === 'equation') openEquation(hit.id);
   };
 }

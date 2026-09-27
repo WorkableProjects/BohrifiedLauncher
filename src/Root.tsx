@@ -5,6 +5,7 @@ import { Onboarding } from './home/Onboarding';
 import { useAppearance } from './hooks/useAppearance';
 import { closeCurrent, newLesson, openLesson } from './state/lessons';
 import { useUI } from './state/ui';
+import { Logo } from './ui/Logo';
 import { Toast } from './ui/Toast';
 
 type Screen = 'loading' | 'home' | 'board';
@@ -40,6 +41,11 @@ export function Root() {
 
   return (
     <>
+      {screen === 'loading' && (
+        <div className="fixed inset-0 flex items-center justify-center bg-grouped" aria-hidden>
+          <Logo size={96} className="drop-shadow-[0_10px_24px_var(--tint-glow)]" />
+        </div>
+      )}
       {screen === 'home' && <Home onOpen={() => setScreen('board')} />}
       {screen === 'board' && <App onHome={goHome} />}
       {screen === 'home' && !device && <Onboarding />}

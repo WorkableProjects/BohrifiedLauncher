@@ -5,6 +5,7 @@ import type { Background } from '../engine/types';
 import { importLesson, newLesson, openLesson } from '../state/lessons';
 import { toast, ui, useUI, type AppearancePref, type DevicePref } from '../state/ui';
 import { Segmented } from '../ui/controls';
+import { Logo } from '../ui/Logo';
 import { Popover } from '../ui/Popover';
 
 declare const __APP_VERSION__: string;
@@ -144,7 +145,7 @@ export function Home({ onOpen }: { onOpen: () => void }) {
         {/* Nav bar */}
         <header className="flex h-14 items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <img src="/favicon.svg" alt="" className="h-8 w-8 rounded-[9px] shadow-[0_2px_6px_rgba(88,86,214,0.35)]" />
+            <Logo size={32} className="drop-shadow-[0_2px_6px_var(--tint-glow)]" />
             <span className="text-headline font-semibold tracking-title">Flow</span>
           </div>
           <button
@@ -166,14 +167,14 @@ export function Home({ onOpen }: { onOpen: () => void }) {
             <button
               type="button"
               onClick={() => start('dots')}
-              className="spring flex h-[50px] items-center gap-2 rounded-full bg-tint px-6 text-headline font-semibold text-white shadow-[0_4px_14px_rgba(0,122,255,0.35)] hover:brightness-110 active:scale-[0.97]"
+              className="spring flex h-[50px] items-center gap-2 rounded-full bg-tint px-6 text-headline font-semibold text-white shadow-[0_4px_14px_var(--tint-glow)] hover:brightness-110 active:scale-[0.97]"
             >
               <Icon name="plus" size={16} /> New Lesson
             </button>
             <button
               type="button"
               onClick={importFile}
-              className="spring flex h-[50px] items-center gap-2 rounded-full bg-tint-soft px-6 text-headline font-semibold text-tint active:scale-[0.97]"
+              className="spring flex h-[50px] items-center gap-2 rounded-full bg-tint-soft px-6 text-headline font-semibold text-on-tint-soft active:scale-[0.97]"
             >
               <Icon name="folder" size={18} /> Open File…
             </button>
@@ -224,7 +225,7 @@ export function Home({ onOpen }: { onOpen: () => void }) {
 
           {lessons === null ? null : lessons.length === 0 ? (
             <div className="mt-3 flex flex-col items-center rounded-[26px] bg-cell px-6 py-12 text-center shadow-[0_0_0_0.5px_var(--hairline)]">
-              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-tint-soft text-tint"><Icon name="books" size={28} /></span>
+              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-tint-soft text-on-tint-soft"><Icon name="books" size={28} /></span>
               <p className="mt-4 text-headline font-semibold">No lessons yet</p>
               <p className="mt-1 max-w-sm text-subhead text-label-2">Lessons save automatically as you work and show up here, ready for your next session.</p>
             </div>

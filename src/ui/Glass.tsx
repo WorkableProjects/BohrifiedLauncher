@@ -32,7 +32,7 @@ export const Glass = forwardRef<HTMLDivElement, GlassProps>(function Glass({ chi
       ref={ref}
       className={`glass ${className}`}
       style={{ borderRadius: radius, ...style }}
-      data-config={JSON.stringify({ cornerRadius: radius, zRadius: Math.min(radius, 18) })}
+      data-config={JSON.stringify({ cornerRadius: radius, zRadius: Math.min(radius / 2, 12) })}
       {...rest}
     >
       {children}

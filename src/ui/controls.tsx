@@ -1,5 +1,6 @@
-import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { forwardRef, useEffect, useRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
 import { Icon, type IconName } from '../icons/Icon';
+import { BubbleGroup, useInBubble } from './Bubble';
 
 interface ToolButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   icon?: IconName;
@@ -16,6 +17,15 @@ export const ToolButton = forwardRef<HTMLButtonElement, ToolButtonProps>(functio
   { icon, label, active, shortcut, iconSize = 21, className = '', children, ...rest },
   ref,
 ) {
+  // Inside a BubbleGroup the moving bubble paints the selected fill.
+  const bubbled = useInBubble();
+  const activeClass = bubbled ? 'text-white' : 'bg-tint text-white shadow-[0_2px_8px_var(--tint-glow)]';
+  // A changed glyph (shape kind, next ⇄ new page…) morphs in rather than snapping.
+  const lastIcon = useRef(icon);
+  const swapped = lastIcon.current !== icon;
+  useEffect(() => {
+    lastIcon.current = icon;
+  }, [icon]);
   return (
     <button
       ref={ref}
@@ -23,12 +33,12 @@ export const ToolButton = forwardRef<HTMLButtonElement, ToolButtonProps>(functio
       aria-label={label}
       aria-pressed={active}
       title={shortcut ? `${label} (${shortcut})` : label}
-      className={`spring relative flex h-11 min-w-11 items-center justify-center rounded-full px-2.5 outline-none active:scale-[0.92] disabled:opacity-35 disabled:active:scale-100 ${
-        active ? 'bg-tint text-white shadow-[0_2px_8px_rgba(0,122,255,0.35)]' : 'text-label hover:bg-fill'
+      className={`spring relative flex h-11 min-w-11 shrink-0 items-center justify-center rounded-full px-2.5 outline-none active:scale-[0.92] disabled:opacity-35 disabled:active:scale-100 ${
+        active ? activeClass : 'text-label hover:bg-fill'
       } ${className}`}
       {...rest}
     >
-      {icon && <Icon name={icon} size={iconSize} />}
+      {icon && <Icon key={icon} name={icon} size={iconSize} className={swapped ? 'icon-swap' : undefined} />}
       {children}
     </button>
   );
@@ -41,23 +51,24 @@ export function Divider({ vertical = true }: { vertical?: boolean }) {
 /** Segmented control — the Apple pattern for mutually exclusive options. */
 export function Segmented<T extends string>({ value, options, onChange, label }: { value: T; options: { value: T; label: ReactNode; title?: string }[]; onChange: (v: T) => void; label: string }) {
   return (
-    <div role="radiogroup" aria-label={label} className="flex rounded-full bg-fill p-0.5">
+    <BubbleGroup active={value} variant="raised" role="radiogroup" label={label} className="flex rounded-full bg-fill p-0.5">
       {options.map((o) => (
         <button
           key={o.value}
           type="button"
           role="radio"
+          data-bubble={o.value}
           aria-checked={value === o.value}
           title={o.title}
           onClick={() => onChange(o.value)}
-          className={`spring flex h-9 min-w-9 flex-1 items-center justify-center rounded-full px-3 text-footnote font-semibold ${
-            value === o.value ? 'bg-bg text-label shadow-[0_1px_4px_rgba(0,0,0,0.12)] dark:bg-fill-2' : 'text-label-2 hover:text-label'
+          className={`spring relative flex h-9 min-w-9 flex-1 items-center justify-center rounded-full px-3 text-footnote font-semibold ${
+            value === o.value ? 'text-label' : 'text-label-2 hover:text-label'
           }`}
         >
           {o.label}
         </button>
       ))}
-    </div>
+    </BubbleGroup>
   );
 }
 

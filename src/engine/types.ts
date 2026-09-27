@@ -64,11 +64,30 @@ export interface ShapeElement extends ElementBase {
   fill: boolean;
 }
 
+/**
+ * Character formatting for a run of text. Optional fields keep documents
+ * small and let new formats be added without migrating old ones.
+ */
+export interface TextMarks {
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+}
+
+/** A run of text sharing the same marks; '\n' breaks lines. */
+export interface TextSpan {
+  text: string;
+  marks?: TextMarks;
+}
+
 export interface TextElement extends ElementBase {
   type: 'text';
   x: number;
   y: number;
+  /** Plain-text content (always present, mirrors `spans`). */
   text: string;
+  /** Rich content; absent when the text has no formatting. */
+  spans?: TextSpan[];
   color: ColorToken;
   fontSize: number;
   /** Sticky-note styling: rendered on a tinted card of fixed width. */
@@ -85,7 +104,21 @@ export interface ImageElement extends ElementBase {
   src: string;
 }
 
-export type BoardElement = StrokeElement | ShapeElement | TextElement | ImageElement;
+/** A typeset LaTeX equation, stored as vector SVG so it stays sharp at any zoom. */
+export interface EquationElement extends ElementBase {
+  type: 'equation';
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** LaTeX source, for re-editing. */
+  latex: string;
+  /** Self-contained SVG (glyphs as paths) with fill="currentColor". */
+  svg: string;
+  color: ColorToken;
+}
+
+export type BoardElement = StrokeElement | ShapeElement | TextElement | ImageElement | EquationElement;
 
 export type Background = 'blank' | 'dots' | 'grid' | 'lined' | 'graph';
 

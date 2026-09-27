@@ -81,7 +81,7 @@ function pasteElements(els: BoardElement[]) {
 
 export async function handlePaste(e: ClipboardEvent) {
   const target = e.target as HTMLElement | null;
-  if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+  if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
   const dt = e.clipboardData;
   if (!dt) return;
   const file = [...dt.files].find((f) => f.type.startsWith('image/'));

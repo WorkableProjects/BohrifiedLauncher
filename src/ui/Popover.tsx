@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
+import { usePresence } from '../hooks/usePresence';
 
 interface PopoverProps {
   open: boolean;
@@ -21,6 +22,7 @@ const MARGIN = 12;
 export function Popover({ open, onClose, anchor, placement = 'top', children, className = '', label }: PopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number; origin: string } | null>(null);
+  const { mounted, leaving } = usePresence(open);
 
   useLayoutEffect(() => {
     if (!open) return;
@@ -69,13 +71,14 @@ export function Popover({ open, onClose, anchor, placement = 'top', children, cl
     };
   }, [open, onClose, anchor]);
 
-  if (!open) return null;
+  if (!mounted) return null;
   return createPortal(
     <div
       ref={ref}
       role="dialog"
       aria-label={label}
-      className={`sheet pop-in fixed z-50 ${className}`}
+      aria-hidden={leaving || undefined}
+      className={`sheet ${leaving ? 'pop-out' : 'pop-in'} fixed z-50 ${className}`}
       style={{ left: pos?.left ?? -9999, top: pos?.top ?? -9999, ['--origin' as string]: pos?.origin }}
     >
       {children}

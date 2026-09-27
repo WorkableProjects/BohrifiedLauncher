@@ -6,7 +6,7 @@
  *
  * Drives real pointer input through Chromium and checks the document model:
  * first-run onboarding, Home (new lesson, recents), ink, shape snapping,
- * erasing, undo/redo, pages, autosave, and the tutor → student-view live
+ * erasing, undo/redo, rich text, Apps (Screen Hider, LaTeX), pages, autosave, and the tutor → student-view live
  * sync over BroadcastChannel.
  */
 import { spawn } from 'node:child_process';
@@ -90,11 +90,35 @@ try {
   const text = await page.evaluate(() => window.__flowBoard.page.elements.find((e) => e.type === 'text')?.text);
   check('text tool', text === 'Area = πr²', String(text));
 
+  // Rich text: bold a word while typing, then check the stored spans.
+  await page.mouse.click(600, 120);
+  await page.keyboard.type('Rich ');
+  await page.keyboard.press('Control+b');
+  await page.keyboard.type('bold');
+  await page.keyboard.press('Escape');
+  const rich = await page.evaluate(() => window.__flowBoard.page.elements.find((e) => e.type === 'text' && e.text.startsWith('Rich')));
+  check('rich text keeps formatting', rich?.text === 'Rich bold' && rich.spans?.some((s) => s.text === 'bold' && s.marks?.bold), JSON.stringify(rich?.spans));
+
+  // Apps: Screen Hider toggles, LaTeX typesets and inserts a vector equation.
+  await page.getByRole('button', { name: 'Apps' }).click();
+  await page.getByRole('button', { name: /Screen Hider/ }).click();
+  check('Screen Hider opens from Apps', await page.getByRole('slider', { name: 'Curtain position' }).isVisible());
+  await page.getByRole('button', { name: /Screen Hider/ }).click();
+  await page.getByRole('button', { name: /LaTeX Equation/ }).click();
+  await page.getByRole('textbox', { name: 'LaTeX source' }).fill('\\frac{a}{b} = \\sqrt{x^2}');
+  const insert = page.getByRole('button', { name: 'Insert', exact: true });
+  await page.waitForFunction(() => !document.querySelector('[aria-label="LaTeX equation"] button:disabled'), null, { timeout: 15000 }).catch(() => {});
+  await insert.click();
+  const eq = await page.evaluate(() => window.__flowBoard.page.elements.find((e) => e.type === 'equation'));
+  check('LaTeX equation is inserted as vector SVG', !!eq && eq.svg.startsWith('<svg') && eq.svg.includes('<path') && eq.w > 0, eq?.latex);
+  await page.keyboard.press('Control+z');
+  check('equation insert is undoable', !(await types()).includes('equation'));
+
   await page.keyboard.press('v');
   await page.keyboard.press('Control+a');
   await page.keyboard.press('Control+d');
   const n = await count();
-  check('select all + duplicate', n === 6, `${n} elements`);
+  check('select all + duplicate', n === 8, `${n} elements`);
 
   await viewer.waitForTimeout(300);
   const viewerCount = await viewer.evaluate(() => window.__flowBoard.page.elements.length);

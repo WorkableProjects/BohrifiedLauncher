@@ -84,6 +84,12 @@ const ICONS = {
   handDraw: 'hand.draw',
   books: 'books.vertical',
   checkFill: 'checkmark.circle.fill',
+  apps: 'square.grid.2x2',
+  bold: 'bold',
+  italic: 'italic',
+  underline: 'underline',
+  equation: 'x.squareroot',
+  textBox: 'character.textbox',
 };
 
 async function load(name) {

@@ -1,7 +1,8 @@
 import { cachedStrokePath } from './freehand';
 import { elementBounds, LINE_HEIGHT, rectsIntersect, setTextMeasurer, viewportRect } from './geometry';
+import { fontFor, splitLines, spansOf, wrapSpans, type RunMeasure } from './richtext';
 import type { BoardTheme } from './theme';
-import type { Background, BoardElement, Camera, ImageElement, Page, Rect, ShapeElement, TextElement } from './types';
+import type { Background, BoardElement, Camera, EquationElement, ImageElement, Page, Rect, ShapeElement, TextElement, TextSpan } from './types';
 
 export const FONT_STACK = '-apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, "Segoe UI", system-ui, sans-serif';
 export const HIGHLIGHT_ALPHA = 0.34;
@@ -10,13 +11,14 @@ export const HIGHLIGHT_ALPHA = 0.34;
 if (typeof document !== 'undefined') {
   const mctx = document.createElement('canvas').getContext('2d');
   if (mctx) {
-    let lastSize = -1;
-    setTextMeasurer((line, fontSize) => {
-      if (fontSize !== lastSize) {
-        mctx.font = `500 ${fontSize}px ${FONT_STACK}`;
-        lastSize = fontSize;
+    let lastFont = '';
+    setTextMeasurer((text, fontSize, marks) => {
+      const font = fontFor(marks, fontSize, FONT_STACK);
+      if (font !== lastFont) {
+        mctx.font = font;
+        lastFont = font;
       }
-      return mctx.measureText(line).width;
+      return mctx.measureText(text).width;
     });
   }
 }
@@ -219,32 +221,40 @@ function drawShape(ctx: CanvasRenderingContext2D, el: ShapeElement, theme: Board
   ctx.stroke(path);
 }
 
-/** Greedy word wrap using live canvas metrics. */
-export function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] {
-  const out: string[] = [];
-  for (const para of text.split('\n')) {
-    const words = para.split(/(\s+)/);
-    let line = '';
-    for (const w of words) {
-      const next = line + w;
-      if (line && ctx.measureText(next).width > maxW && w.trim()) {
-        out.push(line.trimEnd());
-        line = w.trimStart();
-      } else line = next;
-    }
-    out.push(line);
-  }
-  return out;
-}
-
 export const NOTE_PAD = 16;
 
+/** Canvas metrics for runs, switching fonts only when marks change. */
+function runMeasure(ctx: CanvasRenderingContext2D): RunMeasure {
+  let last = '';
+  return (text, fontSize, marks) => {
+    const font = fontFor(marks, fontSize, FONT_STACK);
+    if (font !== last) ctx.font = last = font;
+    return ctx.measureText(text).width;
+  };
+}
+
+/** One line of runs; `y` is the top of the glyph box (textBaseline 'top'). */
+function drawRuns(ctx: CanvasRenderingContext2D, line: TextSpan[], x: number, y: number, fontSize: number, measure: RunMeasure) {
+  let cx = x;
+  for (const run of line) {
+    if (!run.text) continue;
+    const w = measure(run.text, fontSize, run.marks);
+    ctx.fillText(run.text, cx, y);
+    if (run.marks?.underline) {
+      const t = Math.max(fontSize * 0.065, 0.5);
+      ctx.fillRect(cx, y + fontSize * 0.98, w, t);
+    }
+    cx += w;
+  }
+}
+
 function drawText(ctx: CanvasRenderingContext2D, el: TextElement, theme: BoardTheme) {
-  ctx.font = `500 ${el.fontSize}px ${FONT_STACK}`;
   ctx.textBaseline = 'top';
   ctx.textAlign = 'left';
   const lh = el.fontSize * LINE_HEIGHT;
   const pad = (lh - el.fontSize) / 2;
+  const measure = runMeasure(ctx);
+  const spans = spansOf(el);
   if (el.note) {
     const { w, h, tint } = el.note;
     const r = Math.min(14, w * 0.06);
@@ -263,13 +273,34 @@ function drawText(ctx: CanvasRenderingContext2D, el: TextElement, theme: BoardTh
     ctx.clip();
     ctx.fillStyle = theme.resolve(el.color);
     const scale = w / 220;
-    const lines = wrapLines(ctx, el.text, w - NOTE_PAD * 2 * scale);
-    lines.forEach((l, i) => ctx.fillText(l, el.x + NOTE_PAD * scale, el.y + NOTE_PAD * scale + pad + i * lh));
+    const lines = wrapSpans(spans, w - NOTE_PAD * 2 * scale, el.fontSize, measure);
+    lines.forEach((l, i) => drawRuns(ctx, l, el.x + NOTE_PAD * scale, el.y + NOTE_PAD * scale + pad + i * lh, el.fontSize, measure));
     ctx.restore();
     return;
   }
   ctx.fillStyle = theme.resolve(el.color);
-  el.text.split('\n').forEach((l, i) => ctx.fillText(l, el.x, el.y + pad + i * lh));
+  splitLines(spans).forEach((l, i) => drawRuns(ctx, l, el.x, el.y + pad + i * lh, el.fontSize, measure));
+}
+
+// ─── Equations ────────────────────────────────────────────────────────
+
+/** SVG data URLs per element and resolved color (equations recolor per theme). */
+const equationUrls = new WeakMap<EquationElement, Map<string, string>>();
+
+export function equationDataUrl(svg: string, color: string) {
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg.replace(/currentColor/g, color))}`;
+}
+
+function drawEquation(ctx: CanvasRenderingContext2D, el: EquationElement, theme: BoardTheme) {
+  const color = theme.resolve(el.color);
+  let urls = equationUrls.get(el);
+  if (!urls) equationUrls.set(el, (urls = new Map()));
+  let url = urls.get(color);
+  if (!url) urls.set(color, (url = equationDataUrl(el.svg, color)));
+  // Vector source: the browser rasterizes it at the drawn size, so
+  // equations stay crisp at every zoom level.
+  const img = getImage(url);
+  if (img) ctx.drawImage(img, el.x, el.y, el.w, el.h);
 }
 
 function drawImage(ctx: CanvasRenderingContext2D, el: ImageElement, theme: BoardTheme) {
@@ -305,6 +336,9 @@ export function drawElement(ctx: CanvasRenderingContext2D, el: BoardElement, the
       break;
     case 'image':
       drawImage(ctx, el, theme);
+      break;
+    case 'equation':
+      drawEquation(ctx, el, theme);
       break;
   }
 }

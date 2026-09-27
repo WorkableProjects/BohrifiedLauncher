@@ -83,18 +83,20 @@ export function GlassProvider({ root, enabled, children }: { root: RefObject<HTM
           root: rootEl,
           glassElements: els,
           defaults: {
-            blurAmount: 0.18,
-            refraction: 0.55,
-            chromAberration: 0.03,
-            edgeHighlight: 0.08,
-            specular: 0.25,
-            fresnel: 0.7,
-            zRadius: 18,
-            saturation: 0.3,
-            brightness: 0.02,
-            shadowOpacity: 0.16,
-            shadowSpread: 14,
-            shadowOffsetY: 4,
+            // Material, not a floating card: soft blur, gentle refraction at
+            // the rim, and no artificial highlights or drop shadow.
+            blurAmount: 0.32,
+            refraction: 0.32,
+            chromAberration: 0.015,
+            edgeHighlight: 0.04,
+            specular: 0,
+            fresnel: 0.12,
+            zRadius: 12,
+            saturation: 0.25,
+            brightness: 0,
+            shadowOpacity: 0.05,
+            shadowSpread: 10,
+            shadowOffsetY: 1,
           },
         });
         if (cancelled) {

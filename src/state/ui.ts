@@ -23,6 +23,8 @@ export interface UIState {
   shape: ToolStyle & { fill: boolean };
   text: ToolStyle;
   noteTint: ColorToken;
+  /** Which kind the Text tool places: a free text box or a sticky note. */
+  textKind: 'text' | 'note';
   eraserSize: number;
   /** Hold the pen still at the end of a stroke to snap it into a shape. */
   snapShapes: boolean;
@@ -35,12 +37,14 @@ export interface UIState {
   pagesOpen: boolean;
   timerOpen: boolean;
   curtain: { on: boolean; y: number };
+  /** LaTeX equation sheet; `editId` re-edits an existing equation. */
+  equation: { open: boolean; editId: string | null };
   /** Transient HUD message (e.g. "Shape snapped"). */
   toast: string | null;
 }
 
 const PREFS_KEY = 'flow:prefs:v1';
-const PERSISTED: (keyof UIState)[] = ['pen', 'highlighter', 'shape', 'text', 'noteTint', 'eraserSize', 'snapShapes', 'appearance', 'liquidGlass', 'shapeKind', 'device'];
+const PERSISTED: (keyof UIState)[] = ['pen', 'highlighter', 'shape', 'text', 'noteTint', 'textKind', 'eraserSize', 'snapShapes', 'appearance', 'liquidGlass', 'shapeKind', 'device'];
 
 const initial: UIState = {
   tool: 'pen',
@@ -50,6 +54,7 @@ const initial: UIState = {
   shape: { color: 'blue', size: 4, fill: false },
   text: { color: 'label', size: 28 },
   noteTint: 'yellow',
+  textKind: 'text',
   eraserSize: 16,
   snapShapes: true,
   appearance: 'system',
@@ -59,6 +64,7 @@ const initial: UIState = {
   pagesOpen: false,
   timerOpen: false,
   curtain: { on: false, y: 0.45 },
+  equation: { open: false, editId: null },
   toast: null,
 };
 
@@ -106,4 +112,11 @@ export function toast(message: string) {
   toastTimer = window.setTimeout(() => ui.set({ toast: null }), 1600);
 }
 
-export const setTool = (tool: Tool) => ui.set({ tool, selection: tool === 'select' ? state.selection : new Set() });
+export const setTool = (tool: Tool) =>
+  ui.set({
+    tool,
+    selection: tool === 'select' ? state.selection : new Set(),
+    ...(tool === 'text' || tool === 'note' ? { textKind: tool } : {}),
+  });
+
+export const openEquation = (editId: string | null = null) => ui.set({ equation: { open: true, editId } });

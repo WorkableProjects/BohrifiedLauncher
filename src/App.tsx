@@ -11,6 +11,8 @@ import { board } from './state/board';
 import { useUI } from './state/ui';
 import { ActionsBar, SelectionBar, TitleBar, ZoomBar } from './ui/Bars';
 import { Curtain } from './ui/Curtain';
+import { EquationSheet } from './ui/EquationSheet';
+import { usePresence } from './hooks/usePresence';
 import { GlassProvider } from './ui/GlassProvider';
 import { PagesPanel } from './ui/PagesPanel';
 import { Timer } from './ui/Timer';
@@ -21,7 +23,7 @@ import type { ControllerEvents } from './canvas/controller';
 export default function App({ onHome }: { onHome: () => void }) {
   const appearance = useAppearance();
   const liquid = useUI((s) => s.liquidGlass);
-  const timerOpen = useUI((s) => s.timerOpen);
+  const timer = usePresence(useUI((s) => s.timerOpen));
   const stage = useRef<HTMLDivElement>(null);
   const [editing, setEditing] = useState<EditRequest | null>(null);
   const sync = useRef<TutorSync | null>(null);
@@ -54,12 +56,13 @@ export default function App({ onHome }: { onHome: () => void }) {
         {editing && <TextEditor key={editing.element.id} request={editing} appearance={appearance} onDone={() => setEditing(null)} />}
         <TitleBar onHome={onHome} />
         <ActionsBar appearance={appearance} />
-        {timerOpen && <Timer />}
+        {timer.mounted && <Timer leaving={timer.leaving} />}
         <SelectionBar />
         <ToolDock appearance={appearance} />
         <ZoomBar />
       </main>
       <PagesPanel appearance={appearance} />
+      <EquationSheet appearance={appearance} />
       <FpsMeter />
     </GlassProvider>
   );
