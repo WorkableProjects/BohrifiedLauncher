@@ -31,6 +31,8 @@ export interface UIState {
   appearance: AppearancePref;
   /** null until the first-run question is answered. */
   device: DevicePref | null;
+  /** First name for the Home welcome; null until asked, '' if skipped. */
+  name: string | null;
   /** WebGL Liquid Glass on toolbars (falls back to CSS blur when off). */
   liquidGlass: boolean;
   selection: ReadonlySet<string>;
@@ -39,12 +41,14 @@ export interface UIState {
   curtain: { on: boolean; y: number };
   /** LaTeX equation sheet; `editId` re-edits an existing equation. */
   equation: { open: boolean; editId: string | null };
+  /** Elements app (science presets such as the Bohr model). */
+  elementsOpen: boolean;
   /** Transient HUD message (e.g. "Shape snapped"). */
   toast: string | null;
 }
 
 const PREFS_KEY = 'flow:prefs:v1';
-const PERSISTED: (keyof UIState)[] = ['pen', 'highlighter', 'shape', 'text', 'noteTint', 'textKind', 'eraserSize', 'snapShapes', 'appearance', 'liquidGlass', 'shapeKind', 'device'];
+const PERSISTED: (keyof UIState)[] = ['pen', 'highlighter', 'shape', 'text', 'noteTint', 'textKind', 'eraserSize', 'snapShapes', 'appearance', 'liquidGlass', 'shapeKind', 'device', 'name'];
 
 const initial: UIState = {
   tool: 'pen',
@@ -59,12 +63,14 @@ const initial: UIState = {
   snapShapes: true,
   appearance: 'system',
   device: null,
+  name: null,
   liquidGlass: true,
   selection: new Set(),
   pagesOpen: false,
   timerOpen: false,
   curtain: { on: false, y: 0.45 },
   equation: { open: false, editId: null },
+  elementsOpen: false,
   toast: null,
 };
 
@@ -119,4 +125,9 @@ export const setTool = (tool: Tool) =>
     ...(tool === 'text' || tool === 'note' ? { textKind: tool } : {}),
   });
 
-export const openEquation = (editId: string | null = null) => ui.set({ equation: { open: true, editId } });
+// The two app sheets share a spot at the top right, so opening one closes the other.
+export const openEquation = (editId: string | null = null) => ui.set({ equation: { open: true, editId }, elementsOpen: false });
+export const openElements = () => ui.set({ elementsOpen: true, equation: { open: false, editId: null } });
+
+/** Forget the user profile so the first-launch welcome runs again. Lessons are kept. */
+export const resetProfile = () => ui.set({ name: null, device: null });

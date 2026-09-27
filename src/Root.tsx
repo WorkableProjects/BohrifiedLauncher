@@ -17,6 +17,7 @@ type Screen = 'loading' | 'home' | 'board';
 export function Root() {
   useAppearance();
   const device = useUI((s) => s.device);
+  const name = useUI((s) => s.name);
   const [screen, setScreen] = useState<Screen>('loading');
 
   useEffect(() => {
@@ -48,7 +49,7 @@ export function Root() {
       )}
       {screen === 'home' && <Home onOpen={() => setScreen('board')} />}
       {screen === 'board' && <App onHome={goHome} />}
-      {screen === 'home' && !device && <Onboarding />}
+      {screen === 'home' && (!device || name === null) && <Onboarding />}
       <Toast />
     </>
   );

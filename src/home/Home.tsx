@@ -3,7 +3,7 @@ import { Icon, type IconName } from '../icons/Icon';
 import { deleteLesson, listLessons, type LessonSummary } from '../engine/persistence';
 import type { Background } from '../engine/types';
 import { importLesson, newLesson, openLesson } from '../state/lessons';
-import { toast, ui, useUI, type AppearancePref, type DevicePref } from '../state/ui';
+import { resetProfile, toast, ui, useUI, type AppearancePref, type DevicePref } from '../state/ui';
 import { Segmented } from '../ui/controls';
 import { Logo } from '../ui/Logo';
 import { Popover } from '../ui/Popover';
@@ -92,6 +92,7 @@ export function Home({ onOpen }: { onOpen: () => void }) {
   const settingsRef = useRef<HTMLButtonElement>(null);
   const appearance = useUI((s) => s.appearance);
   const device = useUI((s) => s.device);
+  const name = useUI((s) => s.name);
 
   const refresh = () => listLessons().then(setLessons);
   useEffect(() => {
@@ -161,8 +162,17 @@ export function Home({ onOpen }: { onOpen: () => void }) {
 
         {/* Hero */}
         <section className="mt-6 sm:mt-10">
-          <p className="text-subhead font-semibold text-label-2">{greeting()}</p>
-          <h1 className="mt-1 text-large-title font-bold tracking-title sm:text-[44px] sm:leading-[1.1]">Ready to teach?</h1>
+          <p className="text-subhead font-semibold text-label-2">{name ? `${greeting()}, ${name}` : greeting()}</p>
+          <h1 className="mt-1 text-large-title font-bold tracking-title sm:text-[44px] sm:leading-[1.1]">
+            {name ? (
+              <>
+                Welcome, <span className="text-tint">{name}</span>.
+              </>
+            ) : (
+              'Ready to teach?'
+            )}
+          </h1>
+          {name && <p className="mt-2 text-body text-label-2">Ready to teach? Start a lesson or pick up where you left off.</p>}
           <div className="mt-6 flex flex-wrap gap-3">
             <button
               type="button"
@@ -265,6 +275,31 @@ export function Home({ onOpen }: { onOpen: () => void }) {
             { value: 'system', label: 'Auto' },
           ]}
         />
+        <div className="mt-4 border-t border-hairline pt-3">
+          <p className="mb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Profile</p>
+          <label className="flex min-h-11 items-center gap-3">
+            <Icon name="person" size={22} className="text-label-2" />
+            <input
+              value={name ?? ''}
+              onChange={(e) => ui.set({ name: e.target.value.slice(0, 40) })}
+              onBlur={(e) => ui.set({ name: e.target.value.trim().replace(/\s+/g, ' ') })}
+              placeholder="First name"
+              aria-label="First name"
+              className="h-9 min-w-0 flex-1 rounded-[10px] bg-fill px-3 text-body text-label outline-none placeholder:text-label-3 focus:shadow-[0_0_0_2px_var(--tint)]"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              if (!window.confirm('Reset your profile? Flow will forget your name and device choice and show the welcome again. Your lessons are kept.')) return;
+              setSettings(false);
+              resetProfile();
+            }}
+            className="spring mt-2 flex h-11 w-full items-center justify-center rounded-full bg-fill text-subhead font-semibold text-danger hover:bg-fill-2 active:scale-[0.98]"
+          >
+            Reset Profile
+          </button>
+        </div>
       </Popover>
     </div>
   );

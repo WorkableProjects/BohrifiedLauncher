@@ -90,6 +90,8 @@ const ICONS = {
   underline: 'underline',
   equation: 'x.squareroot',
   textBox: 'character.textbox',
+  atom: 'atom',
+  person: 'person.crop.circle',
 };
 
 async function load(name) {

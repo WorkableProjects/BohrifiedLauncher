@@ -18,7 +18,7 @@ import {
   undo,
 } from '../state/actions';
 import { board, useBoard } from '../state/board';
-import { openEquation, setTool, ui, useUI, type AppearancePref, type DevicePref } from '../state/ui';
+import { openElements, openEquation, setTool, ui, useUI, type AppearancePref, type DevicePref } from '../state/ui';
 import { markIsOn, setMark, spansOf, withSpans } from '../engine/richtext';
 import type { EquationElement, TextElement } from '../engine/types';
 import { FormatButtons, FORMATS, type FormatSpec, type MarkState } from './FormatBar';
@@ -160,10 +160,11 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
 
       <Popover open={menu === 'apps'} onClose={close} anchor={appsRef} placement="bottom" label="Apps" className="w-[320px] max-w-[calc(100vw-24px)] p-2">
         <p className="px-2 pt-1 pb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Apps</p>
-        <div className="grid grid-cols-2 gap-1.5">
+        <div className="grid grid-cols-2 gap-1.5 [&>*:last-child:nth-child(odd)]:col-span-2">
           <AppTile icon="timer" color="#FF9500" label="Timer" detail={timerOpen ? 'On' : 'Countdown'} on={timerOpen} onClick={() => ui.set({ timerOpen: !timerOpen })} />
           <AppTile icon="curtain" color="#5856D6" label="Screen Hider" detail={curtain ? 'On' : 'Reveal steps'} on={curtain} shortcut="C" onClick={() => ui.set({ curtain: { ...ui.get().curtain, on: !curtain } })} />
           <AppTile icon="equation" color="var(--brand)" label="LaTeX Equation" detail="Typeset math" onClick={() => { close(); openEquation(); }} />
+          <AppTile icon="atom" color="#34C759" label="Elements" detail="Bohr model & more" onClick={() => { close(); openElements(); }} />
           <AppTile icon="textBox" color="#007AFF" label="Text" detail="Rich text & notes" shortcut="T" onClick={() => { close(); setTool(ui.get().textKind); }} />
         </div>
       </Popover>

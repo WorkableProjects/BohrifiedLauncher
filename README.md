@@ -6,7 +6,7 @@ A fast whiteboard for online tutoring, built to Apple's design language. Floatin
 npm install
 npm run dev -- --host        # http://localhost:5173
 npm run build      # typecheck + production build
-npm test           # unit tests (store/history, geometry, shape recognition, rich text)
+npm test           # unit tests (store/history, geometry, shape recognition, rich text, presets)
 npm run e2e        # end-to-end smoke test in Chromium (after build)
 npm run perf       # canvas benchmark in Chromium (after build)
 ```
@@ -15,7 +15,7 @@ npm run perf       # canvas benchmark in Chromium (after build)
 
 **Home & onboarding**
 - Welcome screen with **Recent Lessons** (thumbnails, last edited, page count, search, delete), a **New Lesson** button, **Start with** paper templates, and **Open File…**
-- First launch asks **Tablet/Phone or Desktop/Laptop** (pre-selected from the pointer type) and tunes the UI: touch-first means no hover-only controls and pinch to zoom; desktop means a zoom bar, shortcut hints and the student-view window. You can change it anytime in Settings
+- First launch asks for your **first name** (Home greets you with it), then **Tablet/Phone or Desktop/Laptop** (pre-selected from the pointer type) and tunes the UI: touch-first means no hover-only controls and pinch to zoom; desktop means a zoom bar, shortcut hints and the student-view window. You can change either anytime in Settings, or **Reset Profile** (Home › Settings) to run the welcome again; lessons are kept
 - Lessons autosave to an on-device library (IndexedDB). Untouched new lessons aren't kept. Deep links: `?lesson=new`, `?lesson=<id>`
 
 **Drawing**
@@ -27,7 +27,8 @@ npm run perf       # canvas benchmark in Chromium (after build)
 - Infinite canvas: pinch or ⌘-scroll to zoom, two-finger or space-drag to pan. Palm rejection once a stylus is detected
 
 **Apps** (top-right ▦ menu)
-- **Timer**, **Screen Hider**, **LaTeX Equation** and **Text**, in one place
+- **Timer**, **Screen Hider**, **LaTeX Equation**, **Elements** and **Text**, in one place
+- **Elements:** science resources in a few clicks. The **Bohr model** preset asks for 1–5 energy levels and places a nucleus (with `p =` / `n =` to fill in) plus one ring per level, as ordinary editable shapes and text, selected together so you can move or resize it
 - **LaTeX Equation:** type TeX, watch it typeset live, insert it as a vector object. Move, resize (it stays sharp at any zoom), and double-click or tap **Edit** to change it. MathJax loads only when the sheet first opens
 
 **For tutoring**
@@ -60,6 +61,7 @@ src/
     renderer.ts    element + background painting
     richtext.ts    rich text spans: marks registry, wrap/measure, editor HTML ⇄ spans
     latex.ts       lazy MathJax: TeX → self-contained SVG
+    presets.ts     Elements presets (Bohr model) built from board elements
     tiles.ts       tiled raster cache for the committed scene
     recognize.ts   hold-to-snap shape recognition
     sync.ts        BroadcastChannel tutor ↔ student view
@@ -67,7 +69,7 @@ src/
   canvas/
     controller.ts  pointer input, tools, frame loop (outside React)
     transitions.ts page slide / crossfade from a snapshot of the last frame
-    BoardCanvas.tsx / TextEditor.tsx (contenteditable rich text)
+    BoardCanvas.tsx / TextEditor.tsx (contenteditable rich text, presets)
   home/          Home (welcome + recents) and first-run onboarding
   state/         UI prefs, lesson lifecycle, actions
   ui/            glass toolbars, bubble, Apps, equation sheet, format bar, inspector, pages, timer, curtain

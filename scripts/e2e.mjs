@@ -38,11 +38,15 @@ try {
 
   // First launch: welcome sheet asks for the device type.
   const welcome = page.getByRole('dialog', { name: 'Welcome to Flow' });
-  check('first launch asks mobile vs desktop', await welcome.isVisible());
+  check('first launch asks for a first name', await page.getByRole('textbox', { name: 'First name' }).isVisible());
+  await page.getByRole('textbox', { name: 'First name' }).fill('Caden');
+  await page.getByRole('button', { name: 'Continue' }).click();
+  check('then asks mobile vs desktop', await page.getByRole('radio', { name: /Desktop or Laptop/ }).isVisible());
   await page.getByRole('radio', { name: /Desktop or Laptop/ }).click();
   await page.getByRole('button', { name: 'Continue' }).click();
   check('device choice is applied', (await page.evaluate(() => document.documentElement.dataset.device)) === 'desktop' && !(await welcome.isVisible()));
   check('home shows empty recents', await page.getByText('No lessons yet').isVisible());
+  check('home welcomes the user by name', await page.getByRole('heading', { name: 'Welcome, Caden.' }).isVisible());
 
   await page.getByRole('button', { name: 'New Lesson' }).click();
   await page.waitForFunction(() => !!window.__flowBoard);
@@ -114,6 +118,19 @@ try {
   await page.keyboard.press('Control+z');
   check('equation insert is undoable', !(await types()).includes('equation'));
 
+  // Elements: a Bohr model with three energy levels = nucleus + 3 rings + p/n labels.
+  const before = (await types()).filter((t) => t === 'ellipse').length;
+  await page.getByRole('button', { name: 'Apps' }).click();
+  await page.getByRole('button', { name: /Elements/ }).click();
+  await page.getByRole('radio', { name: '3 energy levels' }).click();
+  await page.getByRole('dialog', { name: 'Elements' }).getByRole('button', { name: 'Insert', exact: true }).click();
+  const bohr = await page.evaluate(() => {
+    const els = window.__flowBoard.page.elements;
+    return { rings: els.filter((e) => e.type === 'shape' && e.kind === 'ellipse').length, labels: els.filter((e) => e.type === 'text' && /^[pn] =$/.test(e.text)).length };
+  });
+  check('Elements inserts a Bohr model with 3 energy levels', bohr.rings - before === 4 && bohr.labels === 2, JSON.stringify(bohr));
+  await page.keyboard.press('Control+z');
+
   await page.keyboard.press('v');
   await page.keyboard.press('Control+a');
   await page.keyboard.press('Control+d');
@@ -145,6 +162,13 @@ try {
   await page.waitForFunction(() => window.__flowBoard.doc.pages.length === 2);
   const persisted = await page.evaluate(() => window.__flowBoard.doc.pages.map((p) => p.elements.length));
   check('lesson reopens from Recents after reload', persisted.join() === `${n},0`, persisted.join());
+
+  // Reset Profile brings back the first-launch welcome.
+  await page.getByRole('button', { name: 'All lessons' }).click().catch(() => {});
+  page.once('dialog', (d) => d.accept());
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('button', { name: 'Reset Profile' }).click();
+  check('Reset Profile shows the welcome again', await page.getByRole('textbox', { name: 'First name' }).isVisible());
 
   check('no uncaught errors', errors.length === 0, errors.join(' | '));
 } finally {
