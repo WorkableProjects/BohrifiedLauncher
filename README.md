@@ -4,7 +4,7 @@ A fast whiteboard for online tutoring, built to Apple's design language. Floatin
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173
+npm run dev -- --host        # http://localhost:5173
 npm run build      # typecheck + production build
 npm test           # unit tests (store/history, geometry, shape recognition)
 npm run e2e        # end-to-end smoke test in Chromium (after build)
