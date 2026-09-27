@@ -16,6 +16,7 @@ import {
   worldToScreen,
   zoomAt,
 } from '../engine/geometry';
+import { snapToRing } from '../engine/presets';
 import { recognize, type Recognized } from '../engine/recognize';
 import { drawBackground, drawElement, HIGHLIGHT_ALPHA, setWorldTransform } from '../engine/renderer';
 import { quantizeScale, TileCache } from '../engine/tiles';
@@ -427,6 +428,20 @@ export class CanvasController {
       ctx.stroke();
     }
 
+    // Dot tool: a ghost shows where the dot will land (snapped onto a ring when close).
+    if (tool === 'dot' && this.hover && !this.readOnly) {
+      const at = this.dotPlacement(this.hover);
+      const s = worldToScreen(this.camera, at.x, at.y);
+      const r = ui.get().dot.size / 2;
+      this.liveRects.push({ x: s.x - r - 3, y: s.y - r - 3, w: r * 2 + 6, h: r * 2 + 6 });
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+      ctx.globalAlpha = at.snapped ? 0.6 : 0.35;
+      ctx.fillStyle = this.theme.resolve(ui.get().dot.color);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
     const now = Date.now();
     const a = this.drawLaser(ctx, this.laser, now);
     const b = this.drawLaser(ctx, this.remoteLaser, now);
@@ -624,7 +639,7 @@ export class CanvasController {
     let cursor = 'default';
     if (this.readOnly) cursor = 'default';
     else if (this.spaceDown || tool === 'hand') cursor = panning ? 'grabbing' : 'grab';
-    else if (tool === 'pen' || tool === 'highlighter' || tool === 'shape') cursor = 'crosshair';
+    else if (tool === 'pen' || tool === 'highlighter' || tool === 'shape' || tool === 'dot') cursor = 'crosshair';
     else if (tool === 'eraser' || tool === 'laser') cursor = 'none';
     else if (tool === 'text' || tool === 'note') cursor = 'text';
     this.live.style.cursor = cursor;
@@ -728,6 +743,12 @@ export class CanvasController {
         }
         break;
       }
+      case 'dot': {
+        const st = ui.get().dot;
+        const at = this.dotPlacement(p);
+        this.store.addElements([{ id: uid(), type: 'dot', x: at.x, y: at.y, r: st.size / 2 / this.camera.z, color: st.color }]);
+        break;
+      }
       case 'select':
         this.beginSelect(e, p, world);
         break;
@@ -775,6 +796,13 @@ export class CanvasController {
     }
   }
 
+  /** World position for a dot placed at screen point `p`. */
+  private dotPlacement(p: Vec): Vec & { snapped: boolean } {
+    const world = screenToWorld(this.camera, p.x, p.y);
+    if (!ui.get().snapDots) return { ...world, snapped: false };
+    return snapToRing(this.store.page.elements, world, 16 / this.camera.z);
+  }
+
   private hitTop(world: Vec, r: number): BoardElement | null {
     const els = this.store.page.elements;
     for (let i = els.length - 1; i >= 0; i--) if (hitTestPoint(els[i], world, r)) return els[i];
@@ -818,7 +846,7 @@ export class CanvasController {
     const tool = ui.get().tool;
 
     if (!it) {
-      if (tool === 'eraser' || tool === 'laser') {
+      if (tool === 'eraser' || tool === 'laser' || tool === 'dot') {
         this.liveDirty = true;
         this.schedule();
       }

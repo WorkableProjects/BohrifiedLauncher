@@ -21,6 +21,7 @@ const INK: { tool: Tool; icon: IconName; label: string; key: string }[] = [
   { tool: 'eraser', icon: 'eraser', label: 'Eraser', key: 'E' },
   { tool: 'laser', icon: 'laser', label: 'Laser pointer', key: 'L' },
   { tool: 'shape', icon: 'shapes', label: 'Shapes', key: 'S' },
+  { tool: 'dot', icon: 'dot', label: 'Dot', key: 'D' },
   { tool: 'text', icon: 'text', label: 'Text', key: 'T' },
 ];
 
@@ -45,6 +46,8 @@ function currentColor(s: UIState): string | null {
       return s.text.color;
     case 'note':
       return s.noteTint;
+    case 'dot':
+      return s.dot.color;
     default:
       return null;
   }
@@ -189,8 +192,8 @@ function SizeRow({ presets, value, onPick, dot }: { presets: number[]; value: nu
 function ToolShelf({ appearance, onMore }: { appearance: Appearance; onMore: () => void }) {
   const s = useUI((x) => x);
   const tool = s.tool;
-  const kind: 'ink' | 'shape' | 'text' | 'eraser' | null =
-    tool === 'pen' || tool === 'highlighter' ? 'ink' : tool === 'shape' ? 'shape' : tool === 'text' || tool === 'note' ? 'text' : tool === 'eraser' ? 'eraser' : null;
+  const kind: 'ink' | 'shape' | 'text' | 'eraser' | 'dot' | null =
+    tool === 'dot' ? 'dot' : tool === 'pen' || tool === 'highlighter' ? 'ink' : tool === 'shape' ? 'shape' : tool === 'text' || tool === 'note' ? 'text' : tool === 'eraser' ? 'eraser' : null;
   // Keep the last layout while it animates out.
   const shown = useRef(kind);
   if (kind) shown.current = kind;
@@ -206,6 +209,25 @@ function ToolShelf({ appearance, onMore }: { appearance: Appearance; onMore: () 
         <SwatchRow colors={QUICK_COLORS} value={st.color} onPick={(c) => ui.set({ [key]: { ...st, color: c } } as Partial<UIState>)} appearance={appearance} />
         <Divider />
         <SizeRow presets={SIZES[key].presets} value={st.size} onPick={(n) => ui.set({ [key]: { ...st, size: n } } as Partial<UIState>)} dot={(_n, i) => (key === 'highlighter' ? 8 + i * 5 : 4 + i * 4)} />
+      </>
+    );
+  } else if (layout === 'dot') {
+    body = (
+      <>
+        <SwatchRow colors={QUICK_COLORS} value={s.dot.color} onPick={(c) => ui.set({ dot: { ...s.dot, color: c } })} appearance={appearance} />
+        <Divider />
+        <SizeRow presets={SIZES.dot.presets} value={s.dot.size} onPick={(n) => ui.set({ dot: { ...s.dot, size: n } })} dot={(n) => n} />
+        <Divider />
+        <button
+          type="button"
+          role="switch"
+          aria-checked={s.snapDots}
+          title="Snap dots onto circles (Bohr model orbits)"
+          onClick={() => ui.set({ snapDots: !s.snapDots })}
+          className={`spring flex h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-footnote font-semibold ${s.snapDots ? 'bg-tint-soft text-on-tint-soft' : 'text-label-2 hover:bg-fill'}`}
+        >
+          <Icon name="atom" size={16} /> Snap
+        </button>
       </>
     );
   } else if (layout === 'shape') {

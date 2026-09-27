@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bohrModel, MAX_ENERGY_LEVELS } from './presets';
+import { bohrModel, MAX_ENERGY_LEVELS, snapToRing } from './presets';
 
 const opts = { cx: 100, cy: 50, unit: 1, color: 'label' };
 const rings = (n: number) => bohrModel(n, opts).filter((e) => e.type === 'shape');
@@ -32,5 +32,22 @@ describe('Bohr model preset', () => {
     const [b] = bohrModel(1, { ...opts, unit: 2 });
     if (a.type !== 'shape' || b.type !== 'shape') throw new Error('expected nucleus');
     expect(b.x2 - b.x1).toBe((a.x2 - a.x1) * 2);
+  });
+});
+
+describe('snapToRing', () => {
+  const els = bohrModel(2, { cx: 0, cy: 0, unit: 1, color: 'label' });
+  it('puts a dot dropped near an orbit exactly on it', () => {
+    // Second ring radius: 56 + 2 * 40 = 136.
+    const p = snapToRing(els, { x: 130, y: 5 }, 16);
+    expect(p.snapped).toBe(true);
+    expect(Math.hypot(p.x, p.y)).toBeCloseTo(136, 5);
+  });
+  it('leaves a dot alone when no ring is close', () => {
+    expect(snapToRing(els, { x: 300, y: 300 }, 16)).toEqual({ x: 300, y: 300, snapped: false });
+  });
+  it('picks the nearest of several rings', () => {
+    const p = snapToRing(els, { x: 100, y: 0 }, 16); // ring 1 at 96
+    expect(p.x).toBeCloseTo(96, 5);
   });
 });

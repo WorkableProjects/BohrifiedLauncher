@@ -118,7 +118,18 @@ export interface EquationElement extends ElementBase {
   color: ColorToken;
 }
 
-export type BoardElement = StrokeElement | ShapeElement | TextElement | ImageElement | EquationElement;
+/** A solid dot — electrons on a Bohr model, points on a graph. */
+export interface DotElement extends ElementBase {
+  type: 'dot';
+  /** Centre. */
+  x: number;
+  y: number;
+  /** Radius in world units. */
+  r: number;
+  color: ColorToken;
+}
+
+export type BoardElement = StrokeElement | ShapeElement | TextElement | ImageElement | EquationElement | DotElement;
 
 export type Background = 'blank' | 'dots' | 'grid' | 'lined' | 'graph';
 
@@ -156,4 +167,5 @@ export type Tool =
   | 'laser'
   | 'shape'
   | 'text'
-  | 'note';
+  | 'note'
+  | 'dot';

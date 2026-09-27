@@ -64,3 +64,29 @@ export function bohrModel(levels: number, o: PresetOptions): BoardElement[] {
 
 /** Outer radius in screen px, for previews and fitting. */
 export const bohrRadius = (levels: number) => BOHR.nucleus + Math.min(MAX_ENERGY_LEVELS, Math.max(1, levels)) * BOHR.gap;
+
+/**
+ * Where a dot dropped at `p` should land: exactly on the nearest circle or
+ * ellipse outline within `tol` (world units), otherwise where it was
+ * dropped. Lets electrons sit neatly on Bohr model orbits.
+ */
+export function snapToRing(elements: readonly BoardElement[], p: { x: number; y: number }, tol: number): { x: number; y: number; snapped: boolean } {
+  let best: { x: number; y: number } | null = null;
+  let bestD = tol;
+  for (const el of elements) {
+    if (el.type !== 'shape' || el.kind !== 'ellipse') continue;
+    const cx = (el.x1 + el.x2) / 2, cy = (el.y1 + el.y2) / 2;
+    const rx = Math.abs(el.x2 - el.x1) / 2, ry = Math.abs(el.y2 - el.y1) / 2;
+    if (rx < 1e-6 || ry < 1e-6) continue;
+    const nx = (p.x - cx) / rx, ny = (p.y - cy) / ry;
+    const len = Math.hypot(nx, ny);
+    if (len < 1e-6) continue;
+    const q = { x: cx + (rx * nx) / len, y: cy + (ry * ny) / len };
+    const d = Math.hypot(q.x - p.x, q.y - p.y);
+    if (d < bestD) {
+      bestD = d;
+      best = q;
+    }
+  }
+  return best ? { ...best, snapped: true } : { ...p, snapped: false };
+}

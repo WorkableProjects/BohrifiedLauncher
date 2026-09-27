@@ -91,6 +91,7 @@ const ICONS = {
   equation: 'x.squareroot',
   textBox: 'character.textbox',
   atom: 'atom',
+  dot: 'circle.fill',
   person: 'person.crop.circle',
 };
 

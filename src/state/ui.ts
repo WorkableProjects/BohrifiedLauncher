@@ -23,6 +23,10 @@ export interface UIState {
   shape: ToolStyle & { fill: boolean };
   text: ToolStyle;
   noteTint: ColorToken;
+  /** Dot tool: color and diameter in screen px. */
+  dot: ToolStyle;
+  /** Dots dropped near a circle land exactly on it (Bohr model orbits). */
+  snapDots: boolean;
   /** Which kind the Text tool places: a free text box or a sticky note. */
   textKind: 'text' | 'note';
   eraserSize: number;
@@ -48,7 +52,7 @@ export interface UIState {
 }
 
 const PREFS_KEY = 'flow:prefs:v1';
-const PERSISTED: (keyof UIState)[] = ['pen', 'highlighter', 'shape', 'text', 'noteTint', 'textKind', 'eraserSize', 'snapShapes', 'appearance', 'liquidGlass', 'shapeKind', 'device', 'name'];
+const PERSISTED: (keyof UIState)[] = ['pen', 'highlighter', 'shape', 'text', 'noteTint', 'dot', 'snapDots', 'textKind', 'eraserSize', 'snapShapes', 'appearance', 'liquidGlass', 'shapeKind', 'device', 'name'];
 
 const initial: UIState = {
   tool: 'pen',
@@ -58,6 +62,8 @@ const initial: UIState = {
   shape: { color: 'blue', size: 4, fill: false },
   text: { color: 'label', size: 28 },
   noteTint: 'yellow',
+  dot: { color: 'label', size: 12 },
+  snapDots: true,
   textKind: 'text',
   eraserSize: 16,
   snapShapes: true,

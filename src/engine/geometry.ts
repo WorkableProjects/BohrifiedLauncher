@@ -128,6 +128,9 @@ export function elementBounds(el: BoardElement): Rect {
     case 'equation':
       r = { x: el.x, y: el.y, w: el.w, h: el.h };
       break;
+    case 'dot':
+      r = { x: el.x - el.r, y: el.y - el.r, w: el.r * 2, h: el.r * 2 };
+      break;
   }
   boundsCache.set(el, r);
   return r;
@@ -235,6 +238,8 @@ export function hitTestPoint(el: BoardElement, p: Vec, r: number): boolean {
     case 'image':
     case 'equation':
       return true;
+    case 'dot':
+      return (p.x - el.x) ** 2 + (p.y - el.y) ** 2 <= (el.r + r) ** 2;
   }
 }
 
@@ -264,6 +269,8 @@ export function hitTestSegment(el: BoardElement, ax: number, ay: number, bx: num
     case 'image':
     case 'equation':
       return hitTestPoint(el, { x: bx, y: by }, r);
+    case 'dot':
+      return distToSegmentSq(el.x, el.y, ax, ay, bx, by) <= (el.r + r) ** 2;
   }
 }
 
@@ -285,6 +292,7 @@ export function translateElement<T extends BoardElement>(el: T, dx: number, dy: 
     case 'text':
     case 'image':
     case 'equation':
+    case 'dot':
       return { ...el, x: el.x + dx, y: el.y + dy };
   }
   return el;
@@ -316,6 +324,8 @@ export function scaleElement<T extends BoardElement>(el: T, ox: number, oy: numb
     case 'image':
     case 'equation':
       return { ...el, x: sx(el.x), y: sy(el.y), w: el.w * s, h: el.h * s };
+    case 'dot':
+      return { ...el, x: sx(el.x), y: sy(el.y), r: el.r * s };
   }
   return el;
 }

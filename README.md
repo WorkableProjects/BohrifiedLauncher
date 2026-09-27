@@ -6,7 +6,7 @@ A fast whiteboard for online tutoring, built to Apple's design language. Floatin
 npm install
 npm run dev -- --host        # http://localhost:5173
 npm run build      # typecheck + production build
-npm test           # unit tests (store/history, geometry, shape recognition, rich text, presets)
+npm test           # unit tests (store/history, geometry, shape recognition, rich text, presets, dot snapping)
 npm run e2e        # end-to-end smoke test in Chromium (after build)
 npm run perf       # canvas benchmark in Chromium (after build)
 ```
@@ -21,6 +21,7 @@ npm run perf       # canvas benchmark in Chromium (after build)
 **Drawing**
 - Pen with real stylus pressure (simulated for mouse/touch), highlighter, whole-stroke eraser, laser pointer with a fading trail
 - Shapes: rectangle, ellipse, triangle, line, arrow. Optional fill. Hold ⇧ to constrain
+- **Dot tool** (`D`): tap to place solid dots in three quick sizes (or any size from 4–40 px) and any color. Made for Bohr models: with **Snap** on, a dot tapped near a circle lands exactly on it, and a ghost shows where it will go
 - **Hold to snap:** draw a rough line, circle, rectangle or triangle and pause. It becomes a clean vector shape, as in Apple Notes
 - **Rich text** boxes and sticky notes (one Text tool, two kinds): **bold**, *italic* and underline right on the canvas, from the floating format bar or ⌘B / ⌘I / ⌘U, and on selected text from the selection bar
 - Images (button, paste or drag-and-drop), select / marquee / move / scale, duplicate, z-order
@@ -28,7 +29,7 @@ npm run perf       # canvas benchmark in Chromium (after build)
 
 **Apps** (top-right ▦ menu)
 - **Timer**, **Screen Hider**, **LaTeX Equation**, **Elements** and **Text**, in one place
-- **Elements:** science resources in a few clicks. The **Bohr model** preset asks for 1–5 energy levels and places a nucleus (with `p =` / `n =` to fill in) plus one ring per level, as ordinary editable shapes and text, selected together so you can move or resize it
+- **Elements:** science resources in a few clicks. The **Bohr model** preset asks for 1–5 energy levels and places a nucleus (with `p =` / `n =` to fill in) plus one ring per level, as ordinary editable shapes and text, selected together so you can move or resize it. Add electrons with the Dot tool
 - **LaTeX Equation:** type TeX, watch it typeset live, insert it as a vector object. Move, resize (it stays sharp at any zoom), and double-click or tap **Edit** to change it. MathJax loads only when the sheet first opens
 
 **For tutoring**
@@ -46,8 +47,12 @@ npm run perf       # canvas benchmark in Chromium (after build)
 - Spring easing (`cubic-bezier(.32,.72,0,1)`). Honors Reduce Motion and Reduce Transparency
 - **Motion:** the selected tool is a single liquid bubble that flows between buttons (leading edge first, trailing edge catching up). Pages slide, paper and appearance changes crossfade, menus and sheets animate out as well as in
 - **Material:** toolbar glass has soft blur and gentle rim refraction, with no specular highlights or white glow and only a trace of shadow, so it sits in the canvas rather than floating over it
-- **Contextual layout:** a compact shelf above the dock changes with the tool (colors and weights for ink, kinds for shapes, Text / Sticky for text, sizes for the eraser) and swaps places with the selection bar, which adds formatting for text and Edit for equations
+- **Contextual layout:** a compact shelf above the dock changes with the tool (colors and weights for ink, kinds for shapes, Text / Sticky for text, colors, sizes and Snap for dots, sizes for the eraser) and swaps places with the selection bar, which adds formatting for text and Edit for equations
 - **Brand:** primary accent `#FF6083` is the app tint; secondary accent `#FFD3D6` backs tinted controls. The logo has light and dark artwork; on Home it fills the window height as a fixed background (50%, running off the left edge) on a page tinted to match its tile (`#FFD8DA` / `#070005`), with a barely-visible glitter
+
+## Version
+
+Current release: **1.0.55** (shown at the bottom of Home).
 
 ## Architecture
 
@@ -61,7 +66,7 @@ src/
     renderer.ts    element + background painting
     richtext.ts    rich text spans: marks registry, wrap/measure, editor HTML ⇄ spans
     latex.ts       lazy MathJax: TeX → self-contained SVG
-    presets.ts     Elements presets (Bohr model) built from board elements
+    presets.ts     Elements presets (Bohr model) and dot-to-ring snapping
     tiles.ts       tiled raster cache for the committed scene
     recognize.ts   hold-to-snap shape recognition
     sync.ts        BroadcastChannel tutor ↔ student view

@@ -243,6 +243,7 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
               ['V · H', 'Select · Pan'],
               ['P · M · E', 'Pen · Highlighter · Eraser'],
               ['L', 'Laser pointer'],
+              ['D', 'Dot (snaps to rings)'],
               ['S · R · O · A', 'Shapes · Rect · Ellipse · Arrow'],
               ['T · N · I', 'Text · Sticky note · Image'],
               ['⌘B · ⌘I · ⌘U', 'Bold · Italic · Underline'],

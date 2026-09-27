@@ -340,6 +340,12 @@ export function drawElement(ctx: CanvasRenderingContext2D, el: BoardElement, the
     case 'equation':
       drawEquation(ctx, el, theme);
       break;
+    case 'dot':
+      ctx.fillStyle = theme.resolve(el.color);
+      ctx.beginPath();
+      ctx.arc(el.x, el.y, el.r, 0, Math.PI * 2);
+      ctx.fill();
+      break;
   }
 }
 

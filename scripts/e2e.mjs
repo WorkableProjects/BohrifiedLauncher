@@ -129,6 +129,21 @@ try {
     return { rings: els.filter((e) => e.type === 'shape' && e.kind === 'ellipse').length, labels: els.filter((e) => e.type === 'text' && /^[pn] =$/.test(e.text)).length };
   });
   check('Elements inserts a Bohr model with 3 energy levels', bohr.rings - before === 4 && bohr.labels === 2, JSON.stringify(bohr));
+
+  // Dot tool: a tap near the outer orbit lands exactly on it.
+  const orbit = await page.evaluate(() => {
+    const els = window.__flowBoard.page.elements.filter((e) => e.type === 'shape' && e.kind === 'ellipse');
+    const o = els[els.length - 1];
+    const cam = window.__flowBoard.page.camera;
+    const cx = (o.x1 + o.x2) / 2, cy = (o.y1 + o.y2) / 2, r = (o.x2 - o.x1) / 2;
+    return { sx: (cx + r - cam.x) * cam.z - 6, sy: (cy - cam.y) * cam.z + 3, cx, cy, r };
+  });
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('d');
+  await page.mouse.click(orbit.sx, orbit.sy);
+  const dot = await page.evaluate(() => window.__flowBoard.page.elements.find((e) => e.type === 'dot'));
+  check('dot tool snaps onto a Bohr orbit', !!dot && Math.abs(Math.hypot(dot.x - orbit.cx, dot.y - orbit.cy) - orbit.r) < 0.01, JSON.stringify(dot && { x: dot.x, y: dot.y }));
+  await page.keyboard.press('Control+z');
   await page.keyboard.press('Control+z');
 
   await page.keyboard.press('v');

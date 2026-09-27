@@ -15,21 +15,22 @@ export const SHAPES: { kind: Exclude<ShapeKind, 'polygon'>; icon: IconName; labe
   { kind: 'arrow', icon: 'arrow', label: 'Arrow', key: 'A' },
 ];
 
-export const SIZES: Record<'pen' | 'highlighter' | 'shape' | 'text', { min: number; max: number; presets: number[] }> = {
+export const SIZES: Record<'pen' | 'highlighter' | 'shape' | 'text' | 'dot', { min: number; max: number; presets: number[] }> = {
   pen: { min: 1, max: 24, presets: [2, 4, 8] },
   highlighter: { min: 8, max: 48, presets: [14, 22, 34] },
   shape: { min: 1, max: 16, presets: [2, 4, 7] },
   text: { min: 12, max: 96, presets: [20, 28, 44] },
+  dot: { min: 4, max: 40, presets: [8, 12, 20] },
 };
 
 export const COLOR_NAMES: Record<string, string> = {
   label: 'Black', blue: 'Blue', red: 'Red', green: 'Green', orange: 'Orange', yellow: 'Yellow', purple: 'Purple', pink: 'Pink',
 };
 
-type StyledTool = 'pen' | 'highlighter' | 'shape' | 'text';
+type StyledTool = 'pen' | 'highlighter' | 'shape' | 'text' | 'dot';
 
 function styledTool(s: UIState): StyledTool {
-  if (s.tool === 'highlighter' || s.tool === 'shape' || s.tool === 'text') return s.tool;
+  if (s.tool === 'highlighter' || s.tool === 'shape' || s.tool === 'text' || s.tool === 'dot') return s.tool;
   return 'pen';
 }
 
@@ -160,8 +161,8 @@ export function Inspector({ open, onClose, anchor, appearance }: { open: boolean
                 <span
                   className="block rounded-full"
                   style={{
-                    width: Math.max(4, Math.min(26, p * (key === 'highlighter' ? 0.75 : 2.2))),
-                    height: Math.max(4, Math.min(26, p * (key === 'highlighter' ? 0.75 : 2.2))),
+                    width: Math.max(4, Math.min(26, p * (key === 'highlighter' ? 0.75 : key === 'dot' ? 1 : 2.2))),
+                    height: Math.max(4, Math.min(26, p * (key === 'highlighter' ? 0.75 : key === 'dot' ? 1 : 2.2))),
                     background: swatch(style.color, appearance),
                     opacity: key === 'highlighter' ? 0.5 : 1,
                   }}
@@ -188,6 +189,14 @@ export function Inspector({ open, onClose, anchor, appearance }: { open: boolean
             <Toggle checked={s.snapShapes} onChange={(v) => ui.set({ snapShapes: v })} label="Hold to snap shapes" />
           </Row>
           <p className="text-footnote text-label-2">Draw a line, circle or polygon and pause — it snaps to a clean shape.</p>
+        </div>
+      )}
+      {key === 'dot' && (
+        <div className="mt-2 border-t border-hairline pt-2">
+          <Row label="Snap to rings">
+            <Toggle checked={s.snapDots} onChange={(v) => ui.set({ snapDots: v })} label="Snap dots to rings" />
+          </Row>
+          <p className="text-footnote text-label-2">Tap near a circle, such as a Bohr model orbit, and the dot lands right on it.</p>
         </div>
       )}
       {key === 'shape' && (

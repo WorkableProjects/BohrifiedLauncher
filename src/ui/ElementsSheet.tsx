@@ -6,7 +6,7 @@ import { swatch, type Appearance } from '../engine/theme';
 import { usePresence } from '../hooks/usePresence';
 import { Icon, type IconName } from '../icons/Icon';
 import { board } from '../state/board';
-import { ui, useUI } from '../state/ui';
+import { toast, ui, useUI } from '../state/ui';
 import { BubbleGroup } from './Bubble';
 import { ToolButton } from './controls';
 
@@ -75,6 +75,7 @@ export function ElementsSheet({ appearance }: { appearance: Appearance }) {
     // Selected together, so it can be moved or resized as one diagram.
     ui.set({ tool: 'select', selection: new Set(els.map((e) => e.id)) });
     close();
+    toast('Tip: add electrons with the Dot tool (D)');
   };
 
   if (!mounted) return null;
