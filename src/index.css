@@ -300,8 +300,9 @@ input[type='range'].slider::-moz-range-thumb {
 
 /* ─── Home brand backdrop ──────────────────────────────────────────── */
 
-.brand-backdrop { opacity: 0.32; }
-:root[data-appearance='dark'] .brand-backdrop { opacity: 0.2; mix-blend-mode: screen; }
+/* Home's page color matches the icon tile, so the logo reads as part of the page. */
+.home-bg { background: #ffd8da; }
+:root[data-appearance='dark'] .home-bg { background: #070005; }
 
 .glitter-sheen {
   background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.55) 48%, transparent 60%);

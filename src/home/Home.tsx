@@ -141,8 +141,7 @@ export function Home({ onOpen }: { onOpen: () => void }) {
   };
 
   return (
-    <div className="fade-in relative h-full overflow-x-hidden overflow-y-auto bg-grouped" style={{ touchAction: 'pan-y' }}>
-      <BrandBackdrop />
+    <div className="home-bg fade-in relative h-full overflow-x-hidden overflow-y-auto" style={{ touchAction: 'pan-y' }}>
       <div className="relative mx-auto max-w-[1080px] px-4 pt-[max(16px,env(safe-area-inset-top))] pb-16 sm:px-8">
         {/* Nav bar */}
         <header className="flex h-14 items-center justify-end">
@@ -158,7 +157,10 @@ export function Home({ onOpen }: { onOpen: () => void }) {
         </header>
 
         {/* Hero */}
-        <section className="mt-6 sm:mt-10">
+        <section className="mt-2 flex items-center gap-8 max-lg:flex-col max-lg:items-start max-lg:gap-2">
+          {/* The logo runs off the left edge of the window, like the app icon tucked into the page. */}
+          <BrandBackdrop className="ml-[calc((100%-100vw)/2-20px)] w-[260px] lg:ml-[calc((100%-100vw)/2-36px)] lg:w-[440px]" />
+          <div className="min-w-0">
           <p className="text-subhead font-semibold text-label-2">{name ? `${greeting()}, ${name}` : greeting()}</p>
           <h1 className="mt-1 text-large-title font-bold tracking-title sm:text-[44px] sm:leading-[1.1]">
             {name ? (
@@ -181,10 +183,11 @@ export function Home({ onOpen }: { onOpen: () => void }) {
             <button
               type="button"
               onClick={importFile}
-              className="spring flex h-[50px] items-center gap-2 rounded-full bg-tint-soft px-6 text-headline font-semibold text-on-tint-soft active:scale-[0.97]"
+              className="spring flex h-[50px] items-center gap-2 rounded-full bg-cell px-6 text-headline font-semibold text-on-tint-soft shadow-[0_0_0_0.5px_var(--hairline)] active:scale-[0.97]"
             >
               <Icon name="folder" size={18} /> Open File…
             </button>
+          </div>
           </div>
         </section>
 
