@@ -298,6 +298,14 @@ input[type='range'].slider::-moz-range-thumb {
 @custom-variant mobile (&:where([data-device='mobile'], [data-device='mobile'] *));
 @custom-variant desktop (&:where([data-device='desktop'], [data-device='desktop'] *));
 
+/*
+ * Mobile favors performance: cheaper blur on glass, no Home fade-in.
+ * Toolbar and menu motion stays (short and GPU-friendly).
+ */
+[data-device='mobile'] .glass { -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+[data-device='mobile'] .sheet { -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+[data-device='mobile'] .home-bg.fade-in { animation: none; }
+
 /* ─── Home brand backdrop ──────────────────────────────────────────── */
 
 /* Home's page color matches the icon tile, so the logo reads as part of the page. */

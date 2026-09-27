@@ -4,7 +4,7 @@ import { Home } from './home/Home';
 import { Onboarding } from './home/Onboarding';
 import { useAppearance } from './hooks/useAppearance';
 import { closeCurrent, newLesson, openLesson } from './state/lessons';
-import { useUI } from './state/ui';
+import { lightweight, useUI } from './state/ui';
 import { Logo } from './ui/Logo';
 import { Toast } from './ui/Toast';
 
@@ -65,6 +65,12 @@ export function Root() {
   /** Home → Board: the lesson opens out of the tap; Home recedes behind it. */
   const openBoard = () => {
     clearTimeout(timer.current);
+    if (lightweight()) {
+      setBehind(null);
+      setMotion(null);
+      setScreen('board');
+      return;
+    }
     setOrigin(tapPoint());
     setBehind('home');
     // Hold the board closed until it has mounted and painted, so a heavy
@@ -91,6 +97,12 @@ export function Root() {
   const goHome = async () => {
     await closeCurrent();
     clearTimeout(timer.current);
+    if (lightweight()) {
+      setBehind(null);
+      setMotion(null);
+      setScreen('home');
+      return;
+    }
     setOrigin(tapPoint());
     setBehind('board');
     setMotion('close');

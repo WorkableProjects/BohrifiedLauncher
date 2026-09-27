@@ -117,6 +117,12 @@ export function useUI<T>(selector: (s: UIState) => T): T {
   return useSyncExternalStore(ui.subscribe, () => selector(state), () => selector(initial));
 }
 
+/**
+ * Mobile favors performance: decorative motion (Home ⇄ Board reveal, canvas
+ * page transitions, Home glitter) and WebGL glass are skipped. Toolbars stay.
+ */
+export const lightweight = () => state.device === 'mobile';
+
 let toastTimer = 0;
 export function toast(message: string) {
   ui.set({ toast: message });
