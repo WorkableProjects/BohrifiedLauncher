@@ -51,6 +51,12 @@ After 1.1 establishes fluid interactions and Liquid Glass refinement, 1.2.0 expa
 - Mobile responsiveness refinement
 
 ---
+## The Small Items
+- Update all version numbers to 1.2.0 
+- Update the Readme to be professional; keeping the commands at the start
+- Add credits within the web-app; "Flow by Workable using Claude (C) 2026"
+
+---
 
 ## Success Criteria
 1.2.0 transforms Flow into a **professional digital whiteboard** with:
