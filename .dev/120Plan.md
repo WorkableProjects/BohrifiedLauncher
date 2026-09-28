@@ -38,13 +38,16 @@ After 1.1 establishes fluid interactions and Liquid Glass refinement, 1.2.0 expa
 
 ### 5. File & Collaboration
 - Local save/export (PNG, SVG, PDF)
-- Cloud sync foundation
-- Version history/snapshots
 - Share via link (read-only preview)
-- Import images onto canvas
+- Import PDF onto canvas
 
-### 6. Performance & Polish
+### 6. Elements Expansion
+- Energy Orbital Diagrams (Chemistry)
+- etc.
+
+### 7. Performance & Polish
 - Canvas rendering optimization
+- Tool layout customization
 - Memory profiling & cleanup
 - Keyboard shortcuts & accessibility
 - Dark mode support
@@ -55,6 +58,8 @@ After 1.1 establishes fluid interactions and Liquid Glass refinement, 1.2.0 expa
 - Update all version numbers to 1.2.0 
 - Update the Readme to be professional; keeping the commands at the start
 - Add credits within the web-app; "Flow by Workable using Claude (C) 2026"
+- Remove (or move) images in project root; depending on usage within the app
+- Remove Text tool from apps pane, as its already in the main toolbar
 
 ---
 
