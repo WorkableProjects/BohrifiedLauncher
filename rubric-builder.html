@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rubric Builder</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root { --bg:#f8fafc; --card:#fff; --line:#e2e8f0; --text:#0f172a; --mute:#64748b; --acc:#4f46e5; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.4 system-ui,sans-serif; background:var(--bg); color:var(--text); }
+  header { position:sticky; top:0; z-index:5; background:#fffe; backdrop-filter:blur(6px); border-bottom:1px solid var(--line);
+    display:flex; flex-wrap:wrap; gap:12px; align-items:center; padding:10px 16px; }
+  h1 { font-size:18px; margin:0 auto 0 0; }
+  main { max-width:1200px; margin:0 auto; padding:0 16px 60px; }
+  input, textarea { font:inherit; border:1px solid #cbd5e1; border-radius:8px; padding:6px 8px; background:#fff; color:inherit; }
+  input:focus, textarea:focus { outline:2px solid var(--acc); border-color:transparent; }
+  textarea { width:100%; resize:vertical; }
+  button { font:inherit; cursor:pointer; border-radius:8px; border:1px solid #cbd5e1; background:#fff; padding:8px 12px; }
+  button.primary { background:var(--acc); color:#fff; border-color:var(--acc); }
+  button.danger { color:#dc2626; border-color:#fecaca; }
+  #total { width:110px; font-size:24px; font-weight:700; color:var(--acc); }
+  .tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); margin:14px 0; }
+  .tab { border:0; border-bottom:2px solid transparent; border-radius:0; background:none; color:var(--mute); }
+  .tab.on { border-color:var(--acc); color:var(--acc); font-weight:600; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:14px; }
+  .card.blank { border-style:dashed; }
+  .levels { display:grid; grid-template-columns:repeat(6,minmax(120px,1fr)); gap:8px; overflow-x:auto; }
+  .lv { background:#f1f5f9; border-radius:8px; padding:8px; font-size:12px; }
+  .lv input { width:100%; border:0; background:transparent; padding:1px 0; }
+  .lv .n { font-weight:600; font-size:13px; }
+  .lv .p { width:56px !important; border:1px solid #cbd5e1; background:#fff; padding:1px 4px; }
+  .top { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-start; }
+  .top .names { flex:1; min-width:240px; display:grid; gap:8px; }
+  .top .names input { width:100%; font-weight:600; }
+  .max { font-size:22px; font-weight:700; color:var(--acc); text-align:right; }
+  .small { font-size:12px; color:var(--mute); }
+  .scroll { overflow-x:auto; margin-top:12px; }
+  .cells { display:grid; grid-template-columns:repeat(6,minmax(130px,1fr)); gap:8px; min-width:800px; }
+  .cell { border:1px solid var(--line); border-radius:8px; padding:8px; }
+  .cell .t { font-size:12px; font-weight:600; }
+  .cell .pts { font-size:18px; font-weight:700; color:var(--acc); }
+  .cell textarea { font-size:12px; margin-top:4px; }
+  table { border-collapse:collapse; width:100%; background:#fff; }
+  th, td { padding:8px 10px; border-top:1px solid var(--line); text-align:left; white-space:nowrap; }
+  thead th { background:#f8fafc; font-size:12px; color:var(--mute); border-top:0; }
+  .wrap { overflow-x:auto; border:1px solid var(--line); border-radius:12px; }
+  .ex { color:#94a3b8; font-size:11px; margin-left:4px; }
+  tr.w td { background:#f8fafc; border-top:2px solid var(--line); }
+  [hidden] { display:none !important; }
+  #modal { position:fixed; inset:0; background:#0f172a99; display:flex; align-items:center; justify-content:center; padding:16px; z-index:20; }
+  #modal .box { background:#fff; border-radius:14px; max-width:560px; width:100%; padding:20px; max-height:90vh; overflow:auto; }
+  #modal h2 { margin:0 0 10px; font-size:18px; }
+  #modal ol { padding-left:20px; margin:0 0 14px; } #modal li { margin-bottom:6px; }
+  #modal kbd { background:#f1f5f9; border:1px solid #cbd5e1; border-radius:4px; padding:0 5px; font-size:12px; }
+  #modal textarea { height:110px; font:11px/1.3 ui-monospace,monospace; white-space:pre; }
+  #modal .row { display:flex; gap:8px; margin-top:12px; align-items:center; }
+  #copied { color:#16a34a; font-weight:600; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Rubric Builder</h1>
+  <label>Total Points <input id="total" type="number" min="0" value="100"></label>
+  <button class="primary" id="csv" hidden>Export to Google Classroom CSV</button>
+  <button class="primary" id="paste" title="Copy the rubric as sheet cells to paste into Google Sheets">Copy &amp; paste into a Sheet</button>
+  <button id="xlsx-sep" hidden title="Two sheets: Rubric Template + Values. Template cells pull from Values.">XLSX: separate Values sheet</button>
+  <button id="xlsx-one" hidden title="One sheet: values sit to the right of the rubric.">XLSX: values on same sheet</button>
+</header>
+<main>
+  <div class="tabs">
+    <button class="tab on" data-tab="canvas">Rubric Canvas</button>
+    <button class="tab" data-tab="values">Values Breakdown</button>
+  </div>
+  <section id="canvas">
+    <div class="card"><div class="small" style="margin-bottom:6px">Performance levels (row 6) — names, ranges and percentages are editable</div><div class="levels" id="levels"></div></div>
+    <div id="warn" class="small" style="color:#dc2626;margin-bottom:8px"></div>
+    <div id="criteria"></div>
+  </section>
+  <section id="values" hidden>
+    <p class="small">Leave a criterion's Total points blank to split the remaining points evenly. Criteria sit at rows 5, 10, 15… Row 6 keeps the exact level weights. Points are whole numbers, adjusted so no two levels tie; the exact value is shown in gray.</p>
+    <div class="wrap"><table id="vt"></table></div>
+  </section>
+</main>
+<div id="modal" hidden><div class="box" role="dialog" aria-labelledby="mt">
+  <h2 id="mt">Paste this rubric into Google Sheets</h2>
+  <ol>
+    <li>Click <b>Copy</b> below to copy the rubric contents.</li>
+    <li>Open a <b>completely empty</b> Google Sheet.</li>
+    <li>Click cell <b>A1</b>.</li>
+    <li>Paste: <kbd>Cmd</kbd>+<kbd>V</kbd> (Mac) or <kbd>Ctrl</kbd>+<kbd>V</kbd> (Windows).</li>
+    <li>In Google Classroom, import the rubric from that Sheet.</li>
+  </ol>
+  <textarea id="paste-text" readonly></textarea>
+  <div class="row"><button class="primary" id="copy">Copy</button><span id="copied" hidden>Copied!</span>
+    <button id="close" style="margin-left:auto">Close</button></div>
+</div></div>
+<script>
+const DEFAULT_LEVELS = [
+  {name:'Perfection', range:'100%', pct:100}, {name:'Mastery', range:'90-99%', pct:90},
+  {name:'Proficiency', range:'80-89%', pct:80}, {name:'Passing', range:'70-79%', pct:70},
+  {name:'Lacking', range:'60-69%', pct:60},
+  {name:'Failing', range:'1-59%', pct:1}];
+let nid = 1;
+const blank = () => ({id:nid++, name:'', desc:'', pts:'', ld: DEFAULT_LEVELS.map(() => '')});
+const S = {total:100, levels: DEFAULT_LEVELS.map(l => ({...l})), criteria:[blank()]};
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const title = (l) => `${l.name} (${l.range})`;
+const active = () => S.criteria.filter(c => c.name.trim());
+
+// Largest-remainder split so criterion maxima sum to the total exactly.
+function distribute(total, ws) {
+  const sum = ws.reduce((a,b) => a+b, 0);
+  if (!ws.length || sum <= 0) return ws.map(() => 0);
+  const raw = ws.map(w => total*w/sum), out = raw.map(Math.floor);
+  let left = Math.round(total) - out.reduce((a,b) => a+b, 0);
+  raw.map((r,i) => ({i, f:r-Math.floor(r)})).sort((a,b) => b.f-a.f || a.i-b.i).forEach(o => { if (left-- > 0) out[o.i]++; });
+  return out;
+}
+// Rounded points, forced strictly descending so no two levels share a value
+// (Classroom needs distinct points). Exact weights stay untouched in `exact`.
+function uniquePts(max, weights) {
+  const out = [];
+  weights.forEach((w, j) => {
+    let p = Math.round(max * w);
+    if (j > 0) p = Math.min(p, out[j-1] - 1);
+    out.push(Math.max(0, p));
+  });
+  return out;
+}
+function compute() {
+  const total = Math.max(0, +S.total || 0), act = active();
+  // Criteria with "Total points" entered keep that value; the rest split what's left.
+  const fixed = act.map(c => String(c.pts).trim() !== '');
+  const fixedSum = act.reduce((a,c,i) => a + (fixed[i] ? Math.max(0, Math.round(+c.pts || 0)) : 0), 0);
+  const autoMaxes = distribute(Math.max(0, total - fixedSum), act.map((c,i) => fixed[i] ? 0 : 1).filter(Boolean));
+  let k = 0;
+  const maxes = act.map((c,i) => fixed[i] ? Math.max(0, Math.round(+c.pts || 0)) : autoMaxes[k++]);
+  const weights = S.levels.map(l => (+l.pct || 0) / 100);
+  return {total, weights, rows: act.map((c,i) => ({c, row:5*(i+1), max:maxes[i],
+    exact: weights.map(w => maxes[i]*w), pts: uniquePts(maxes[i], weights)}))};
+}
+
+function renderLevels() {
+  $('levels').innerHTML = S.levels.map((l,j) => `<div class="lv">
+    <input class="n" data-lv="${j}" data-k="name" value="${esc(l.name)}">
+    <input data-lv="${j}" data-k="range" value="${esc(l.range)}">
+    <div><input class="p" type="number" min="0" max="100" data-lv="${j}" data-k="pct" value="${l.pct}">%</div></div>`).join('');
+}
+function renderCriteria() {
+  $('criteria').innerHTML = S.criteria.map((c,i) => {
+    const isBlank = i === S.criteria.length-1 && !c.name.trim();
+    return `<div class="card ${isBlank?'blank':''}" data-id="${c.id}">
+    <div class="top"><div class="names">
+      <input data-f="name" placeholder="Criterion ${i+1} name" value="${esc(c.name)}">
+      <textarea data-f="desc" rows="2" placeholder="Criterion description">${esc(c.desc)}</textarea></div>
+      <label class="small">Total points<br><input data-f="pts" type="number" min="0" step="1" value="${esc(c.pts)}" placeholder="auto" style="width:90px"></label>
+      <button class="danger" data-del>Delete Criterion</button></div>
+    <div class="scroll"><div class="cells">${S.levels.map((l,j) => `<div class="cell">
+      <div class="t" data-t="${j}">${esc(title(l))}</div><div class="pts" data-p="${j}">—</div>
+      <textarea rows="3" data-ld="${j}" placeholder="Level description">${esc(c.ld[j]||'')}</textarea></div>`).join('')}</div></div></div>`;
+  }).join('');
+  update();
+}
+// Updates computed text in place so typing never loses focus.
+function update() {
+  const v = compute();
+  document.querySelectorAll('#criteria .card').forEach(card => {
+    const r = v.rows.find(r => r.c.id === +card.dataset.id);
+    card.querySelector('[data-f="pts"]').placeholder = r ? r.max : 'auto';
+    S.levels.forEach((l,j) => {
+      card.querySelector(`[data-p="${j}"]`).textContent = r ? r.pts[j] + ' pts' : '—';
+      card.querySelector(`[data-t="${j}"]`).textContent = title(l);
+    });
+  });
+  const sum = v.rows.reduce((a,r) => a + r.max, 0);
+  const tiny = v.rows.filter(r => new Set(r.pts).size < r.pts.length).map(r => r.c.name);
+  $('warn').textContent = (v.rows.length && sum !== v.total ? `Criterion points add up to ${sum}, but the total is ${v.total}. ` : '') +
+    (tiny.length ? `Too few points for ${S.levels.length} distinct levels: ${tiny.join(', ')}.` : '');
+  $('vt').innerHTML = `<thead><tr><th>Row</th><th>Criterion</th><th>Max</th>${S.levels.map(l => `<th>${esc(title(l))}</th>`).join('')}</tr></thead><tbody>` +
+    (v.rows.map(r => `<tr><td class="small">${r.row}</td><td><b>${esc(r.c.name)}</b></td><td><b>${r.max}</b></td>` +
+      r.pts.map((p,j) => `<td>${p}<span class="ex">(${+r.exact[j].toFixed(2)})</span></td>`).join('') + '</tr>').join('') ||
+      `<tr><td colspan="${S.levels.length+3}" class="small">Add a criterion title on the canvas.</td></tr>`) +
+    `<tr class="w"><td class="small">6</td><td>Exact level percentages</td><td class="small">${v.rows.reduce((a,r)=>a+r.max,0)} / ${v.total}</td>` +
+    v.weights.map(w => `<td>${+(w*100).toFixed(2)}%</td>`).join('') + '</tr></tbody>';
+}
+
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.id === 'total') { S.total = t.value; return update(); }
+  if (t.dataset.lv !== undefined) { S.levels[t.dataset.lv][t.dataset.k] = t.value; return update(); }
+  const card = t.closest('.card[data-id]'); if (!card) return;
+  const c = S.criteria.find(c => c.id === +card.dataset.id);
+  if (t.dataset.ld !== undefined) c.ld[t.dataset.ld] = t.value;
+  else if (t.dataset.f) c[t.dataset.f] = t.value;
+  // Typing a title in the last criterion auto-creates the next one.
+  if (t.dataset.f === 'name' && S.criteria[S.criteria.length-1].name.trim()) {
+    S.criteria.push(blank());
+    card.classList.remove('blank');
+    $('criteria').insertAdjacentHTML('beforeend', '<div id="tmp"></div>');
+    $('tmp').remove();
+    const keep = t, pos = t.selectionStart;
+    renderCriteria();
+    const again = document.querySelector(`.card[data-id="${c.id}"] [data-f="name"]`);
+    again.focus(); again.setSelectionRange(pos, pos);
+    return;
+  }
+  update();
+});
+document.addEventListener('click', e => {
+  if (e.target.dataset.tab) {
+    document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b === e.target));
+    $('canvas').hidden = e.target.dataset.tab !== 'canvas';
+    $('values').hidden = e.target.dataset.tab !== 'values';
+  }
+  if (e.target.matches('[data-del]')) {
+    const id = +e.target.closest('.card').dataset.id;
+    S.criteria = S.criteria.filter(c => c.id !== id);
+    if (!S.criteria.length || S.criteria[S.criteria.length-1].name.trim()) S.criteria.push(blank());
+    renderCriteria();
+  }
+});
+
+function download(blob, name) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); URL.revokeObjectURL(a.href);
+}
+const csvCell = v => /[",\r\n]/.test(String(v)) ? `"${String(v).replace(/"/g,'""')}"` : String(v);
+$('csv').onclick = () => {
+  const v = compute(); if (!v.rows.length) return alert('Add at least one criterion title first.');
+  const lines = [['Criterion Name','Description','Level Title','Description','Points']];
+  v.rows.forEach(r => S.levels.forEach((l,j) => lines.push([r.c.name, r.c.desc, title(l), r.c.ld[j]||'', r.pts[j]])));
+  download(new Blob([lines.map(l => l.map(csvCell).join(',')).join('\r\n')], {type:'text/csv;charset=utf-8'}), 'rubric.csv');
+};
+function exportXlsx(separate) {
+  if (typeof XLSX === 'undefined') return alert('XLSX library failed to load (needs internet).');
+  const v = compute(); if (!v.rows.length) return alert('Add at least one criterion title first.');
+  const col = j => XLSX.utils.encode_col(j+1); // B, C, ...
+  const maxCol = col(S.levels.length);
+  const val = {}, tpl = {};
+  val.A1 = {t:'s', v:'Total Points'}; val.B1 = {t:'n', v:v.total};
+  val.A6 = {t:'s', v:'Level percentages (exact)'};
+  val[maxCol+'4'] = {t:'s', v:'Criterion Max'};
+  S.levels.forEach((l,j) => { val[col(j)+'4'] = {t:'s', v:title(l)}; val[col(j)+'6'] = {t:'n', v:v.weights[j], z:'0.##%'}; });
+  v.rows.forEach(r => {
+    val['A'+r.row] = {t:'s', v:r.c.name}; val[maxCol+r.row] = {t:'n', v:r.max};
+    S.levels.forEach((_,j) => val[col(j)+r.row] = {t:'n', v:r.pts[j], f:`ROUND($${maxCol}${r.row}*${col(j)}$6,0)`});
+  });
+  tpl.A1 = {t:'s', v:'It is recommended that you do not edit rubrics in spreadsheet format'}; tpl.A2 = {t:'s', v:'v1.0-s'};
+  v.rows.forEach((r,i) => {
+    const b = 3 + 5*i;
+    tpl['A'+b] = {t:'s', v:r.c.name}; tpl['A'+(b+1)] = {t:'s', v:r.c.desc};
+    S.levels.forEach((l,j) => {
+      tpl[col(j)+(b+2)] = {t:'n', v:r.pts[j], f: separate ? `Values!${col(j)}${r.row}`
+        : `ROUND($J${b+2}*${XLSX.utils.encode_col(10+j)}$4,0)`};
+      tpl[col(j)+(b+3)] = {t:'s', v:title(l)};
+      tpl[col(j)+(b+4)] = {t:'s', v:r.c.ld[j] || ''};
+    });
+  });
+  const finish = (ws, lastRow, lastCol) => { ws['!ref'] = `A1:${XLSX.utils.encode_col(lastCol)}${lastRow}`;
+    ws['!cols'] = [{wch:36}, ...S.levels.map(() => ({wch:24})), {wch:14}]; return ws; };
+  const wb = XLSX.utils.book_new();
+  if (separate) {
+    XLSX.utils.book_append_sheet(wb, finish(tpl, 3 + 5*v.rows.length, S.levels.length), 'Rubric Template');
+    XLSX.utils.book_append_sheet(wb, finish(val, 5*v.rows.length + 1, S.levels.length + 1), 'Values');
+    return XLSX.writeFile(wb, 'rubric.xlsx');
+  }
+  // One sheet: values block starts at column J (col I left blank).
+  const n = S.levels.length;
+  tpl.J1 = {t:'s', v:'VALUES (used by the point formulas)'};
+  tpl.J2 = {t:'s', v:'Total Points'}; tpl.K2 = {t:'n', v:v.total};
+  tpl.J4 = {t:'s', v:'Level percentages (exact)'};
+  S.levels.forEach((l,j) => {
+    const c = XLSX.utils.encode_col(10+j);
+    tpl[c+'3'] = {t:'s', v:title(l)}; tpl[c+'4'] = {t:'n', v:v.weights[j], z:'0.##%'};
+  });
+  v.rows.forEach((r,i) => {
+    const b = 3 + 5*i;
+    tpl['J'+(b+1)] = {t:'s', v:'Criterion Max'}; tpl['J'+(b+2)] = {t:'n', v:r.max};
+  });
+  const ws = finish(tpl, 3 + 5*v.rows.length, 10 + n);
+  ws['!cols'] = [{wch:36}, ...S.levels.map(() => ({wch:24})), {wch:4}, {wch:24}, ...S.levels.map(() => ({wch:22}))];
+  XLSX.utils.book_append_sheet(wb, ws, 'Rubric Template');
+  XLSX.writeFile(wb, 'rubric.xlsx');
+}
+// Tab-separated grid in the Classroom template layout (values only, no formulas).
+function buildGrid() {
+  const v = compute(), g = [['It is recommended that you do not edit rubrics in spreadsheet format'], ['v1.0-s']];
+  v.rows.forEach(r => {
+    g.push([r.c.name], [r.c.desc], ['', ...r.pts], ['', ...S.levels.map(title)], ['', ...S.levels.map((_,j) => r.c.ld[j] || '')]);
+  });
+  const q = x => /[\t\n"]/.test(String(x)) ? `"${String(x).replace(/"/g,'""')}"` : String(x);
+  return g.map(row => row.map(q).join('\t')).join('\n');
+}
+$('paste').onclick = () => {
+  if (!compute().rows.length) return alert('Add at least one criterion title first.');
+  $('paste-text').value = buildGrid(); $('copied').hidden = true; $('modal').hidden = false;
+};
+$('close').onclick = () => $('modal').hidden = true;
+$('modal').onclick = e => { if (e.target.id === 'modal') $('modal').hidden = true; };
+$('copy').onclick = async () => {
+  const t = $('paste-text'); t.select();
+  try { await navigator.clipboard.writeText(t.value); } catch { document.execCommand('copy'); }
+  $('copied').hidden = false;
+};
+$('xlsx-sep').onclick = () => exportXlsx(true);
+$('xlsx-one').onclick = () => exportXlsx(false);
+
+renderLevels(); renderCriteria();
+</script>
+</body>
+</html>
