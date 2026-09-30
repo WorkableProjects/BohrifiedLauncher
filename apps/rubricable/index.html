@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rubricable 1.1</title>
 <script>(function(){try{var t=localStorage.getItem("rbl-theme")||"system";document.documentElement.dataset.theme=t==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):t}catch(e){}})()</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root { color-scheme:light; --bg:#f8fafc; --card:#fff; --line:#e2e8f0; --text:#0f172a; --mute:#64748b; --acc:#4f46e5; --accbg:#eef2ff; --accbd:#c7d2fe; --acctx:#3730a3;
     --field:#fff; --fieldbd:#cbd5e1; --soft:#f1f5f9; --soft2:#f8fafc; --hdr:#fffe; --dim:#94a3b8; --dangerbd:#fecaca; --danger:#dc2626; --shadow:#0f172a0d; }
@@ -163,6 +162,22 @@ let nid = 1;
 const blank = () => ({id:nid++, name:'', desc:'', pts:'', ld: DEFAULT_LEVELS.map(l => l.desc)});
 const S = {total:30, levels: DEFAULT_LEVELS.map(l => ({...l})), criteria:[blank()]};
 const $ = (id) => document.getElementById(id);
+// Inside Bohrified the page can be unmounted when you switch apps; keep the
+// rubric for this browser session so it comes back as you left it.
+const EMBEDDED = (() => { try { return window.parent !== window && window.parent.location.origin === location.origin; } catch { return false; } })();
+function saveSession() {
+  if (!EMBEDDED) return;
+  try { sessionStorage.setItem('rbl-session', JSON.stringify({S, nid, atype: $('atype').value})); } catch {}
+}
+function restoreSession() {
+  if (!EMBEDDED) return false;
+  try {
+    const saved = JSON.parse(sessionStorage.getItem('rbl-session'));
+    if (!saved?.S?.criteria?.length) return false;
+    Object.assign(S, saved.S); nid = saved.nid; $('atype').value = saved.atype; $('total').value = S.total;
+    return true;
+  } catch { return false; }
+}
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const title = (l) => `${l.name} (${l.grade})`;
 const active = () => S.criteria.filter(c => c.name.trim());
@@ -244,6 +259,7 @@ function update() {
       `<tr><td colspan="${S.levels.length+3}" class="small">Add a criterion title on the canvas.</td></tr>`) +
     `<tr class="w"><td class="small">6</td><td>Exact level percentages</td><td class="small">${v.rows.reduce((a,r)=>a+r.max,0)} / ${v.total}</td>` +
     v.weights.map(w => `<td>${+(w*100).toFixed(2)}%</td>`).join('') + '</tr></tbody>';
+  saveSession();
 }
 
 document.addEventListener('input', e => {
@@ -294,8 +310,20 @@ $('csv').onclick = () => {
   v.rows.forEach(r => S.levels.forEach((l,j) => lines.push([r.c.name, r.c.desc, title(l), r.c.ld[j]||'', r.pts[j]])));
   download(new Blob([lines.map(l => l.map(csvCell).join(',')).join('\r\n')], {type:'text/csv;charset=utf-8'}), 'rubric.csv');
 };
-function exportXlsx(separate) {
-  if (typeof XLSX === 'undefined') return alert('XLSX library failed to load (needs internet).');
+// The XLSX library (~900 KB) loads on first export instead of at startup.
+let xlsxLoading = null;
+function loadXlsx() {
+  if (typeof XLSX !== 'undefined') return Promise.resolve();
+  return xlsxLoading ??= new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = resolve;
+    s.onerror = () => { xlsxLoading = null; s.remove(); reject(); };
+    document.head.appendChild(s);
+  });
+}
+async function exportXlsx(separate) {
+  try { await loadXlsx(); } catch { return alert('XLSX library failed to load (needs internet).'); }
   const v = compute(); if (!v.rows.length) return alert('Add at least one criterion title first.');
   const col = j => XLSX.utils.encode_col(j+1); // B, C, ...
   const maxCol = col(S.levels.length);
@@ -387,10 +415,18 @@ $('gear').onclick = () => $('settings').hidden = false;
 $('sclose').onclick = () => $('settings').hidden = true;
 $('settings').onclick = e => { if (e.target.id === 'settings') $('settings').hidden = true; };
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { $('settings').hidden = true; $('modal').hidden = true; } });
+// Inside Bohrified, the launcher's shared appearance setting drives the theme.
+if (EMBEDDED) addEventListener('message', e => {
+  const m = e.data;
+  if (e.source !== parent || e.origin !== location.origin || m?.bohr !== 1 || m.type !== 'settings') return;
+  const t = m.settings?.theme;
+  if (['system', 'light', 'dark'].includes(t) && t !== theme()) { store.set('rbl-theme', t); applyTheme(t); }
+});
 $('ver').textContent = 'v' + VERSION;
 $('about').textContent = 'Version ' + VERSION;
 $('askstart').checked = store.get('rbl-ask') !== '0';
-if (!$('askstart').checked) $('start').hidden = true;
+const restored = restoreSession();
+if (!$('askstart').checked || restored) $('start').hidden = true;
 applyTheme(theme());
 renderLevels(); renderCriteria();
 </script>
