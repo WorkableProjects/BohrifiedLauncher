@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import App from './App';
+import { reportScreen, useSuspended } from './bohr';
 import { Home } from './home/Home';
 import { Onboarding } from './home/Onboarding';
 import { useAppearance } from './hooks/useAppearance';
 import { closeCurrent, newLesson, openLesson } from './state/lessons';
+import { timer } from './state/timer';
 import { lightweight, useUI } from './state/ui';
 import { Logo } from './ui/Logo';
 import { Toast } from './ui/Toast';
@@ -35,7 +37,10 @@ export function Root() {
   const [motion, setMotion] = useState<'pending' | 'open' | 'close' | null>(null);
   const [origin, setOrigin] = useState({ x: 0, y: 0 });
   const lastTap = useRef<{ x: number; y: number } | null>(null);
-  const timer = useRef(0);
+  const transition = useRef(0);
+  const suspended = useSuspended();
+
+  useEffect(() => reportScreen(screen), [screen]);
 
   useEffect(() => {
     if (device) document.documentElement.dataset.device = device;
@@ -57,14 +62,14 @@ export function Root() {
     } else if (link) {
       openLesson(link).then((ok) => setScreen(ok ? 'board' : 'home'));
     } else setScreen('home');
-    return () => clearTimeout(timer.current);
+    return () => clearTimeout(transition.current);
   }, []);
 
   const tapPoint = () => lastTap.current ?? { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 
   /** Home → Board: the lesson opens out of the tap; Home recedes behind it. */
   const openBoard = () => {
-    clearTimeout(timer.current);
+    clearTimeout(transition.current);
     if (lightweight()) {
       setBehind(null);
       setMotion(null);
@@ -84,7 +89,7 @@ export function Root() {
     let raf = requestAnimationFrame(() => {
       raf = requestAnimationFrame(() => {
         setMotion('open');
-        timer.current = window.setTimeout(() => {
+        transition.current = window.setTimeout(() => {
           setBehind(null);
           setMotion(null);
         }, OPEN_MS);
@@ -96,7 +101,9 @@ export function Root() {
   /** Board → Home: save, then the board folds back into the tap as Home returns. */
   const goHome = async () => {
     await closeCurrent();
-    clearTimeout(timer.current);
+    // The session timer belonged to the lesson being closed.
+    timer.reset();
+    clearTimeout(transition.current);
     if (lightweight()) {
       setBehind(null);
       setMotion(null);
@@ -107,11 +114,14 @@ export function Root() {
     setBehind('board');
     setMotion('close');
     setScreen('home');
-    timer.current = window.setTimeout(() => {
+    transition.current = window.setTimeout(() => {
       setBehind(null);
       setMotion(null);
     }, CLOSE_MS);
   };
+
+  // Suspended in Bohrified: unmount Home and the board so their runtime is released.
+  if (suspended) return null;
 
   const showHome = screen === 'home' || behind === 'home';
   const showBoard = screen === 'board' || behind === 'board';

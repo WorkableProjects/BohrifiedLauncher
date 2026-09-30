@@ -34,6 +34,12 @@ export function onImageLoaded(fn: () => void) {
   return () => imageListeners.delete(fn);
 }
 
+/** Drop decoded images (Flow suspended in Bohrified); they decode again on next paint. */
+export function releaseImages() {
+  for (const img of images.values()) img.onload = null;
+  images.clear();
+}
+
 function getImage(src: string): HTMLImageElement | null {
   let img = images.get(src);
   if (!img) {

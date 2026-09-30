@@ -12,7 +12,8 @@ function seeded(seed: number) {
 }
 
 const SPARKLES = 46;
-const MASK = { WebkitMaskImage: 'url(/logo-512.png)', maskImage: 'url(/logo-512.png)', WebkitMaskSize: '100% 100%', maskSize: '100% 100%' };
+const LOGO_MASK = `url(${import.meta.env.BASE_URL}logo-512.png)`;
+const MASK = { WebkitMaskImage: LOGO_MASK, maskImage: LOGO_MASK, WebkitMaskSize: '100% 100%', maskSize: '100% 100%' };
 
 /**
  * Home's background: the Flow logo, full window height, fixed behind the

@@ -46,6 +46,9 @@ export class TutorSync {
       } else if (c.type === 'replace') this.post({ t: 'snapshot', doc: this.store.doc });
       else if (c.type === 'camera') this.sendCamera();
     });
+    // Recreated after a Bohrified suspend: bring already-open viewers up to date.
+    this.post({ t: 'snapshot', doc: this.store.doc });
+    this.sendCamera();
   }
 
   private post(m: SyncMessage) {

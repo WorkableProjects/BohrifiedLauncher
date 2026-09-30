@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Icon } from '../icons/Icon';
+import { timer, timerElapsed, useTimer } from '../state/timer';
 import { ui } from '../state/ui';
 import { ToolButton } from './controls';
 import { Glass } from './Glass';
@@ -12,69 +13,27 @@ function fmt(ms: number) {
   return `${m}:${String(s % 60).padStart(2, '0')}`;
 }
 
-/** Soft two-note chime via WebAudio — no asset needed. */
-function chime() {
-  try {
-    const ctx = new AudioContext();
-    [880, 1320].forEach((f, i) => {
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.frequency.value = f;
-      o.type = 'sine';
-      const t = ctx.currentTime + i * 0.18;
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
-      o.connect(g).connect(ctx.destination);
-      o.start(t);
-      o.stop(t + 1);
-    });
-    setTimeout(() => ctx.close(), 1500);
-  } catch { /* audio unavailable */ }
-}
-
 /**
  * Session timer for timed practice: count up (stopwatch) or count down
- * from a preset. Floats top-centre as its own glass capsule.
+ * from a preset. Floats top-centre as its own glass capsule. State lives in
+ * state/timer.ts; this only re-renders the readout while it runs.
  */
 export function Timer({ leaving = false }: { leaving?: boolean }) {
-  const [mode, setMode] = useState<'up' | 'down'>('down');
-  const [duration, setDuration] = useState(5 * 60_000);
-  const [elapsed, setElapsed] = useState(0);
-  const [running, setRunning] = useState(false);
-  const startedAt = useRef(0);
-  const base = useRef(0);
-  const fired = useRef(false);
-  /** Bumped on reset so a stopping interval doesn't bank stale time. */
-  const gen = useRef(0);
+  const t = useTimer();
+  const { mode, duration, running } = t;
+  const [, tick] = useState(0);
 
   useEffect(() => {
     if (!running) return;
-    const myGen = gen.current;
-    startedAt.current = performance.now();
-    const id = setInterval(() => {
-      const e = base.current + performance.now() - startedAt.current;
-      setElapsed(e);
-      if (mode === 'down' && e >= duration && !fired.current) {
-        fired.current = true;
-        setRunning(false);
-        base.current = duration;
-        chime();
-      }
-    }, 200);
-    return () => {
-      clearInterval(id);
-      if (gen.current === myGen && !fired.current) base.current += performance.now() - startedAt.current;
-    };
-  }, [running, mode, duration]);
+    const id = setInterval(() => tick((n) => n + 1), 200);
+    return () => clearInterval(id);
+  }, [running]);
 
-  const reset = () => {
-    gen.current++;
-    setRunning(false);
-    base.current = 0;
-    fired.current = false;
-    setElapsed(0);
-  };
+  const elapsed = timerElapsed(t);
+  const reset = timer.reset;
+  const setMode = timer.setMode;
+  const setDuration = timer.setDuration;
+  const setRunning = (on: boolean) => (on ? timer.start() : timer.pause());
 
   const remaining = duration - elapsed;
   const done = mode === 'down' && remaining <= 0;
@@ -85,7 +44,7 @@ export function Timer({ leaving = false }: { leaving?: boolean }) {
       <div className="flex items-center gap-1 p-1.5">
         <button
           type="button"
-          onClick={() => { reset(); setMode(mode === 'up' ? 'down' : 'up'); }}
+          onClick={() => setMode(mode === 'up' ? 'down' : 'up')}
           title={mode === 'down' ? 'Countdown — switch to stopwatch' : 'Stopwatch — switch to countdown'}
           className="spring flex h-11 w-11 items-center justify-center rounded-full text-label-2 hover:bg-fill"
         >
