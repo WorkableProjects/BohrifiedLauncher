@@ -111,9 +111,7 @@ Because Bohrified is hosted on **Netlify**, include a simple deployment/configur
 # Phase 6 — Rubricable 1.2
 ### Continue the move toward practical grading
 
-- Improve decimal/fraction scoring support from the current work.
 - Improve rubric persistence and editing reliability.
-- Add reusable **feedback templates** by criterion/score level.
 - Make exports consistently preserve decimal scoring.
 - Polish assignment/quiz/unit-test flows and custom point handling.
 - Improve empty states, editing feedback, and error handling.
