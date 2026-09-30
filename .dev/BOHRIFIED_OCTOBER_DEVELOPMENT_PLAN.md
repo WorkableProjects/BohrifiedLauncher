@@ -125,52 +125,52 @@ Because Bohrified is hosted on **Netlify**, include a simple deployment/configur
 # Phase 7 — Bohrified Design Language 1.2
 ### New visual language: Apple-inspired, adapted for Bohrified
 
-Base the shared design language on the attached **“Apple Design Language”** guide. The guide emphasizes content-first design, clarity, deference, depth, hierarchy, harmony, and consistency. fileciteturn22file0L8-L13 fileciteturn22file0L35-L51
+Base the shared design language on the attached **“Apple Design Language”** guide. The guide emphasizes content-first design, clarity, deference, depth, hierarchy, harmony, and consistency.
 
 ### Core rules
 
-- **Content first:** controls should step back and avoid competing with the lesson, rubric, or whiteboard. fileciteturn22file0L8-L13
-- **Clarity:** legible typography, precise icons, and obvious control purpose. fileciteturn22file0L18-L28
-- **Depth:** use layers and motion to communicate hierarchy and location. fileciteturn22file0L29-L33
-- **Hierarchy:** navigation and controls live on their own layer above content. fileciteturn22file0L37-L41
-- **Harmony:** use rounded/concentric corner relationships throughout the suite. fileciteturn22file0L42-L46
-- **Consistency:** shared foundations across Bohrified, Flow, and Rubricable. fileciteturn22file0L47-L51
+- **Content first:** controls should step back and avoid competing with the lesson, rubric, or whiteboard.
+- **Clarity:** legible typography, precise icons, and obvious control purpose.
+- **Depth:** use layers and motion to communicate hierarchy and location.
+- **Hierarchy:** navigation and controls live on their own layer above content.
+- **Harmony:** use rounded/concentric corner relationships throughout the suite.
+- **Consistency:** shared foundations across Bohrified, Flow, and Rubricable.
 
 ### Material
 
-Use **Liquid Glass-style translucency** for navigation and controls, not for the actual content canvas/rubric content. Do not stack glass on glass; keep text bold/high-contrast. fileciteturn22file0L53-L66
+Use **Liquid Glass-style translucency** for navigation and controls, not for the actual content canvas/rubric content. Do not stack glass on glass; keep text bold/high-contrast.
 
 ### Typography
 
 - Use `-apple-system, Inter, sans-serif` on the web.
 - Use semantic text styles rather than arbitrary fixed font sizes.
 - Support scalable text sizing where practical.
-- Keep large display text distinct from smaller text styles. fileciteturn22file0L68-L85
+- Keep large display text distinct from smaller text styles.
 
 ### Color
 
 - Use one primary **tint/accent** for interactive controls within each app.
 - Use semantic color roles instead of hard-coding colors everywhere.
 - Support light/dark token swaps.
-- Default semantic roles should follow the supplied guide for label, secondary label, background, secondary background, separator, and tint. fileciteturn22file0L88-L126
+- Default semantic roles should follow the supplied guide for label, secondary label, background, secondary background, separator, and tint.
 
 ### Layout & shape
 
 - Minimum interactive target: **44 × 44**.
 - Use a consistent **4/8 pt spacing rhythm**.
 - Maintain consistent side insets.
-- Use concentric corner-radius relationships for nested UI. fileciteturn22file0L128-L151
+- Use concentric corner-radius relationships for nested UI.
 
 ### Icons & motion
 
 - Use a consistent line/icon weight next to matching text.
 - Prefer springs/physical motion over linear easing.
 - Motion must be brief, purposeful, and interruptible.
-- Respect Reduce Motion and Reduce Transparency. fileciteturn22file0L153-L168
+- Respect Reduce Motion and Reduce Transparency.
 
 ### Shared tokens
 
-Centralize the design tokens so all apps consume the same values for typography, semantic colors, spacing, radii, glass, and motion. The source guide provides a token model covering these areas. fileciteturn22file0L184-L209
+Centralize the design tokens so all apps consume the same values for typography, semantic colors, spacing, radii, glass, and motion. The source guide provides a token model covering these areas.
 
 **Release:** `Bohrified 1.2 / Flow 1.2 / Rubricable 1.2`
 
