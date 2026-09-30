@@ -1,37 +1,34 @@
 # Bohrified
 
-One launcher for the peer tutoring apps. It currently hosts **Flow** (whiteboard) and **Rubricable** (rubric builder).
+One launcher for peer tutoring apps.
+
+## Versions
+
+- **Bohrified** (launcher) — 1.1
+- **Flow** (whiteboard) — 1.1
+- **Rubricable** (GC Rubric Maker) — 1.0
 
 ## Getting started
 
-Requires Node 20.19+ (Vite 8).
+Requires Node 20.19+.
 
 ```bash
 git clone https://github.com/WorkableProjects/BohrifiedLauncher.git
 cd BohrifiedLauncher
-npm install        # one install at the root sets up every workspace (launcher, apps/flow, packages/*)
-npm run dev        # http://localhost:5173
+npm install
+npm run dev
 ```
 
-The root `package.json` declares npm **workspaces**. `npm install` reads it together with the single root `package-lock.json`, installs every dependency once into the root `node_modules`, and links the internal packages (`@bohrified/app-sdk`, `…/persistence`, `…/ui`, `…/utilities`). No per-app install is needed.
+Open http://localhost:5173.
 
-| Command | What it does |
-|---|---|
-| `npm run dev` | Launcher on :5173; Flow's dev server runs on :5174 behind it (same origin, with HMR) |
-| `npm run build` | Production build into `dist/`: launcher + `apps/flow` + `apps/rubricable` |
-| `npm run preview` | Serve `dist/` on :4173 |
-| `npm run typecheck` | Type-check every package and app |
-| `npm run test:lifecycle` | After build: launcher, lifecycle, memory and crash checks (needs Chrome or Chromium) |
-| `npm run dev:flow` / `npm run test:flow` | Flow on its own |
+## Commands
 
-Rubricable still opens on its own too: `apps/rubricable/index.html`.
-
-**Deploying:** Netlify is configured in `netlify.toml`: connect the repo and it builds with `npm run build`, publishes `dist/`, and rewrites `/app/*` to the shell. Any other static host works too if `/app/*` falls back to `index.html`; `dist/404.html` covers hosts without rewrites, such as GitHub Pages.
-
-## Docs
-
-- Architecture, lifecycle, shared settings, adding an app: [docs/architecture.md](docs/architecture.md)
-- Measurements: [docs/performance/baseline.md](docs/performance/baseline.md)
-- Plan: [.dev/BOHRIFIED_DEVELOPMENT_PLAN.md](.dev/BOHRIFIED_DEVELOPMENT_PLAN.md)
-
-`apps/flow` and `apps/rubricable` were imported with `git subtree`, so their full histories are kept in this repo.
+```bash
+npm run dev             # Start Bohrified and Flow
+npm run build           # Build all apps
+npm run preview         # Preview the production build
+npm run typecheck       # Type-check all packages and apps
+npm run test:lifecycle  # Run launcher lifecycle checks
+npm run dev:flow        # Run Flow independently
+npm run test:flow       # Test Flow
+```
