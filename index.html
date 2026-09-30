@@ -3,38 +3,51 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rubricable</title>
+<title>Rubricable 1.1</title>
+<script>(function(){try{var t=localStorage.getItem("rbl-theme")||"system";document.documentElement.dataset.theme=t==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):t}catch(e){}})()</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-  :root { --bg:#f8fafc; --card:#fff; --line:#e2e8f0; --text:#0f172a; --mute:#64748b; --acc:#4f46e5; --accbg:#eef2ff; }
+  :root { color-scheme:light; --bg:#f8fafc; --card:#fff; --line:#e2e8f0; --text:#0f172a; --mute:#64748b; --acc:#4f46e5; --accbg:#eef2ff; --accbd:#c7d2fe; --acctx:#3730a3;
+    --field:#fff; --fieldbd:#cbd5e1; --soft:#f1f5f9; --soft2:#f8fafc; --hdr:#fffe; --dim:#94a3b8; --dangerbd:#fecaca; --danger:#dc2626; --shadow:#0f172a0d; }
+  :root[data-theme=dark] { color-scheme:dark; --bg:#0b1120; --card:#111a2e; --line:#26324a; --text:#e5e9f2; --mute:#94a3b8; --acc:#818cf8; --accbg:#1e2547; --accbd:#3b4380; --acctx:#c7d2fe;
+    --field:#0b1120; --fieldbd:#33415c; --soft:#1a2440; --soft2:#152039; --hdr:#0b1120ee; --dim:#64748b; --dangerbd:#7f1d1d; --danger:#f87171; --shadow:#0006; }
   * { box-sizing: border-box; }
   body { margin:0; -webkit-font-smoothing:antialiased; font:14px/1.4 system-ui,sans-serif; background:var(--bg); color:var(--text); }
-  header { position:sticky; top:0; z-index:5; background:#fffe; backdrop-filter:blur(6px); border-bottom:1px solid var(--line);
+  header { position:sticky; top:0; z-index:5; background:var(--hdr); backdrop-filter:blur(6px); border-bottom:1px solid var(--line);
     display:flex; flex-wrap:wrap; gap:12px; align-items:center; padding:10px 16px; }
   h1 { font-size:20px; margin:0 auto 0 0; display:flex; align-items:center; gap:8px; letter-spacing:-.02em; }
   .logo { display:inline-grid; place-items:center; width:28px; height:28px; border-radius:8px; background:linear-gradient(135deg,#6366f1,#4338ca); color:#fff; font-size:16px; }
-  select { font:inherit; border:1px solid #cbd5e1; border-radius:8px; padding:6px 8px; background:#fff; }
+  select { font:inherit; border:1px solid var(--fieldbd); border-radius:8px; padding:6px 8px; background:var(--field); }
   main { max-width:1200px; margin:0 auto; padding:0 16px 60px; }
-  input, textarea { font:inherit; border:1px solid #cbd5e1; border-radius:8px; padding:6px 8px; background:#fff; color:inherit; }
+  input, textarea { font:inherit; border:1px solid var(--fieldbd); border-radius:8px; padding:6px 8px; background:var(--field); color:inherit; }
   input:focus, textarea:focus { outline:2px solid var(--acc); border-color:transparent; }
   textarea { width:100%; resize:vertical; }
-  button { font:inherit; cursor:pointer; border-radius:8px; border:1px solid #cbd5e1; background:#fff; padding:8px 12px; transition:background .15s, box-shadow .15s; }
-  button:hover { background:#f1f5f9; }
+  button { font:inherit; color:inherit; cursor:pointer; border-radius:8px; border:1px solid var(--fieldbd); background:var(--card); padding:8px 12px; transition:background .15s, box-shadow .15s; }
+  button:hover { background:var(--soft); }
   button.primary:hover { background:#4338ca; }
-  button.primary { background:var(--acc); color:#fff; border-color:var(--acc); }
-  button.danger { color:#dc2626; border-color:#fecaca; }
+  button.danger { background:transparent; }
+  button.primary { background:#4f46e5; color:#fff; border-color:var(--acc); }
+  button.danger { color:var(--danger); border-color:var(--dangerbd); }
   #total { width:110px; font-size:24px; font-weight:700; color:var(--acc); }
   .tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); margin:14px 0; }
   .tab { border:0; border-bottom:2px solid transparent; border-radius:0; background:none; color:var(--mute); }
   .tab.on { border-color:var(--acc); color:var(--acc); font-weight:600; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:16px; box-shadow:0 1px 2px #0f172a0d; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:16px; box-shadow:0 1px 2px var(--shadow); }
   .card.blank { border-style:dashed; }
   .levels { display:grid; grid-template-columns:repeat(7,minmax(130px,1fr)); gap:8px; overflow-x:auto; }
-  .lv { background:#f8fafc; border:1px solid var(--line); border-top:4px solid var(--c,#94a3b8); border-radius:8px; padding:8px; font-size:12px; }
-  .lv input { width:100%; border:0; background:transparent; padding:1px 0; }
+  .lv { color:var(--text); background:var(--soft2); border:1px solid var(--line); border-top:4px solid var(--c,#94a3b8); border-radius:8px; padding:8px; font-size:12px; }
+  .lv input { width:100%; color:inherit; border:0; background:transparent; padding:1px 0; }
   .lv .g { font-weight:700; color:var(--c); }
+  .gear { padding:6px 10px; font-size:18px; line-height:1; }
+  .ver { font-size:11px; font-weight:600; color:var(--acc); background:var(--accbg); border-radius:99px; padding:2px 8px; }
+  .seg { display:inline-flex; border:1px solid var(--fieldbd); border-radius:8px; overflow:hidden; }
+  .seg button { border:0; border-radius:0; background:var(--card); }
+  .seg button.on { background:#4f46e5; color:#fff; }
+  .srow { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px 0; border-top:1px solid var(--line); }
+  .srow:first-of-type { border-top:0; }
+  .choices button.ghost { color:var(--mute); font-weight:500; }
   .lv .n { font-weight:600; font-size:13px; }
-  .lv .p { width:56px !important; border:1px solid #cbd5e1; background:#fff; padding:1px 4px; }
+  .lv .p { width:56px !important; border:1px solid var(--fieldbd); background:var(--field); padding:1px 4px; }
   .top { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-start; }
   .top .names { flex:1; min-width:240px; display:grid; gap:8px; }
   .top .names input { width:100%; font-weight:600; }
@@ -42,28 +55,28 @@
   .small { font-size:12px; color:var(--mute); }
   .scroll { overflow-x:auto; margin-top:12px; }
   .cells { display:grid; grid-template-columns:repeat(7,minmax(150px,1fr)); gap:8px; min-width:1050px; }
-  .cell { border:1px solid var(--line); border-top:4px solid var(--c,#94a3b8); border-radius:8px; padding:8px; background:#fff; }
+  .cell { border:1px solid var(--line); border-top:4px solid var(--c,#94a3b8); border-radius:8px; padding:8px; background:var(--card); }
   .cell .t { font-size:12px; font-weight:600; }
   .cell .pts { font-size:18px; font-weight:700; color:var(--acc); }
   .cell textarea { font-size:12px; margin-top:4px; }
   .cell .r { font-size:11px; color:var(--mute); }
-  .note { background:var(--accbg); border:1px solid #c7d2fe; color:#3730a3; border-radius:8px; padding:8px 10px; font-size:12px; margin-bottom:10px; }
+  .note { background:var(--accbg); border:1px solid var(--accbd); color:var(--acctx); border-radius:8px; padding:8px 10px; font-size:12px; margin-bottom:10px; }
   .choices { display:grid; gap:10px; margin:14px 0 4px; }
   .choices button { display:flex; justify-content:space-between; align-items:center; padding:14px 16px; font-size:15px; font-weight:600; text-align:left; }
   .choices button span { color:var(--acc); }
   .choices button:hover { border-color:var(--acc); background:var(--accbg); }
-  table { border-collapse:collapse; width:100%; background:#fff; }
+  table { border-collapse:collapse; width:100%; background:var(--field); }
   th, td { padding:8px 10px; border-top:1px solid var(--line); text-align:left; white-space:nowrap; }
-  thead th { background:#f8fafc; font-size:12px; color:var(--mute); border-top:0; }
+  thead th { background:var(--soft2); font-size:12px; color:var(--mute); border-top:0; }
   .wrap { overflow-x:auto; border:1px solid var(--line); border-radius:12px; }
-  .ex { color:#94a3b8; font-size:11px; margin-left:4px; }
-  tr.w td { background:#f8fafc; border-top:2px solid var(--line); }
+  .ex { color:var(--dim); font-size:11px; margin-left:4px; }
+  tr.w td { background:var(--soft2); border-top:2px solid var(--line); }
   [hidden] { display:none !important; }
   #modal, .overlay { position:fixed; inset:0; background:#0f172a99; display:flex; align-items:center; justify-content:center; padding:16px; z-index:20; }
-  #modal .box, .overlay .box { background:#fff; border-radius:14px; max-width:560px; width:100%; padding:20px; max-height:90vh; overflow:auto; }
+  #modal .box, .overlay .box { background:var(--field); border-radius:14px; max-width:560px; width:100%; padding:20px; max-height:90vh; overflow:auto; }
   #modal h2, .overlay h2 { margin:0 0 10px; font-size:18px; }
   #modal ol { padding-left:20px; margin:0 0 14px; } #modal li { margin-bottom:6px; }
-  #modal kbd { background:#f1f5f9; border:1px solid #cbd5e1; border-radius:4px; padding:0 5px; font-size:12px; }
+  #modal kbd { background:var(--soft); border:1px solid var(--fieldbd); border-radius:4px; padding:0 5px; font-size:12px; }
   #modal textarea { height:110px; font:11px/1.3 ui-monospace,monospace; white-space:pre; }
   #modal .row { display:flex; gap:8px; margin-top:12px; align-items:center; }
   #copied { color:#16a34a; font-weight:600; }
@@ -71,9 +84,10 @@
 </head>
 <body>
 <header>
-  <h1><span class="logo">R</span>Rubricable</h1>
-  <label class="small">Type <select id="atype" title="Assignment type sets the total points"><option value="assignment">Practice Assignment</option><option value="quiz">Quiz</option><option value="test">Unit Test</option></select></label>
+  <h1><span class="logo">R</span>Rubricable <span class="ver" id="ver"></span></h1>
+  <label class="small">Type <select id="atype" title="Assignment type sets the total points"><option value="assignment">Practice Assignment</option><option value="quiz">Quiz</option><option value="test">Unit Test</option><option value="custom">Custom (ignore preset)</option></select></label>
   <label class="small">Total Points <input id="total" type="number" min="0" value="30"></label>
+  <button class="gear" id="gear" title="Settings" aria-label="Settings">⚙</button>
   <button class="primary" id="csv" hidden>Export to Google Classroom CSV</button>
   <button class="primary" id="paste" title="Copy the rubric as sheet cells to paste into Google Sheets">Copy &amp; paste into a Sheet</button>
   <button id="xlsx-sep" hidden title="Two sheets: Rubric Template + Values. Template cells pull from Values.">XLSX: separate Values sheet</button>
@@ -86,7 +100,7 @@
   </div>
   <section id="canvas">
     <div class="card"><div class="small" style="margin-bottom:6px">Performance levels (row 6) — names, grades, ranges and percentages are editable. Unacceptable (0%) is only granted when a category is under 20% complete or everything is wrong; leave a comment explaining it.</div><div class="levels" id="levels"></div></div>
-    <div id="warn" class="small" style="color:#dc2626;margin-bottom:8px"></div>
+    <div id="warn" class="small" style="color:var(--danger);margin-bottom:8px"></div>
     <div id="criteria"></div>
   </section>
   <section id="values" hidden>
@@ -101,7 +115,17 @@
     <button data-type="assignment">Practice Assignment <span>30 pts</span></button>
     <button data-type="quiz">Quiz <span>75 pts</span></button>
     <button data-type="test">Unit Test <span>75 pts</span></button>
+    <button data-type="custom" class="ghost">Ignore — I'll set the points myself <span>custom</span></button>
   </div>
+</div></div>
+<div id="settings" class="overlay" hidden><div class="box" role="dialog" aria-labelledby="sett">
+  <h2 id="sett">Settings</h2>
+  <div class="srow"><div><b>Theme</b><div class="small">System follows your device</div></div>
+    <div class="seg" id="themeseg"><button data-theme-set="system">System</button><button data-theme-set="light">Light</button><button data-theme-set="dark">Dark</button></div></div>
+  <div class="srow"><div><b>Ask assignment type on open</b><div class="small">Show the Assignment / Quiz / Unit Test prompt at startup</div></div>
+    <input type="checkbox" id="askstart" checked></div>
+  <div class="srow"><div><b>Rubricable</b><div class="small" id="about"></div></div></div>
+  <div class="row" style="display:flex;margin-top:8px"><button class="primary" id="sclose" style="margin-left:auto">Done</button></div>
 </div></div>
 <div id="modal" hidden><div class="box" role="dialog" aria-labelledby="mt">
   <h2 id="mt">Paste this rubric into Google Sheets</h2>
@@ -130,9 +154,11 @@ const DEFAULT_LEVELS = [
    desc:'Large mistakes, or almost none or correctly identified (D)\n\nActions: Study! You are in danger of failing this section a real test\n\nOR\n\nGet tutoring to make up the gaps in your knowledge'},
   {name:'Failing', grade:'F', range:'1-59%', pct:1, color:'#ef4444',
    desc:'Most answers wrong\n\nActions: Study and get tutoring -- either from us or from Mrs. Ponce -- you are currently failing and will not perform well on the test if you do not fix it'},
-  {name:'Unacceptable', grade:'F', range:'0%', pct:0, color:'#7f1d1d',
+  {name:'Unacceptable', grade:'F', range:'0%', pct:0, color:'#b91c1c',
    desc:'Unacceptable mistakes, left empty or none are correctly identified\n\nActions: Read questions more carefully, you automatically get a 0 if 20%+ answers in the section are left blank\n\nAND/OR\n\nStudy and get tutoring -- either from us or from Mrs. Ponce -- you are currently failing and will not perform well on the test if you do not fix it'}];
+const VERSION = '1.1';
 const TYPES = {assignment:30, quiz:75, test:75};
+const store = {get:k => { try { return localStorage.getItem(k); } catch { return null; } }, set:(k,v) => { try { localStorage.setItem(k,v); } catch {} }};
 let nid = 1;
 const blank = () => ({id:nid++, name:'', desc:'', pts:'', ld: DEFAULT_LEVELS.map(l => l.desc)});
 const S = {total:30, levels: DEFAULT_LEVELS.map(l => ({...l})), criteria:[blank()]};
@@ -193,7 +219,7 @@ function renderCriteria() {
       <button class="danger" data-del>Delete Criterion</button></div>
     <div class="scroll"><div class="cells">${S.levels.map((l,j) => `<div class="cell" style="--c:${l.color}">
       <div class="t" data-t="${j}">${esc(title(l))}</div><div class="pts" data-p="${j}">—</div><div class="r">${esc(l.range)}</div>
-      <textarea rows="9" data-ld="${j}" placeholder="Level description">${esc(c.ld[j]||'')}</textarea></div>`).join('')}</div></div></div>`;
+      <textarea rows="14" data-ld="${j}" placeholder="Level description">${esc(c.ld[j]||'')}</textarea></div>`).join('')}</div></div></div>`;
   }).join('');
   update();
 }
@@ -222,7 +248,8 @@ function update() {
 
 document.addEventListener('input', e => {
   const t = e.target;
-  if (t.id === 'atype') { S.total = TYPES[t.value]; $('total').value = S.total; return update(); }
+  if (t.id === 'atype') { if (TYPES[t.value]) { S.total = TYPES[t.value]; $('total').value = S.total; } return update(); }
+  if (t.id === 'askstart') return store.set('rbl-ask', t.checked ? '1' : '0');
   if (t.id === 'total') { S.total = t.value; return update(); }
   if (t.dataset.lv !== undefined) { S.levels[t.dataset.lv][t.dataset.k] = t.value; return update(); }
   const card = t.closest('.card[data-id]'); if (!card) return;
@@ -343,9 +370,28 @@ $('xlsx-one').onclick = () => exportXlsx(false);
 
 $('start').onclick = e => {
   const b = e.target.closest('[data-type]'); if (!b) return;
-  $('atype').value = b.dataset.type; S.total = TYPES[b.dataset.type]; $('total').value = S.total;
+  $('atype').value = b.dataset.type;
+  if (TYPES[b.dataset.type]) { S.total = TYPES[b.dataset.type]; $('total').value = S.total; }
   $('start').hidden = true; update();
 };
+// Settings + theme (System by default)
+const mq = matchMedia('(prefers-color-scheme: dark)');
+function applyTheme(t) {
+  document.documentElement.dataset.theme = t === 'system' ? (mq.matches ? 'dark' : 'light') : t;
+  document.querySelectorAll('[data-theme-set]').forEach(b => b.classList.toggle('on', b.dataset.themeSet === t));
+}
+const theme = () => store.get('rbl-theme') || 'system';
+mq.addEventListener('change', () => theme() === 'system' && applyTheme('system'));
+$('themeseg').onclick = e => { const t = e.target.dataset.themeSet; if (t) { store.set('rbl-theme', t); applyTheme(t); } };
+$('gear').onclick = () => $('settings').hidden = false;
+$('sclose').onclick = () => $('settings').hidden = true;
+$('settings').onclick = e => { if (e.target.id === 'settings') $('settings').hidden = true; };
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { $('settings').hidden = true; $('modal').hidden = true; } });
+$('ver').textContent = 'v' + VERSION;
+$('about').textContent = 'Version ' + VERSION;
+$('askstart').checked = store.get('rbl-ask') !== '0';
+if (!$('askstart').checked) $('start').hidden = true;
+applyTheme(theme());
 renderLevels(); renderCriteria();
 </script>
 </body>
