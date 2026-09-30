@@ -25,6 +25,8 @@
   /* Label on a tint-soft fill (the brand pink alone is too light to read there). */
   --on-tint-soft: #b82a52;
   --tint-glow: rgba(255, 96, 131, 0.32);
+  /* Label on a solid tint fill. */
+  --on-tint: #ffffff;
   --danger: #ff3b30;
   /* Grouped surfaces (Settings-style): page vs. raised cell. */
   --grouped: #f2f2f7;
@@ -75,6 +77,35 @@
   color-scheme: dark;
 }
 
+/*
+ * Colorways: a brand palette on top of light/dark. Noir is monochrome and
+ * follows the appearance (black and white in equal measure). NoirW (white
+ * main, black accent) and NoirB (black main, white accent) also pin the
+ * appearance to light / dark — see useAppearance. Ocean is a cool blue.
+ */
+:root[data-colorway='noir'] {
+  --brand: #1c1c1e; --brand-2: #e5e5ea; --on-tint-soft: #1c1c1e; --tint-glow: rgba(0, 0, 0, 0.22);
+  --bg-2: #efefef; --grouped: #efefef; --sheet: rgba(248, 248, 248, 0.84);
+}
+:root[data-colorway='noir'][data-appearance='dark'] {
+  --brand: #f5f5f7; --on-tint: #000000; --tint-soft: rgba(255, 255, 255, 0.2); --on-tint-soft: #ffffff; --tint-glow: rgba(255, 255, 255, 0.22);
+  --bg-2: #111111; --grouped: #111111; --cell: #1a1a1a; --sheet: rgba(30, 30, 30, 0.86);
+}
+:root[data-colorway='noirw'] {
+  --brand: #000000; --brand-2: #ebebeb; --on-tint-soft: #000000; --tint-glow: rgba(0, 0, 0, 0.2);
+  --bg-2: #ffffff; --grouped: #ffffff; --cell: #ffffff; --sheet: rgba(255, 255, 255, 0.9); --separator: #d9d9d9;
+}
+:root[data-colorway='noirb'] {
+  --brand: #ffffff; --on-tint: #000000; --tint-soft: rgba(255, 255, 255, 0.18); --on-tint-soft: #ffffff; --tint-glow: rgba(255, 255, 255, 0.22);
+  --bg: #000000; --bg-2: #000000; --grouped: #000000; --cell: #0d0d0d; --sheet: rgba(14, 14, 14, 0.88); --separator: #2a2a2a;
+}
+:root[data-colorway='ocean'] {
+  --brand: #0a84ff; --brand-2: #d6e9ff; --on-tint-soft: #0a4fa8; --tint-glow: rgba(10, 132, 255, 0.32);
+}
+:root[data-colorway='ocean'][data-appearance='dark'] {
+  --tint-soft: rgba(10, 132, 255, 0.24); --on-tint-soft: #64b0ff; --tint-glow: rgba(10, 132, 255, 0.4);
+}
+
 @theme inline {
   --font-sans: var(--font);
   --color-label: var(--label);
@@ -89,6 +120,7 @@
   --color-tint: var(--tint);
   --color-tint-soft: var(--tint-soft);
   --color-on-tint-soft: var(--on-tint-soft);
+  --color-on-tint: var(--on-tint);
   --color-brand: var(--brand);
   --color-brand-2: var(--brand-2);
   --color-danger: var(--danger);
@@ -313,6 +345,14 @@ input[type='range'].slider::-moz-range-thumb {
 .brand-backdrop .glitter { opacity: 0.06; }
 .home-bg { background: #ffd8da; }
 :root[data-appearance='dark'] .home-bg { background: #070005; }
+:root[data-colorway='noir'] .home-bg { background: #e6e6e6; }
+:root[data-colorway='noir'][data-appearance='dark'] .home-bg { background: #0a0a0a; }
+:root[data-colorway='noirw'] .home-bg { background: #ffffff; }
+:root[data-colorway='noirb'] .home-bg { background: #000000; }
+:root[data-colorway='ocean'] .home-bg { background: #d6e9ff; }
+:root[data-colorway='ocean'][data-appearance='dark'] .home-bg { background: #000814; }
+:root[data-colorway]:not([data-colorway='default']) .brand-backdrop { filter: grayscale(1); }
+:root[data-colorway='ocean'] .brand-backdrop { filter: hue-rotate(180deg); }
 
 .glitter-sheen {
   background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.55) 48%, transparent 60%);

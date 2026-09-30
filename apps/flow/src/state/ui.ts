@@ -8,6 +8,17 @@ export interface ToolStyle {
 
 export type AppearancePref = 'system' | 'light' | 'dark';
 
+/** Brand palette on top of light/dark. NoirW and NoirB also pin the appearance (light / dark). */
+export type Colorway = 'default' | 'noir' | 'noirw' | 'noirb' | 'ocean';
+export const COLORWAYS: { value: Colorway; label: string }[] = [
+  { value: 'default', label: 'Flow' },
+  { value: 'noir', label: 'Noir' },
+  { value: 'noirw', label: 'NoirW' },
+  { value: 'noirb', label: 'NoirB' },
+  { value: 'ocean', label: 'Ocean' },
+];
+export const isColorway = (v: unknown): v is Colorway => COLORWAYS.some((c) => c.value === v);
+
 /**
  * Chosen at first launch. 'mobile' = touch-first (tablets & phones):
  * finger/Pencil drawing, pinch to zoom, no hover-only controls.
@@ -33,6 +44,7 @@ export interface UIState {
   /** Hold the pen still at the end of a stroke to snap it into a shape. */
   snapShapes: boolean;
   appearance: AppearancePref;
+  colorway: Colorway;
   /** null until the first-run question is answered. */
   device: DevicePref | null;
   /** First name for the Home welcome; null until asked, '' if skipped. */
@@ -52,7 +64,7 @@ export interface UIState {
 }
 
 const PREFS_KEY = 'flow:prefs:v1';
-const PERSISTED: (keyof UIState)[] = ['pen', 'highlighter', 'shape', 'text', 'noteTint', 'dot', 'snapDots', 'textKind', 'eraserSize', 'snapShapes', 'appearance', 'liquidGlass', 'shapeKind', 'device', 'name'];
+const PERSISTED: (keyof UIState)[] = ['pen', 'highlighter', 'shape', 'text', 'noteTint', 'dot', 'snapDots', 'textKind', 'eraserSize', 'snapShapes', 'appearance', 'colorway', 'liquidGlass', 'shapeKind', 'device', 'name'];
 
 const initial: UIState = {
   tool: 'pen',
@@ -68,6 +80,7 @@ const initial: UIState = {
   eraserSize: 16,
   snapShapes: true,
   appearance: 'system',
+  colorway: 'default',
   device: null,
   name: null,
   liquidGlass: true,
@@ -89,6 +102,7 @@ function loadPrefs(): Partial<UIState> {
 }
 
 let state: UIState = { ...initial, ...(typeof localStorage !== 'undefined' ? loadPrefs() : {}) };
+if (!isColorway(state.colorway)) state = { ...state, colorway: 'default' };
 const listeners = new Set<() => void>();
 let saveTimer = 0;
 

@@ -156,7 +156,7 @@ export function EquationSheet({ appearance }: { appearance: Appearance }) {
       }}
     >
       <header className="flex items-center gap-3">
-        <span className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-tint text-white">
+        <span className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-tint text-on-tint">
           <Icon name="equation" size={19} />
         </span>
         <h2 className="flex-1 text-headline font-semibold tracking-title">{editing ? 'Edit Equation' : 'LaTeX Equation'}</h2>
@@ -219,7 +219,7 @@ export function EquationSheet({ appearance }: { appearance: Appearance }) {
           type="button"
           disabled={!result}
           onClick={place}
-          className="spring ml-auto flex h-11 items-center gap-2 rounded-full bg-tint px-5 text-headline font-semibold text-white shadow-[0_4px_14px_var(--tint-glow)] hover:brightness-105 active:scale-[0.97] disabled:opacity-40 disabled:shadow-none"
+          className="spring ml-auto flex h-11 items-center gap-2 rounded-full bg-tint px-5 text-headline font-semibold text-on-tint shadow-[0_4px_14px_var(--tint-glow)] hover:brightness-105 active:scale-[0.97] disabled:opacity-40 disabled:shadow-none"
         >
           {editing ? 'Update' : 'Insert'}
         </button>

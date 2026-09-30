@@ -13,6 +13,8 @@ import { currentAppId, navigate } from './router';
  * metadata and the lifecycle manager load at startup.
  */
 
+declare const __APP_VERSION__: string;
+
 const base = import.meta.env.BASE_URL;
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
 
@@ -21,6 +23,7 @@ const home = $('#home');
 const grid = $('#apps');
 const stage = $<HTMLElement>('#stage');
 const status = $('#status');
+$('#version').textContent = __APP_VERSION__;
 
 // Shared settings: owned by Bohrified, applied to the shell and sent to every app.
 const prefs = localStore();
@@ -147,52 +150,118 @@ const isOpen = (r: AppRecord) => r.state === 'loading' || r.state === 'ready' ||
 
 const icon = (r: AppRecord, size: number) => el('img', { src: base + r.manifest.icon, alt: '', width: size, height: size, className: 'app-icon', draggable: false });
 
+/** Motion is decorative: skipped for Reduce Motion. */
+const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/**
+ * Keep `parent`'s children equal to `wanted` without detaching nodes that
+ * are already in place (re-inserting one would restart its CSS animation).
+ * Nodes leaving get a short exit animation first.
+ */
+function reconcile(parent: HTMLElement, wanted: HTMLElement[]) {
+  const keep = new Set(wanted);
+  for (const child of [...parent.children] as HTMLElement[]) {
+    if (keep.has(child) || child.dataset.leaving) continue;
+    if (reduceMotion()) {
+      child.remove();
+      continue;
+    }
+    // Animate an inert copy out, so the real element is gone at once.
+    const ghost = child.cloneNode(true) as HTMLElement;
+    ghost.dataset.leaving = '1';
+    ghost.inert = true;
+    ghost.removeAttribute('aria-current');
+    ghost.querySelectorAll<HTMLElement>('[class]').forEach((n) => (n.className = n.className.replace(/\b(tab-open|tab-close)\b/g, '$1-ghost')));
+    ghost.style.animation = 'none';
+    child.replaceWith(ghost);
+    ghost.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(0.9)' }], { duration: 180, easing: 'ease-in' }).finished.then(() => ghost.remove(), () => ghost.remove());
+  }
+  const live = () => [...parent.children].filter((c) => !(c as HTMLElement).dataset.leaving);
+  wanted.forEach((node, i) => {
+    if (live()[i] !== node) parent.insertBefore(node, live()[i] ?? null);
+  });
+}
+
+// Cards and tabs persist across renders, so entrance animations play once (or when the launcher is shown again).
+const cardEls = new Map<string, { card: HTMLAnchorElement; icon: HTMLImageElement }>();
+/** The app most recently on screen: its icon is the shared element between the library and the app. */
+let lastApp: string | null = null;
+
 function renderCards() {
-  grid.replaceChildren(
-    ...[...manager.apps.values()].map((r) => {
-      const label = STATE_LABEL[r.state];
+  const index = new Map([...manager.apps.keys()].map((id, i) => [id, i]));
+  for (const r of manager.apps.values()) {
+    const id = r.manifest.id;
+    let entry = cardEls.get(id);
+    if (!entry) {
+      const iconEl = icon(r, 56);
       const card = el(
         'a',
-        { href: `${base}app/${r.manifest.id}`, className: 'card', dataset: { app: r.manifest.id } },
-        icon(r, 56),
+        { href: `${base}app/${id}`, className: 'card', dataset: { app: id } },
+        iconEl,
         el('div', { className: 'card-text' }, el('h2', { textContent: r.manifest.name }), el('p', { textContent: r.manifest.description })),
       );
       card.style.setProperty('--accent', r.manifest.accent);
-      if (label) card.append(el('span', { className: `badge badge-${r.state}`, textContent: label }));
+      card.style.setProperty('--i', String(index.get(id)));
       card.addEventListener('click', (e) => {
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
         e.preventDefault();
-        navigate(r.manifest.id);
+        lastApp = id;
+        renderCards(); // name this card's icon so it can grow into the app's opening screen
+        navigate(id);
       });
       // Warm the app's adapter module on intent; the heavy app code still waits for open.
       card.addEventListener('pointerenter', () => void r.manifest.load().catch(() => {}), { once: true });
-      return card;
-    }),
-  );
+      entry = { card, icon: iconEl };
+      cardEls.set(id, entry);
+    }
+    const label = STATE_LABEL[r.state];
+    const badge = entry.card.querySelector<HTMLElement>('.badge');
+    if (!label) badge?.remove();
+    else if (!badge) entry.card.append(el('span', { className: `badge badge-${r.state}`, textContent: label }));
+    else if (badge.textContent !== label || badge.className !== `badge badge-${r.state}`) {
+      badge.className = `badge badge-${r.state}`;
+      badge.textContent = label;
+      badge.animate([{ transform: 'scale(0.8)', opacity: 0.4 }, { transform: 'none', opacity: 1 }], { duration: 260, easing: 'cubic-bezier(0.32, 0.72, 0, 1)' });
+    }
+    entry.icon.style.viewTransitionName = lastApp === id ? 'app-icon' : '';
+  }
+  reconcile(grid, [...manager.apps.keys()].map((id) => cardEls.get(id)!.card));
 }
+
+const tabEls = new Map<string, HTMLElement>();
 
 function renderTabs() {
   const open = [...manager.apps.values()].filter(isOpen);
-  bar.replaceChildren(
-    ...open.map((r) => {
-      const active = manager.active === r.manifest.id;
-      const tab = el(
-        'div',
-        { className: `tab${active ? ' on' : ''}`, dataset: { state: r.state } },
-        el('button', { type: 'button', className: 'tab-open', title: `${r.manifest.name} — ${STATE_LABEL[r.state] ?? ''}`, onclick: () => navigate(r.manifest.id) }, icon(r, 18), el('span', { textContent: r.manifest.name })),
-        el('button', {
-          type: 'button',
-          className: 'tab-close',
-          title: `Close ${r.manifest.name}`,
-          ariaLabel: `Close ${r.manifest.name}`,
-          textContent: '×',
-          onclick: () => {
-            if (manager.active === r.manifest.id) navigate(null);
-            void manager.close(r.manifest.id);
-          },
-        }),
-      );
+  reconcile(
+    bar,
+    open.map((r) => {
+      const id = r.manifest.id;
+      const active = manager.active === id;
+      let tab = tabEls.get(id);
+      if (!tab || tab.dataset.leaving) {
+        tab = el(
+          'div',
+          { className: 'tab' },
+          el('button', { type: 'button', className: 'tab-open', onclick: () => navigate(id) }, icon(r, 18), el('span', { textContent: r.manifest.name })),
+          el('button', {
+            type: 'button',
+            className: 'tab-close',
+            title: `Close ${r.manifest.name}`,
+            ariaLabel: `Close ${r.manifest.name}`,
+            textContent: '×',
+            onclick: () => {
+              if (manager.active === id) navigate(null);
+              void manager.close(id);
+            },
+          }),
+        );
+        tabEls.set(id, tab);
+      }
+      tab.classList.toggle('on', active);
+      tab.dataset.state = r.state;
+      tab.querySelector('.tab-open')!.setAttribute('title', `${r.manifest.name} — ${STATE_LABEL[r.state] ?? ''}`);
       if (active) tab.setAttribute('aria-current', 'page');
+      else tab.removeAttribute('aria-current');
       return tab;
     }),
   );
@@ -227,12 +296,17 @@ function renderStatus() {
     );
   } else {
     if (status.firstElementChild?.classList.contains('opening')) return;
-    status.replaceChildren(el('div', { className: 'opening', ariaLive: 'polite' }, icon(rec, 72), el('span', { textContent: `Opening ${rec.manifest.name}…` })));
+    const big = icon(rec, 72);
+    big.style.viewTransitionName = 'app-icon';
+    status.replaceChildren(el('div', { className: 'opening', ariaLive: 'polite' }, big, el('span', { textContent: `Opening ${rec.manifest.name}…` })));
   }
 }
 
-function render() {
+let view: 'home' | 'app' = 'home';
+
+function paint() {
   const onHome = manager.active === null;
+  if (manager.active) lastApp = manager.active;
   home.hidden = !onHome;
   stage.hidden = onHome;
   document.body.dataset.view = onHome ? 'home' : 'app';
@@ -242,6 +316,17 @@ function render() {
   renderCards();
   renderTabs();
   renderStatus();
+}
+
+/** Switching between the library and an app crossfades and zooms; the app's icon travels between the two. */
+function render() {
+  const next = manager.active === null ? 'home' : 'app';
+  if (next === view) return paint();
+  view = next;
+  const root = document.documentElement;
+  root.dataset.nav = next === 'app' ? 'forward' : 'back';
+  if (reduceMotion() || !document.startViewTransition) return paint();
+  document.startViewTransition(paint);
 }
 
 function route() {
@@ -267,5 +352,5 @@ declare global {
 }
 window.__bohr = { manager, unmountSuspended: () => manager.unmountSuspended() };
 
-render();
+paint();
 route();

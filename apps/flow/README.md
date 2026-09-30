@@ -53,7 +53,12 @@ npm run perf       # canvas benchmark in Chromium (after build)
 
 ## Version
 
-Current release: **1.0.56** (shown at the bottom of Home).
+Current release: **1.1.0** (shown at the bottom of Home).
+
+**1.1**
+- Elements: the Bohr model has a **QMM** toggle (quantum mechanical model) that removes the `p =` and `n =` labels
+- Elements: new chemistry models: **Orbital Diagram** (boxes and up/down arrows, any range from 1s to 7p, filled by Aufbau, Hund's rule and Pauli), **Lewis Dot** (symbol plus 0–8 valence dots) and **Configuration** (`1s² 2s² 2p⁶ …` as editable text)
+- Colorways (Settings, and Home): **Noir** (black and white in equal measure, follows Light/Dark), **NoirW** (white main, black accent, always light), **NoirB** (black main, white accent, always dark) and **Ocean** (blue)
 
 ## Architecture
 

@@ -1,5 +1,7 @@
 import { forwardRef, useEffect, useRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
 import { Icon, type IconName } from '../icons/Icon';
+import { PINNED_APPEARANCE } from '../hooks/useAppearance';
+import { COLORWAYS, ui, useUI, type Colorway } from '../state/ui';
 import { BubbleGroup, useInBubble } from './Bubble';
 
 interface ToolButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -19,7 +21,7 @@ export const ToolButton = forwardRef<HTMLButtonElement, ToolButtonProps>(functio
 ) {
   // Inside a BubbleGroup the moving bubble paints the selected fill.
   const bubbled = useInBubble();
-  const activeClass = bubbled ? 'text-white' : 'bg-tint text-white shadow-[0_2px_8px_var(--tint-glow)]';
+  const activeClass = bubbled ? 'text-on-tint' : 'bg-tint text-on-tint shadow-[0_2px_8px_var(--tint-glow)]';
   // A changed glyph (shape kind, next ⇄ new page…) morphs in rather than snapping.
   const lastIcon = useRef(icon);
   const swapped = lastIcon.current !== icon;
@@ -84,5 +86,41 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
     >
       <span className={`spring absolute top-[2px] left-[2px] h-[27px] w-[27px] rounded-full bg-white shadow-[0_3px_8px_rgba(0,0,0,0.15),0_1px_1px_rgba(0,0,0,0.16)] ${checked ? 'translate-x-5' : ''}`} />
     </button>
+  );
+}
+
+/** Colorway swatches: a brand palette on top of light/dark. */
+const COLORWAY_SWATCH: Record<Colorway, string> = {
+  default: 'linear-gradient(135deg, #ff6083 50%, #ffd3d6 50%)',
+  noir: 'linear-gradient(135deg, #000 50%, #fff 50%)',
+  noirw: 'linear-gradient(135deg, #fff 65%, #000 65%)',
+  noirb: 'linear-gradient(135deg, #000 65%, #fff 65%)',
+  ocean: 'linear-gradient(135deg, #0a84ff 50%, #d6e9ff 50%)',
+};
+
+export function ColorwayPicker() {
+  const value = useUI((s) => s.colorway);
+  const pinned = PINNED_APPEARANCE[value];
+  return (
+    <div>
+      <div className="flex gap-2" role="radiogroup" aria-label="Colorway">
+        {COLORWAYS.map((c) => (
+          <button
+            key={c.value}
+            type="button"
+            role="radio"
+            aria-checked={value === c.value}
+            aria-label={c.label}
+            title={c.label}
+            onClick={() => ui.set({ colorway: c.value })}
+            className={`spring flex min-h-11 flex-1 flex-col items-center gap-1 rounded-[12px] px-1 py-1.5 text-caption ${value === c.value ? 'bg-fill-2 text-label' : 'text-label-2 hover:bg-fill'}`}
+          >
+            <span className="h-6 w-6 rounded-full shadow-[inset_0_0_0_1px_var(--hairline)] transition-transform duration-300 ease-apple" style={{ background: COLORWAY_SWATCH[c.value], transform: value === c.value ? 'scale(1.12)' : undefined }} />
+            {c.label}
+          </button>
+        ))}
+      </div>
+      {pinned && <p className="mt-1.5 text-footnote text-label-2">{pinned === 'light' ? 'NoirW' : 'NoirB'} keeps Flow {pinned}.</p>}
+    </div>
   );
 }

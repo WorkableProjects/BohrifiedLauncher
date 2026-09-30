@@ -24,7 +24,7 @@ import type { EquationElement, TextElement } from '../engine/types';
 import { FormatButtons, FORMATS, type FormatSpec, type MarkState } from './FormatBar';
 import { channelSupported } from '../engine/sync';
 import { BubbleGroup } from './Bubble';
-import { Divider, Segmented, Toggle, ToolButton } from './controls';
+import { ColorwayPicker, Divider, Segmented, Toggle, ToolButton } from './controls';
 import { Glass } from './Glass';
 import { Logo } from './Logo';
 import { Popover } from './Popover';
@@ -164,7 +164,7 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
           <AppTile icon="timer" color="#FF9500" label="Timer" detail={timerOpen ? 'On' : 'Countdown'} on={timerOpen} onClick={() => ui.set({ timerOpen: !timerOpen })} />
           <AppTile icon="curtain" color="#5856D6" label="Screen Hider" detail={curtain ? 'On' : 'Reveal steps'} on={curtain} shortcut="C" onClick={() => ui.set({ curtain: { ...ui.get().curtain, on: !curtain } })} />
           <AppTile icon="equation" color="var(--brand)" label="LaTeX Equation" detail="Typeset math" onClick={() => { close(); openEquation(); }} />
-          <AppTile icon="atom" color="#34C759" label="Elements" detail="Bohr model & more" onClick={() => { close(); openElements(); }} />
+          <AppTile icon="atom" color="#34C759" label="Elements" detail="Bohr model, orbitals & more" onClick={() => { close(); openElements(); }} />
           <AppTile icon="textBox" color="#007AFF" label="Text" detail="Rich text & notes" shortcut="T" onClick={() => { close(); setTool(ui.get().textKind); }} />
         </div>
       </Popover>
@@ -219,6 +219,8 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
             { value: 'system', label: 'Auto' },
           ]}
         />
+        <p className="mt-4 mb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Colorway</p>
+        <ColorwayPicker />
         <div className="mt-3 flex min-h-11 items-center justify-between gap-3 mobile:hidden">
           <div>
             <p className="text-subhead text-label">Liquid Glass</p>

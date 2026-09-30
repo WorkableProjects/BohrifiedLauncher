@@ -4,7 +4,7 @@ import { deleteLesson, listLessons, type LessonSummary } from '../engine/persist
 import type { Background } from '../engine/types';
 import { importLesson, newLesson, openLesson } from '../state/lessons';
 import { resetProfile, toast, ui, useUI, type AppearancePref, type DevicePref } from '../state/ui';
-import { Segmented } from '../ui/controls';
+import { ColorwayPicker, Segmented } from '../ui/controls';
 import { BrandBackdrop } from './BrandBackdrop';
 import { Popover } from '../ui/Popover';
 
@@ -174,7 +174,7 @@ export function Home({ onOpen }: { onOpen: () => void }) {
             <button
               type="button"
               onClick={() => start('dots')}
-              className="spring flex h-[50px] items-center gap-2 rounded-full bg-tint px-6 text-headline font-semibold text-white shadow-[0_4px_14px_var(--tint-glow)] hover:brightness-110 active:scale-[0.97]"
+              className="spring flex h-[50px] items-center gap-2 rounded-full bg-tint px-6 text-headline font-semibold text-on-tint shadow-[0_4px_14px_var(--tint-glow)] hover:brightness-110 active:scale-[0.97]"
             >
               <Icon name="plus" size={16} /> New Lesson
             </button>
@@ -272,6 +272,8 @@ export function Home({ onOpen }: { onOpen: () => void }) {
             { value: 'system', label: 'Auto' },
           ]}
         />
+        <p className="mt-4 mb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Colorway</p>
+        <ColorwayPicker />
         <div className="mt-4 border-t border-hairline pt-3">
           <p className="mb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Profile</p>
           <label className="flex min-h-11 items-center gap-3">

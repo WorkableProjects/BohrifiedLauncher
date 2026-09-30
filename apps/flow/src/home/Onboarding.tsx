@@ -91,7 +91,7 @@ export function Onboarding() {
             <button
               type="submit"
               disabled={!name.trim()}
-              className="spring mt-4 flex h-[50px] w-full items-center justify-center rounded-full bg-tint text-headline font-semibold text-white shadow-[0_4px_14px_var(--tint-glow)] hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:shadow-none"
+              className="spring mt-4 flex h-[50px] w-full items-center justify-center rounded-full bg-tint text-headline font-semibold text-on-tint shadow-[0_4px_14px_var(--tint-glow)] hover:brightness-110 active:scale-[0.98] disabled:opacity-40 disabled:shadow-none"
             >
               Continue
             </button>
@@ -116,7 +116,7 @@ export function Onboarding() {
                     <span className={`spring absolute top-4 right-4 ${on ? 'text-tint' : 'text-label-3'}`}>
                       {on ? <Icon name="checkFill" size={22} /> : <span className="block h-[22px] w-[22px] rounded-full shadow-[inset_0_0_0_1.5px_var(--label-3)]" />}
                     </span>
-                    <span className={`flex h-12 w-12 items-center justify-center rounded-2xl ${on ? 'bg-tint text-white' : 'bg-fill text-label'}`}>
+                    <span className={`flex h-12 w-12 items-center justify-center rounded-2xl ${on ? 'bg-tint text-on-tint' : 'bg-fill text-label'}`}>
                       <Icon name={o.icon} size={26} />
                     </span>
                     <p className="mt-3 text-headline font-semibold">{o.title}</p>
@@ -137,7 +137,7 @@ export function Onboarding() {
             <button
               type="button"
               onClick={() => ui.set({ device: choice, name })}
-              className="spring mt-6 flex h-[50px] w-full items-center justify-center rounded-full bg-tint text-headline font-semibold text-white shadow-[0_4px_14px_var(--tint-glow)] hover:brightness-110 active:scale-[0.98]"
+              className="spring mt-6 flex h-[50px] w-full items-center justify-center rounded-full bg-tint text-headline font-semibold text-on-tint shadow-[0_4px_14px_var(--tint-glow)] hover:brightness-110 active:scale-[0.98]"
             >
               Continue
             </button>

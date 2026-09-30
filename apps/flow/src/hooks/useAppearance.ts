@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
 import type { Appearance } from '../engine/theme';
-import { useUI } from '../state/ui';
+import { useUI, type Colorway } from '../state/ui';
 
-/** Resolve the appearance preference against the system setting. */
+/** NoirW is white-led and NoirB black-led, so they pin the appearance. */
+export const PINNED_APPEARANCE: Partial<Record<Colorway, Appearance>> = { noirw: 'light', noirb: 'dark' };
+
+/** Resolve the appearance preference against the system setting and colorway. */
 export function useAppearance(): Appearance {
   const pref = useUI((s) => s.appearance);
+  const colorway = useUI((s) => s.colorway);
   const [system, setSystem] = useState<Appearance>(() =>
     window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
   );
@@ -15,9 +19,10 @@ export function useAppearance(): Appearance {
     mq.addEventListener('change', fn);
     return () => mq.removeEventListener('change', fn);
   }, []);
-  const resolved = pref === 'system' ? system : pref;
+  const resolved = PINNED_APPEARANCE[colorway] ?? (pref === 'system' ? system : pref);
   useEffect(() => {
     document.documentElement.dataset.appearance = resolved;
-  }, [resolved]);
+    document.documentElement.dataset.colorway = colorway;
+  }, [resolved, colorway]);
   return resolved;
 }
