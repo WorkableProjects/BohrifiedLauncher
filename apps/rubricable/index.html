@@ -111,8 +111,8 @@
   <h2 id="st">Welcome to Rubricable</h2>
   <div class="small">What are you grading? This sets the total points.</div>
   <div class="choices">
-    <button data-type="assignment">Practice Assignment <span>30 pts</span></button>
-    <button data-type="quiz">Quiz <span>75 pts</span></button>
+    <button data-type="assignment">Practice Assignment <span>custom</span></button>
+    <button data-type="quiz">Quiz <span>30 pts</span></button>
     <button data-type="test">Unit Test <span>75 pts</span></button>
     <button data-type="custom" class="ghost">Ignore — I'll set the points myself <span>custom</span></button>
   </div>
@@ -144,19 +144,19 @@ const DEFAULT_LEVELS = [
   {name:'Perfection', grade:'A+', range:'100%', pct:100, color:'#16a34a',
    desc:'No mistakes, all correctly identified (A+)\n\nAction: Nothing, you are good here'},
   {name:'Mastery', grade:'A', range:'90-99%', pct:90, color:'#22c55e',
-   desc:'Small mistakes, nearly all correctly identified (A)\n\nAction: Nothing, you are good here'},
+   desc:'Small mistakes, nearly perfect (A)\n\nAction: Nothing, you are good here'},
   {name:'Proficiency', grade:'B', range:'80-89%', pct:80, color:'#84cc16',
-   desc:'Mistakes are there, most correctly identified (B)\n\nAction: Minor review touching up small mistakes to get that A'},
+   desc:'Mistakes are there, mostly correct (B)\n\nAction: Minor review touching up small mistakes to get that A'},
   {name:'Passing', grade:'C', range:'70-79%', pct:70, color:'#eab308',
-   desc:'Moderate mistakes, or only few are correctly identified (C)\n\nActions: Small review to re-solidify your knowledge\n\nOR\n\nGet tutoring to re-solidify your knowledge'},
+   desc:'Moderate mistakes somewhat correct (C)\n\nActions: Small review to re-solidify your knowledge\n\nOR\n\nGet tutoring to re-solidify your knowledge'},
   {name:'Lacking', grade:'D', range:'60-69%', pct:60, color:'#f97316',
-   desc:'Large mistakes, or almost none or correctly identified (D)\n\nActions: Study! You are in danger of failing this section a real test\n\nOR\n\nGet tutoring to make up the gaps in your knowledge'},
+   desc:'Large mistakes, or almost all answers were missing a part or mostly incorrect (D)\n\nActions: Study! You are in danger of failing this section a real test\n\nOR\n\nGet tutoring to make up the gaps in your knowledge'},
   {name:'Failing', grade:'F', range:'1-59%', pct:1, color:'#ef4444',
    desc:'Most answers wrong\n\nActions: Study and get tutoring -- either from us or from Mrs. Ponce -- you are currently failing and will not perform well on the test if you do not fix it'},
   {name:'Unacceptable', grade:'F', range:'0%', pct:0, color:'#b91c1c',
    desc:'Unacceptable mistakes, left empty or none are correctly identified\n\nActions: Read questions more carefully, you automatically get a 0 if 20%+ answers in the section are left blank\n\nAND/OR\n\nStudy and get tutoring -- either from us or from Mrs. Ponce -- you are currently failing and will not perform well on the test if you do not fix it'}];
 const VERSION = '1.1';
-const TYPES = {assignment:30, quiz:75, test:75};
+const TYPES = {quiz:30, test:75};
 const store = {get:k => { try { return localStorage.getItem(k); } catch { return null; } }, set:(k,v) => { try { localStorage.setItem(k,v); } catch {} }};
 let nid = 1;
 const blank = () => ({id:nid++, name:'', desc:'', pts:'', ld: DEFAULT_LEVELS.map(l => l.desc)});
