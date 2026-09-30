@@ -8,16 +8,18 @@ export interface ToolStyle {
 
 export type AppearancePref = 'system' | 'light' | 'dark';
 
-/** Brand palette on top of light/dark. NoirW and NoirB also pin the appearance (light / dark). */
-export type Colorway = 'default' | 'noir' | 'noirw' | 'noirb' | 'ocean';
-export const COLORWAYS: { value: Colorway; label: string }[] = [
-  { value: 'default', label: 'Flow' },
-  { value: 'noir', label: 'Noir' },
-  { value: 'noirw', label: 'NoirW' },
-  { value: 'noirb', label: 'NoirB' },
-  { value: 'ocean', label: 'Ocean' },
+/** Accent color: a hex value, or 'mono' for black (light) / white (dark). */
+export type Accent = string;
+export const DEFAULT_ACCENT = '#ff6083';
+export const ACCENTS: { value: Accent; label: string }[] = [
+  { value: DEFAULT_ACCENT, label: 'Flow' },
+  { value: '#0a84ff', label: 'Blue' },
+  { value: '#8e5cf7', label: 'Purple' },
+  { value: '#22b357', label: 'Green' },
+  { value: '#ff9500', label: 'Orange' },
+  { value: 'mono', label: 'Mono' },
 ];
-export const isColorway = (v: unknown): v is Colorway => COLORWAYS.some((c) => c.value === v);
+export const isAccent = (v: unknown): v is Accent => v === 'mono' || (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v));
 
 /**
  * Chosen at first launch. 'mobile' = touch-first (tablets & phones):
@@ -44,7 +46,7 @@ export interface UIState {
   /** Hold the pen still at the end of a stroke to snap it into a shape. */
   snapShapes: boolean;
   appearance: AppearancePref;
-  colorway: Colorway;
+  accent: Accent;
   /** null until the first-run question is answered. */
   device: DevicePref | null;
   /** First name for the Home welcome; null until asked, '' if skipped. */
@@ -59,12 +61,13 @@ export interface UIState {
   equation: { open: boolean; editId: string | null };
   /** Elements app (science presets such as the Bohr model). */
   elementsOpen: boolean;
+  shortcutsOpen: boolean;
   /** Transient HUD message (e.g. "Shape snapped"). */
   toast: string | null;
 }
 
 const PREFS_KEY = 'flow:prefs:v1';
-const PERSISTED: (keyof UIState)[] = ['pen', 'highlighter', 'shape', 'text', 'noteTint', 'dot', 'snapDots', 'textKind', 'eraserSize', 'snapShapes', 'appearance', 'colorway', 'liquidGlass', 'shapeKind', 'device', 'name'];
+const PERSISTED: (keyof UIState)[] = ['pen', 'highlighter', 'shape', 'text', 'noteTint', 'dot', 'snapDots', 'textKind', 'eraserSize', 'snapShapes', 'appearance', 'accent', 'liquidGlass', 'shapeKind', 'device', 'name'];
 
 const initial: UIState = {
   tool: 'pen',
@@ -80,7 +83,7 @@ const initial: UIState = {
   eraserSize: 16,
   snapShapes: true,
   appearance: 'system',
-  colorway: 'default',
+  accent: DEFAULT_ACCENT,
   device: null,
   name: null,
   liquidGlass: true,
@@ -90,6 +93,7 @@ const initial: UIState = {
   curtain: { on: false, y: 0.45 },
   equation: { open: false, editId: null },
   elementsOpen: false,
+  shortcutsOpen: false,
   toast: null,
 };
 
@@ -102,7 +106,7 @@ function loadPrefs(): Partial<UIState> {
 }
 
 let state: UIState = { ...initial, ...(typeof localStorage !== 'undefined' ? loadPrefs() : {}) };
-if (!isColorway(state.colorway)) state = { ...state, colorway: 'default' };
+if (!isAccent(state.accent)) state = { ...state, accent: DEFAULT_ACCENT };
 const listeners = new Set<() => void>();
 let saveTimer = 0;
 

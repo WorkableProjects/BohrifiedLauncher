@@ -4,7 +4,7 @@ import { deleteLesson, listLessons, type LessonSummary } from '../engine/persist
 import type { Background } from '../engine/types';
 import { importLesson, newLesson, openLesson } from '../state/lessons';
 import { resetProfile, toast, ui, useUI, type AppearancePref, type DevicePref } from '../state/ui';
-import { ColorwayPicker, Segmented } from '../ui/controls';
+import { AccentPicker, Segmented } from '../ui/controls';
 import { BrandBackdrop } from './BrandBackdrop';
 import { Popover } from '../ui/Popover';
 
@@ -272,8 +272,8 @@ export function Home({ onOpen }: { onOpen: () => void }) {
             { value: 'system', label: 'Auto' },
           ]}
         />
-        <p className="mt-4 mb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Colorway</p>
-        <ColorwayPicker />
+        <p className="mt-4 mb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Accent</p>
+        <AccentPicker />
         <div className="mt-4 border-t border-hairline pt-3">
           <p className="mb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Profile</p>
           <label className="flex min-h-11 items-center gap-3">

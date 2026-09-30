@@ -62,7 +62,7 @@ export function boardTheme(appearance: Appearance): BoardTheme {
   const notes = dark ? NOTE_DARK : NOTE_LIGHT;
   return {
     appearance,
-    background: dark ? '#141416' : '#FFFFFF',
+    background: dark ? '#000000' : '#FFFFFF',
     pattern: dark ? 'rgba(235,235,245,0.14)' : 'rgba(60,60,67,0.16)',
     patternStrong: dark ? 'rgba(235,235,245,0.32)' : 'rgba(60,60,67,0.36)',
     selection: '#FF6083',

@@ -267,15 +267,55 @@ function renderTabs() {
   );
 }
 
-/** Loading and crash screens sit over the active app's slot, never over the bar. */
-function renderStatus() {
+/** How long the "Opening…" screen stays up after launching from the library, even if the app is ready sooner. */
+const OPEN_HOLD_MS = 1600;
+const EXIT_MS = 800;
+let holdUntil = 0;
+let holdTimer = 0;
+let statusExit: Animation | null = null;
+
+function hideStatus(animate: boolean) {
   const rec = manager.active ? manager.apps.get(manager.active) : null;
-  if (!rec || (rec.state !== 'loading' && rec.state !== 'ready' && rec.state !== 'crashed')) {
+  const opening = status.firstElementChild?.classList.contains('opening');
+  statusExit?.cancel();
+  statusExit = null;
+  if (!animate || !opening || reduceMotion() || status.hidden) {
     status.hidden = true;
     status.replaceChildren();
     return;
   }
+  // The opening screen lifts away while the app settles in underneath.
+  const ease = 'cubic-bezier(0.32, 0.72, 0, 1)';
+  rec?.container?.animate([{ opacity: 0, transform: 'scale(0.94)' }, { opacity: 1, transform: 'none' }], { duration: EXIT_MS, easing: ease, fill: 'backwards' });
+  const anim = status.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(1.06)' }], { duration: EXIT_MS, easing: ease });
+  statusExit = anim;
+  anim.finished.then(
+    () => {
+      if (statusExit !== anim) return;
+      statusExit = null;
+      status.hidden = true;
+      status.replaceChildren();
+    },
+    () => {},
+  );
+}
+
+/** Loading and crash screens sit over the active app's slot, never over the bar. */
+function renderStatus() {
+  const rec = manager.active ? manager.apps.get(manager.active) : null;
+  const holding = !!rec && rec.state !== 'crashed' && performance.now() < holdUntil;
+  if (!rec || (!holding && rec.state !== 'loading' && rec.state !== 'ready' && rec.state !== 'crashed')) {
+    if (rec && statusExit) return; // already leaving
+    hideStatus(!!rec);
+    return;
+  }
+  statusExit?.cancel();
+  statusExit = null;
   status.hidden = false;
+  if (holding) {
+    clearTimeout(holdTimer);
+    holdTimer = window.setTimeout(renderStatus, holdUntil - performance.now() + 20);
+  }
   if (rec.state === 'crashed') {
     const msg = rec.error instanceof Error ? rec.error.message : String(rec.error ?? 'Unknown error');
     status.replaceChildren(
@@ -298,7 +338,9 @@ function renderStatus() {
     if (status.firstElementChild?.classList.contains('opening')) return;
     const big = icon(rec, 72);
     big.style.viewTransitionName = 'app-icon';
-    status.replaceChildren(el('div', { className: 'opening', ariaLive: 'polite' }, big, el('span', { textContent: `Opening ${rec.manifest.name}…` })));
+    status.replaceChildren(
+      el('div', { className: 'opening', ariaLive: 'polite' }, big, el('span', { textContent: `Opening ${rec.manifest.name}…` }), el('div', { className: 'opening-bar' }, el('i', {}))),
+    );
   }
 }
 
@@ -323,6 +365,7 @@ function render() {
   const next = manager.active === null ? 'home' : 'app';
   if (next === view) return paint();
   view = next;
+  if (next === 'app' && !reduceMotion()) holdUntil = performance.now() + OPEN_HOLD_MS;
   const root = document.documentElement;
   root.dataset.nav = next === 'app' ? 'forward' : 'back';
   if (reduceMotion() || !document.startViewTransition) return paint();
