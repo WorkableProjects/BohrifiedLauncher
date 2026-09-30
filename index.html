@@ -3,31 +3,36 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rubric Builder</title>
+<title>Rubricable</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-  :root { --bg:#f8fafc; --card:#fff; --line:#e2e8f0; --text:#0f172a; --mute:#64748b; --acc:#4f46e5; }
+  :root { --bg:#f8fafc; --card:#fff; --line:#e2e8f0; --text:#0f172a; --mute:#64748b; --acc:#4f46e5; --accbg:#eef2ff; }
   * { box-sizing: border-box; }
-  body { margin:0; font:14px/1.4 system-ui,sans-serif; background:var(--bg); color:var(--text); }
+  body { margin:0; -webkit-font-smoothing:antialiased; font:14px/1.4 system-ui,sans-serif; background:var(--bg); color:var(--text); }
   header { position:sticky; top:0; z-index:5; background:#fffe; backdrop-filter:blur(6px); border-bottom:1px solid var(--line);
     display:flex; flex-wrap:wrap; gap:12px; align-items:center; padding:10px 16px; }
-  h1 { font-size:18px; margin:0 auto 0 0; }
+  h1 { font-size:20px; margin:0 auto 0 0; display:flex; align-items:center; gap:8px; letter-spacing:-.02em; }
+  .logo { display:inline-grid; place-items:center; width:28px; height:28px; border-radius:8px; background:linear-gradient(135deg,#6366f1,#4338ca); color:#fff; font-size:16px; }
+  select { font:inherit; border:1px solid #cbd5e1; border-radius:8px; padding:6px 8px; background:#fff; }
   main { max-width:1200px; margin:0 auto; padding:0 16px 60px; }
   input, textarea { font:inherit; border:1px solid #cbd5e1; border-radius:8px; padding:6px 8px; background:#fff; color:inherit; }
   input:focus, textarea:focus { outline:2px solid var(--acc); border-color:transparent; }
   textarea { width:100%; resize:vertical; }
-  button { font:inherit; cursor:pointer; border-radius:8px; border:1px solid #cbd5e1; background:#fff; padding:8px 12px; }
+  button { font:inherit; cursor:pointer; border-radius:8px; border:1px solid #cbd5e1; background:#fff; padding:8px 12px; transition:background .15s, box-shadow .15s; }
+  button:hover { background:#f1f5f9; }
+  button.primary:hover { background:#4338ca; }
   button.primary { background:var(--acc); color:#fff; border-color:var(--acc); }
   button.danger { color:#dc2626; border-color:#fecaca; }
   #total { width:110px; font-size:24px; font-weight:700; color:var(--acc); }
   .tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); margin:14px 0; }
   .tab { border:0; border-bottom:2px solid transparent; border-radius:0; background:none; color:var(--mute); }
   .tab.on { border-color:var(--acc); color:var(--acc); font-weight:600; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:14px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:16px; box-shadow:0 1px 2px #0f172a0d; }
   .card.blank { border-style:dashed; }
-  .levels { display:grid; grid-template-columns:repeat(6,minmax(120px,1fr)); gap:8px; overflow-x:auto; }
-  .lv { background:#f1f5f9; border-radius:8px; padding:8px; font-size:12px; }
+  .levels { display:grid; grid-template-columns:repeat(7,minmax(130px,1fr)); gap:8px; overflow-x:auto; }
+  .lv { background:#f8fafc; border:1px solid var(--line); border-top:4px solid var(--c,#94a3b8); border-radius:8px; padding:8px; font-size:12px; }
   .lv input { width:100%; border:0; background:transparent; padding:1px 0; }
+  .lv .g { font-weight:700; color:var(--c); }
   .lv .n { font-weight:600; font-size:13px; }
   .lv .p { width:56px !important; border:1px solid #cbd5e1; background:#fff; padding:1px 4px; }
   .top { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-start; }
@@ -36,11 +41,17 @@
   .max { font-size:22px; font-weight:700; color:var(--acc); text-align:right; }
   .small { font-size:12px; color:var(--mute); }
   .scroll { overflow-x:auto; margin-top:12px; }
-  .cells { display:grid; grid-template-columns:repeat(6,minmax(130px,1fr)); gap:8px; min-width:800px; }
-  .cell { border:1px solid var(--line); border-radius:8px; padding:8px; }
+  .cells { display:grid; grid-template-columns:repeat(7,minmax(150px,1fr)); gap:8px; min-width:1050px; }
+  .cell { border:1px solid var(--line); border-top:4px solid var(--c,#94a3b8); border-radius:8px; padding:8px; background:#fff; }
   .cell .t { font-size:12px; font-weight:600; }
   .cell .pts { font-size:18px; font-weight:700; color:var(--acc); }
   .cell textarea { font-size:12px; margin-top:4px; }
+  .cell .r { font-size:11px; color:var(--mute); }
+  .note { background:var(--accbg); border:1px solid #c7d2fe; color:#3730a3; border-radius:8px; padding:8px 10px; font-size:12px; margin-bottom:10px; }
+  .choices { display:grid; gap:10px; margin:14px 0 4px; }
+  .choices button { display:flex; justify-content:space-between; align-items:center; padding:14px 16px; font-size:15px; font-weight:600; text-align:left; }
+  .choices button span { color:var(--acc); }
+  .choices button:hover { border-color:var(--acc); background:var(--accbg); }
   table { border-collapse:collapse; width:100%; background:#fff; }
   th, td { padding:8px 10px; border-top:1px solid var(--line); text-align:left; white-space:nowrap; }
   thead th { background:#f8fafc; font-size:12px; color:var(--mute); border-top:0; }
@@ -48,9 +59,9 @@
   .ex { color:#94a3b8; font-size:11px; margin-left:4px; }
   tr.w td { background:#f8fafc; border-top:2px solid var(--line); }
   [hidden] { display:none !important; }
-  #modal { position:fixed; inset:0; background:#0f172a99; display:flex; align-items:center; justify-content:center; padding:16px; z-index:20; }
-  #modal .box { background:#fff; border-radius:14px; max-width:560px; width:100%; padding:20px; max-height:90vh; overflow:auto; }
-  #modal h2 { margin:0 0 10px; font-size:18px; }
+  #modal, .overlay { position:fixed; inset:0; background:#0f172a99; display:flex; align-items:center; justify-content:center; padding:16px; z-index:20; }
+  #modal .box, .overlay .box { background:#fff; border-radius:14px; max-width:560px; width:100%; padding:20px; max-height:90vh; overflow:auto; }
+  #modal h2, .overlay h2 { margin:0 0 10px; font-size:18px; }
   #modal ol { padding-left:20px; margin:0 0 14px; } #modal li { margin-bottom:6px; }
   #modal kbd { background:#f1f5f9; border:1px solid #cbd5e1; border-radius:4px; padding:0 5px; font-size:12px; }
   #modal textarea { height:110px; font:11px/1.3 ui-monospace,monospace; white-space:pre; }
@@ -60,8 +71,9 @@
 </head>
 <body>
 <header>
-  <h1>Rubric Builder</h1>
-  <label>Total Points <input id="total" type="number" min="0" value="100"></label>
+  <h1><span class="logo">R</span>Rubricable</h1>
+  <label class="small">Type <select id="atype" title="Assignment type sets the total points"><option value="assignment">Practice Assignment</option><option value="quiz">Quiz</option><option value="test">Unit Test</option></select></label>
+  <label class="small">Total Points <input id="total" type="number" min="0" value="30"></label>
   <button class="primary" id="csv" hidden>Export to Google Classroom CSV</button>
   <button class="primary" id="paste" title="Copy the rubric as sheet cells to paste into Google Sheets">Copy &amp; paste into a Sheet</button>
   <button id="xlsx-sep" hidden title="Two sheets: Rubric Template + Values. Template cells pull from Values.">XLSX: separate Values sheet</button>
@@ -73,7 +85,7 @@
     <button class="tab" data-tab="values">Values Breakdown</button>
   </div>
   <section id="canvas">
-    <div class="card"><div class="small" style="margin-bottom:6px">Performance levels (row 6) — names, ranges and percentages are editable</div><div class="levels" id="levels"></div></div>
+    <div class="card"><div class="small" style="margin-bottom:6px">Performance levels (row 6) — names, grades, ranges and percentages are editable. Unacceptable (0%) is only granted when a category is under 20% complete or everything is wrong; leave a comment explaining it.</div><div class="levels" id="levels"></div></div>
     <div id="warn" class="small" style="color:#dc2626;margin-bottom:8px"></div>
     <div id="criteria"></div>
   </section>
@@ -82,6 +94,15 @@
     <div class="wrap"><table id="vt"></table></div>
   </section>
 </main>
+<div id="start" class="overlay"><div class="box" role="dialog" aria-labelledby="st">
+  <h2 id="st">Welcome to Rubricable</h2>
+  <div class="small">What are you grading? This sets the total points.</div>
+  <div class="choices">
+    <button data-type="assignment">Practice Assignment <span>30 pts</span></button>
+    <button data-type="quiz">Quiz <span>75 pts</span></button>
+    <button data-type="test">Unit Test <span>75 pts</span></button>
+  </div>
+</div></div>
 <div id="modal" hidden><div class="box" role="dialog" aria-labelledby="mt">
   <h2 id="mt">Paste this rubric into Google Sheets</h2>
   <ol>
@@ -97,16 +118,27 @@
 </div></div>
 <script>
 const DEFAULT_LEVELS = [
-  {name:'Perfection', range:'100%', pct:100}, {name:'Mastery', range:'90-99%', pct:90},
-  {name:'Proficiency', range:'80-89%', pct:80}, {name:'Passing', range:'70-79%', pct:70},
-  {name:'Lacking', range:'60-69%', pct:60},
-  {name:'Failing', range:'1-59%', pct:1}];
+  {name:'Perfection', grade:'A+', range:'100%', pct:100, color:'#16a34a',
+   desc:'No mistakes, all correctly identified (A+)\n\nAction: Nothing, you are good here'},
+  {name:'Mastery', grade:'A', range:'90-99%', pct:90, color:'#22c55e',
+   desc:'Small mistakes, nearly all correctly identified (A)\n\nAction: Nothing, you are good here'},
+  {name:'Proficiency', grade:'B', range:'80-89%', pct:80, color:'#84cc16',
+   desc:'Mistakes are there, most correctly identified (B)\n\nAction: Minor review touching up small mistakes to get that A'},
+  {name:'Passing', grade:'C', range:'70-79%', pct:70, color:'#eab308',
+   desc:'Moderate mistakes, or only few are correctly identified (C)\n\nActions: Small review to re-solidify your knowledge\n\nOR\n\nGet tutoring to re-solidify your knowledge'},
+  {name:'Lacking', grade:'D', range:'60-69%', pct:60, color:'#f97316',
+   desc:'Large mistakes, or almost none or correctly identified (D)\n\nActions: Study! You are in danger of failing this section a real test\n\nOR\n\nGet tutoring to make up the gaps in your knowledge'},
+  {name:'Failing', grade:'F', range:'1-59%', pct:1, color:'#ef4444',
+   desc:'Most answers wrong\n\nActions: Study and get tutoring -- either from us or from Mrs. Ponce -- you are currently failing and will not perform well on the test if you do not fix it'},
+  {name:'Unacceptable', grade:'F', range:'0%', pct:0, color:'#7f1d1d',
+   desc:'Unacceptable mistakes, left empty or none are correctly identified\n\nActions: Read questions more carefully, you automatically get a 0 if 20%+ answers in the section are left blank\n\nAND/OR\n\nStudy and get tutoring -- either from us or from Mrs. Ponce -- you are currently failing and will not perform well on the test if you do not fix it'}];
+const TYPES = {assignment:30, quiz:75, test:75};
 let nid = 1;
-const blank = () => ({id:nid++, name:'', desc:'', pts:'', ld: DEFAULT_LEVELS.map(() => '')});
-const S = {total:100, levels: DEFAULT_LEVELS.map(l => ({...l})), criteria:[blank()]};
+const blank = () => ({id:nid++, name:'', desc:'', pts:'', ld: DEFAULT_LEVELS.map(l => l.desc)});
+const S = {total:30, levels: DEFAULT_LEVELS.map(l => ({...l})), criteria:[blank()]};
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const title = (l) => `${l.name} (${l.range})`;
+const title = (l) => `${l.name} (${l.grade})`;
 const active = () => S.criteria.filter(c => c.name.trim());
 
 // Largest-remainder split so criterion maxima sum to the total exactly.
@@ -124,6 +156,7 @@ function uniquePts(max, weights) {
   const out = [];
   weights.forEach((w, j) => {
     let p = Math.round(max * w);
+    if (w > 0 && p < 1) p = 1;
     if (j > 0) p = Math.min(p, out[j-1] - 1);
     out.push(Math.max(0, p));
   });
@@ -143,8 +176,9 @@ function compute() {
 }
 
 function renderLevels() {
-  $('levels').innerHTML = S.levels.map((l,j) => `<div class="lv">
+  $('levels').innerHTML = S.levels.map((l,j) => `<div class="lv" style="--c:${l.color}">
     <input class="n" data-lv="${j}" data-k="name" value="${esc(l.name)}">
+    <input class="g" data-lv="${j}" data-k="grade" value="${esc(l.grade)}" title="Letter grade">
     <input data-lv="${j}" data-k="range" value="${esc(l.range)}">
     <div><input class="p" type="number" min="0" max="100" data-lv="${j}" data-k="pct" value="${l.pct}">%</div></div>`).join('');
 }
@@ -157,9 +191,9 @@ function renderCriteria() {
       <textarea data-f="desc" rows="2" placeholder="Criterion description">${esc(c.desc)}</textarea></div>
       <label class="small">Total points<br><input data-f="pts" type="number" min="0" step="1" value="${esc(c.pts)}" placeholder="auto" style="width:90px"></label>
       <button class="danger" data-del>Delete Criterion</button></div>
-    <div class="scroll"><div class="cells">${S.levels.map((l,j) => `<div class="cell">
-      <div class="t" data-t="${j}">${esc(title(l))}</div><div class="pts" data-p="${j}">—</div>
-      <textarea rows="3" data-ld="${j}" placeholder="Level description">${esc(c.ld[j]||'')}</textarea></div>`).join('')}</div></div></div>`;
+    <div class="scroll"><div class="cells">${S.levels.map((l,j) => `<div class="cell" style="--c:${l.color}">
+      <div class="t" data-t="${j}">${esc(title(l))}</div><div class="pts" data-p="${j}">—</div><div class="r">${esc(l.range)}</div>
+      <textarea rows="9" data-ld="${j}" placeholder="Level description">${esc(c.ld[j]||'')}</textarea></div>`).join('')}</div></div></div>`;
   }).join('');
   update();
 }
@@ -188,6 +222,7 @@ function update() {
 
 document.addEventListener('input', e => {
   const t = e.target;
+  if (t.id === 'atype') { S.total = TYPES[t.value]; $('total').value = S.total; return update(); }
   if (t.id === 'total') { S.total = t.value; return update(); }
   if (t.dataset.lv !== undefined) { S.levels[t.dataset.lv][t.dataset.k] = t.value; return update(); }
   const card = t.closest('.card[data-id]'); if (!card) return;
@@ -306,6 +341,11 @@ $('copy').onclick = async () => {
 $('xlsx-sep').onclick = () => exportXlsx(true);
 $('xlsx-one').onclick = () => exportXlsx(false);
 
+$('start').onclick = e => {
+  const b = e.target.closest('[data-type]'); if (!b) return;
+  $('atype').value = b.dataset.type; S.total = TYPES[b.dataset.type]; $('total').value = S.total;
+  $('start').hidden = true; update();
+};
 renderLevels(); renderCriteria();
 </script>
 </body>
