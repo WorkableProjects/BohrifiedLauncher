@@ -62,7 +62,7 @@ describe('Bohr model QMM', () => {
 
 describe('orbital diagram', () => {
   const boxes = (through: string, n = 0) => orbitalDiagram(through, n, opts).filter((e) => e.type === 'shape' && e.kind === 'rect');
-  const arrows = (through: string, n: number) => orbitalDiagram(through, n, opts).filter((e) => e.type === 'shape' && e.kind === 'arrow');
+  const arrows = (through: string, n: number) => orbitalDiagram(through, n, opts).filter((e) => e.type === 'shape' && e.kind === 'arrow').slice(1); // first arrow is the energy axis
 
   it('lists subshells 1s through 7p in filling order', () => {
     expect(SUBSHELLS.map((s) => s.id).slice(0, 8)).toEqual(['1s', '2s', '2p', '3s', '3p', '4s', '3d', '4p']);
@@ -87,6 +87,15 @@ describe('orbital diagram', () => {
     expect(arrows('2p', 4 + 3)).toHaveLength(7); // 1s2 2s2 2p3
     expect(arrows('2p', 4 + 4)).toHaveLength(8); // one p box now paired
     expect(arrows('2p', 0)).toHaveLength(0);
+  });
+  it('puts s, p and d boxes in columns left to right, with an energy axis', () => {
+    const x = (through: string) => boxes(through).map((e) => (e.type === 'shape' ? e.x1 : 0));
+    const [s1, s2, p1] = x('2p');
+    expect(p1).toBeGreaterThan(s1);
+    expect(s2).toBe(s1);
+    const xs = x('3d');
+    expect(Math.max(...xs)).toBeGreaterThan(xs[3]);
+    expect(orbitalDiagram('2p', 0, opts).some((e) => e.type === 'text' && e.text === 'Increasing Energy')).toBe(true);
   });
   it('never exceeds capacity', () => {
     expect(arrows('1s', 50)).toHaveLength(2);
