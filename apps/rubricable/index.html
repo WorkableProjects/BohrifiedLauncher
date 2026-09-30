@@ -84,7 +84,7 @@
 <body>
 <header>
   <h1><span class="logo">R</span>Rubricable <span class="ver" id="ver"></span></h1>
-  <label class="small">Type <select id="atype" title="Assignment type sets the total points"><option value="assignment">Practice Assignment</option><option value="quiz">Quiz</option><option value="test">Unit Test</option><option value="custom">Custom (ignore preset)</option></select></label>
+  <label class="small">Type <select id="atype" title="Assignment type sets the total points"><option value="assignment">Practice Assignment (custom)</option><option value="quiz">Quiz (30 pts)</option><option value="test">Unit Test (75 pts)</option><option value="custom">Ignore — custom points</option></select></label>
   <label class="small">Total Points <input id="total" type="number" min="0" value="30"></label>
   <button class="gear" id="gear" title="Settings" aria-label="Settings">⚙</button>
   <button class="primary" id="csv" hidden>Export to Google Classroom CSV</button>
@@ -191,14 +191,27 @@ function distribute(total, ws) {
   raw.map((r,i) => ({i, f:r-Math.floor(r)})).sort((a,b) => b.f-a.f || a.i-b.i).forEach(o => { if (left-- > 0) out[o.i]++; });
   return out;
 }
-// Rounded points, forced strictly descending so no two levels share a value
+// Allowed decimal parts for level points; anything else snaps to the nearest one.
+const FRACS = [0,.1,.2,.3,.33,.4,.5,.6,.67,.7,.8,.9,1];
+function snap(x) {
+  const w = Math.floor(x), f = x - w;
+  const nearest = FRACS.reduce((a,b) => Math.abs(b-f) < Math.abs(a-f) ? b : a);
+  return +(w + nearest).toFixed(2);
+}
+// Largest allowed value strictly below x.
+function below(x) {
+  const w = Math.floor(x - 1e-9), f = +(x - w).toFixed(2);
+  const lower = FRACS.filter(a => a < f - 1e-9);
+  return +(w + lower[lower.length-1]).toFixed(2);
+}
+// Snapped points, forced strictly descending so no two levels share a value
 // (Classroom needs distinct points). Exact weights stay untouched in `exact`.
 function uniquePts(max, weights) {
   const out = [];
   weights.forEach((w, j) => {
-    let p = Math.round(max * w);
-    if (w > 0 && p < 1) p = 1;
-    if (j > 0) p = Math.min(p, out[j-1] - 1);
+    let p = snap(max * w);
+    if (w > 0 && p < .1) p = .1;
+    if (j > 0 && p >= out[j-1]) p = below(out[j-1]);
     out.push(Math.max(0, p));
   });
   return out;
@@ -207,10 +220,10 @@ function compute() {
   const total = Math.max(0, +S.total || 0), act = active();
   // Criteria with "Total points" entered keep that value; the rest split what's left.
   const fixed = act.map(c => String(c.pts).trim() !== '');
-  const fixedSum = act.reduce((a,c,i) => a + (fixed[i] ? Math.max(0, Math.round(+c.pts || 0)) : 0), 0);
+  const fixedSum = act.reduce((a,c,i) => a + (fixed[i] ? Math.max(0, +(+c.pts || 0).toFixed(2)) : 0), 0);
   const autoMaxes = distribute(Math.max(0, total - fixedSum), act.map((c,i) => fixed[i] ? 0 : 1).filter(Boolean));
   let k = 0;
-  const maxes = act.map((c,i) => fixed[i] ? Math.max(0, Math.round(+c.pts || 0)) : autoMaxes[k++]);
+  const maxes = act.map((c,i) => fixed[i] ? Math.max(0, +(+c.pts || 0).toFixed(2)) : autoMaxes[k++]);
   const weights = S.levels.map(l => (+l.pct || 0) / 100);
   return {total, weights, rows: act.map((c,i) => ({c, row:5*(i+1), max:maxes[i],
     exact: weights.map(w => maxes[i]*w), pts: uniquePts(maxes[i], weights)}))};
@@ -230,7 +243,7 @@ function renderCriteria() {
     <div class="top"><div class="names">
       <input data-f="name" placeholder="Criterion ${i+1} name" value="${esc(c.name)}">
       <textarea data-f="desc" rows="2" placeholder="Criterion description">${esc(c.desc)}</textarea></div>
-      <label class="small">Total points<br><input data-f="pts" type="number" min="0" step="1" value="${esc(c.pts)}" placeholder="auto" style="width:90px"></label>
+      <label class="small">Total points<br><input data-f="pts" type="number" min="0" step="any" value="${esc(c.pts)}" placeholder="auto" style="width:90px"></label>
       <button class="danger" data-del>Delete Criterion</button></div>
     <div class="scroll"><div class="cells">${S.levels.map((l,j) => `<div class="cell" style="--c:${l.color}">
       <div class="t" data-t="${j}">${esc(title(l))}</div><div class="pts" data-p="${j}">—</div><div class="r">${esc(l.range)}</div>
@@ -334,7 +347,7 @@ async function exportXlsx(separate) {
   S.levels.forEach((l,j) => { val[col(j)+'4'] = {t:'s', v:title(l)}; val[col(j)+'6'] = {t:'n', v:v.weights[j], z:'0.##%'}; });
   v.rows.forEach(r => {
     val['A'+r.row] = {t:'s', v:r.c.name}; val[maxCol+r.row] = {t:'n', v:r.max};
-    S.levels.forEach((_,j) => val[col(j)+r.row] = {t:'n', v:r.pts[j], f:`ROUND($${maxCol}${r.row}*${col(j)}$6,0)`});
+    S.levels.forEach((_,j) => val[col(j)+r.row] = {t:'n', v:r.pts[j], f:`INT($${maxCol}${r.row}*${col(j)}$6)+LOOKUP($${maxCol}${r.row}*${col(j)}$6-INT($${maxCol}${r.row}*${col(j)}$6),{0,0.05,0.15,0.25,0.315,0.365,0.45,0.55,0.635,0.685,0.75,0.85,0.95},{0,0.1,0.2,0.3,0.33,0.4,0.5,0.6,0.67,0.7,0.8,0.9,1})`});
   });
   tpl.A1 = {t:'s', v:'It is recommended that you do not edit rubrics in spreadsheet format'}; tpl.A2 = {t:'s', v:'v1.0-s'};
   v.rows.forEach((r,i) => {
@@ -342,7 +355,7 @@ async function exportXlsx(separate) {
     tpl['A'+b] = {t:'s', v:r.c.name}; tpl['A'+(b+1)] = {t:'s', v:r.c.desc};
     S.levels.forEach((l,j) => {
       tpl[col(j)+(b+2)] = {t:'n', v:r.pts[j], f: separate ? `Values!${col(j)}${r.row}`
-        : `ROUND($J${b+2}*${XLSX.utils.encode_col(10+j)}$4,0)`};
+        : `INT($J${b+2}*${XLSX.utils.encode_col(10+j)}$4)+LOOKUP($J${b+2}*${XLSX.utils.encode_col(10+j)}$4-INT($J${b+2}*${XLSX.utils.encode_col(10+j)}$4),{0,0.05,0.15,0.25,0.315,0.365,0.45,0.55,0.635,0.685,0.75,0.85,0.95},{0,0.1,0.2,0.3,0.33,0.4,0.5,0.6,0.67,0.7,0.8,0.9,1})`};
       tpl[col(j)+(b+3)] = {t:'s', v:title(l)};
       tpl[col(j)+(b+4)] = {t:'s', v:r.c.ld[j] || ''};
     });
