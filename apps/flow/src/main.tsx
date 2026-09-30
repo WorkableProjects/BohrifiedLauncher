@@ -31,7 +31,7 @@ class CrashBoundary extends Component<{ children: ReactNode }, { error: Error | 
     return (
       <div className="fixed inset-0 flex flex-col items-center justify-center gap-3 bg-grouped text-label">
         <p className="text-headline">Flow hit a problem. Your lessons are saved.</p>
-        <button type="button" className="rounded-full bg-tint px-4 py-2 text-white" onClick={() => location.reload()}>
+        <button type="button" className="rounded-full bg-tint px-4 py-2 text-on-tint" onClick={() => location.reload()}>
           Reload
         </button>
       </div>

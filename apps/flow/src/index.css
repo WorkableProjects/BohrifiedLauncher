@@ -12,7 +12,7 @@
   --label-2: rgba(60, 60, 67, 0.6);
   --label-3: rgba(60, 60, 67, 0.3);
   --bg: #ffffff;
-  --bg-2: #f2f2f7;
+  --bg-2: #ffffff;
   --fill: rgba(120, 120, 128, 0.12);
   --fill-2: rgba(120, 120, 128, 0.2);
   --separator: #c6c6c8;
@@ -25,9 +25,11 @@
   /* Label on a tint-soft fill (the brand pink alone is too light to read there). */
   --on-tint-soft: #b82a52;
   --tint-glow: rgba(255, 96, 131, 0.32);
+  /* Label on a solid tint fill. */
+  --on-tint: #ffffff;
   --danger: #ff3b30;
   /* Grouped surfaces (Settings-style): page vs. raised cell. */
-  --grouped: #f2f2f7;
+  --grouped: #ffffff;
   --cell: #ffffff;
 
   /* Glass: control layer only, never content. */
@@ -55,7 +57,7 @@
   --label-2: rgba(235, 235, 245, 0.6);
   --label-3: rgba(235, 235, 245, 0.3);
   --bg: #000000;
-  --bg-2: #1c1c1e;
+  --bg-2: #000000;
   --fill: rgba(120, 120, 128, 0.24);
   --fill-2: rgba(120, 120, 128, 0.36);
   --separator: #38383a;
@@ -66,7 +68,7 @@
   --tint-glow: rgba(255, 96, 131, 0.4);
   --danger: #ff453a;
   --grouped: #000000;
-  --cell: #1c1c1e;
+  --cell: #0d0d0d;
   --glass: rgba(44, 44, 48, 0.62);
   --glass-live: rgba(30, 30, 34, 0.38);
   --glass-rim: rgba(255, 255, 255, 0.14);
@@ -89,6 +91,7 @@
   --color-tint: var(--tint);
   --color-tint-soft: var(--tint-soft);
   --color-on-tint-soft: var(--on-tint-soft);
+  --color-on-tint: var(--on-tint);
   --color-brand: var(--brand);
   --color-brand-2: var(--brand-2);
   --color-danger: var(--danger);
@@ -311,8 +314,8 @@ input[type='range'].slider::-moz-range-thumb {
 /* Home's page color matches the icon tile, so the logo reads as part of the page. */
 .brand-backdrop { opacity: 0.5; }
 .brand-backdrop .glitter { opacity: 0.06; }
-.home-bg { background: #ffd8da; }
-:root[data-appearance='dark'] .home-bg { background: #070005; }
+.home-bg { background: var(--home-bg, #ffd8da); }
+:root[data-appearance='dark'] .home-bg { background: var(--home-bg, #070005); }
 
 .glitter-sheen {
   background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.55) 48%, transparent 60%);

@@ -13,6 +13,7 @@ import { ActionsBar, SelectionBar, TitleBar, ZoomBar } from './ui/Bars';
 import { Curtain } from './ui/Curtain';
 import { EquationSheet } from './ui/EquationSheet';
 import { ElementsSheet } from './ui/ElementsSheet';
+import { ShortcutsSheet } from './ui/ShortcutsSheet';
 import { usePresence } from './hooks/usePresence';
 import { GlassProvider } from './ui/GlassProvider';
 import { PagesPanel } from './ui/PagesPanel';
@@ -65,6 +66,7 @@ export default function App({ onHome }: { onHome: () => void }) {
       <PagesPanel appearance={appearance} />
       <EquationSheet appearance={appearance} />
       <ElementsSheet appearance={appearance} />
+      <ShortcutsSheet />
       <FpsMeter />
     </GlassProvider>
   );

@@ -24,7 +24,7 @@ import type { EquationElement, TextElement } from '../engine/types';
 import { FormatButtons, FORMATS, type FormatSpec, type MarkState } from './FormatBar';
 import { channelSupported } from '../engine/sync';
 import { BubbleGroup } from './Bubble';
-import { Divider, Segmented, Toggle, ToolButton } from './controls';
+import { AccentPicker, Divider, Segmented, Toggle, ToolButton } from './controls';
 import { Glass } from './Glass';
 import { Logo } from './Logo';
 import { Popover } from './Popover';
@@ -164,7 +164,7 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
           <AppTile icon="timer" color="#FF9500" label="Timer" detail={timerOpen ? 'On' : 'Countdown'} on={timerOpen} onClick={() => ui.set({ timerOpen: !timerOpen })} />
           <AppTile icon="curtain" color="#5856D6" label="Screen Hider" detail={curtain ? 'On' : 'Reveal steps'} on={curtain} shortcut="C" onClick={() => ui.set({ curtain: { ...ui.get().curtain, on: !curtain } })} />
           <AppTile icon="equation" color="var(--brand)" label="LaTeX Equation" detail="Typeset math" onClick={() => { close(); openEquation(); }} />
-          <AppTile icon="atom" color="#34C759" label="Elements" detail="Bohr model & more" onClick={() => { close(); openElements(); }} />
+          <AppTile icon="atom" color="#34C759" label="Elements" detail="Bohr model, orbitals & more" onClick={() => { close(); openElements(); }} />
           <AppTile icon="textBox" color="#007AFF" label="Text" detail="Rich text & notes" shortcut="T" onClick={() => { close(); setTool(ui.get().textKind); }} />
         </div>
       </Popover>
@@ -193,6 +193,7 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
         <MenuItem icon="duplicate" label="Copy page image" onClick={() => { close(); copyPng(appearance); }} />
         <MenuItem icon="present" label="Open student view" onClick={() => { close(); openPresenter(); }} />
         <div className="mx-3 my-1 h-px bg-hairline" />
+        <MenuItem icon="keyboard" label="Keyboard shortcuts" hint="?" onClick={() => { close(); ui.set({ shortcutsOpen: true }); }} />
         <MenuItem icon="open" label="Save lesson (.flow)" hint="⌘S" onClick={() => { close(); saveDocument(); }} />
         <MenuItem icon="share" label="Open lesson…" hint="⌘O" onClick={() => { close(); openDocument(); }} />
         <MenuItem icon="plus" label="New lesson" onClick={() => { close(); newDocument(); }} />
@@ -219,6 +220,8 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
             { value: 'system', label: 'Auto' },
           ]}
         />
+        <p className="mt-4 mb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Accent</p>
+        <AccentPicker />
         <div className="mt-3 flex min-h-11 items-center justify-between gap-3 mobile:hidden">
           <div>
             <p className="text-subhead text-label">Liquid Glass</p>
@@ -236,31 +239,6 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
             { value: 'desktop', label: <span className="flex items-center gap-1.5"><Icon name="desktop" size={15} />Desktop</span> },
           ]}
         />
-        <div className="mt-3 border-t border-hairline pt-3 mobile:hidden">
-          <p className="mb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Shortcuts</p>
-          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-footnote">
-            {[
-              ['V · H', 'Select · Pan'],
-              ['P · M · E', 'Pen · Highlighter · Eraser'],
-              ['L', 'Laser pointer'],
-              ['D', 'Dot (snaps to rings)'],
-              ['S · R · O · A', 'Shapes · Rect · Ellipse · Arrow'],
-              ['T · N · I', 'Text · Sticky note · Image'],
-              ['⌘B · ⌘I · ⌘U', 'Bold · Italic · Underline'],
-              ['Space + drag', 'Pan'],
-              ['⌘ + scroll / pinch', 'Zoom'],
-              ['⌘0 · ⌘1', 'Actual size · Fit'],
-              ['⌘D · ⌫', 'Duplicate · Delete'],
-              ['C', 'Screen Hider'],
-              ['PgUp · PgDn', 'Previous · Next page'],
-            ].map(([k, v]) => (
-              <div key={k} className="contents">
-                <dt className="font-semibold text-label tabular-nums">{k}</dt>
-                <dd className="text-label-2">{v}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
       </Popover>
     </Glass>
   );

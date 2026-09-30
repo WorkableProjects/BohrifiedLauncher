@@ -29,6 +29,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
   backdrop-filter: saturate(1.6) blur(16px);
   -webkit-backdrop-filter: saturate(1.6) blur(16px);
   border-bottom: 1px solid var(--hairline);
+  animation: bar-in 500ms var(--spring) backwards;
+  view-transition-name: shell-bar;
 }
 .brand {
   display: inline-flex;
@@ -43,6 +45,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
   letter-spacing: -0.01em;
 }
 .brand:hover, .brand[aria-current='page'] { background: var(--fill); }
+.brand { transition: background 200ms, transform 300ms var(--spring); }
+.brand:active { transform: scale(0.96); }
+.brand img { transition: transform 500ms var(--spring); }
+.brand:hover img { transform: rotate(-8deg) scale(1.08); }
 .tabs { display: flex; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .tab {
   display: flex;
@@ -50,20 +56,25 @@ button { font: inherit; color: inherit; cursor: pointer; }
   height: 32px;
   border-radius: 10px;
   flex-shrink: 0;
+  transition: background 200ms, transform 300ms var(--spring);
+  animation: tab-in 380ms var(--spring) backwards;
 }
 .tab:hover, .tab.on { background: var(--fill); }
+.tab:active { transform: scale(0.97); }
+.tab-open span { transition: color 200ms; }
 .tab button { border: 0; background: none; height: 32px; }
-.tab-open { display: flex; align-items: center; gap: 6px; padding: 0 4px 0 8px; font-size: 13px; font-weight: 500; }
-.tab[data-state='suspended'] .tab-open { color: var(--label-2); }
+.tab-open, .tab-open-ghost { display: flex; align-items: center; gap: 6px; padding: 0 4px 0 8px; font-size: 13px; font-weight: 500; }
+.tab[data-state='suspended'] .tab-open, .tab[data-state='suspended'] .tab-open-ghost { color: var(--label-2); }
 .tab[data-state='crashed'] .tab-open { color: var(--danger); }
-.tab-close { width: 26px; padding: 0; font-size: 17px; line-height: 1; color: var(--label-2); border-radius: 8px; }
-.tab-close:hover { color: var(--label); }
+.tab-close, .tab-close-ghost { transition: color 150ms, background 150ms; width: 26px; padding: 0; font-size: 17px; line-height: 1; color: var(--label-2); border-radius: 8px; }
+.tab-close:hover { color: var(--label); background: var(--fill); }
 .app-icon { border-radius: 22.5%; flex-shrink: 0; }
 
 /* ── Launcher ──────────────────────────────────────────── */
 .home { max-width: 960px; margin: 0 auto; padding: calc(var(--bar-h) + 56px) 24px 64px; }
-.home h1 { font-size: 40px; line-height: 1.1; letter-spacing: -0.03em; margin: 0; }
-.lede { color: var(--label-2); font-size: 19px; margin: 8px 0 36px; }
+.home h1 { font-size: 40px; line-height: 1.1; letter-spacing: -0.03em; margin: 0; animation: rise 520ms var(--spring) backwards; }
+.lede { color: var(--label-2); font-size: 19px; margin: 8px 0 36px; animation: rise 520ms 40ms var(--spring) backwards; }
+.version { margin-top: 40px; text-align: center; font-size: 12px; color: var(--label-2); opacity: 0.7; animation: fade-in 600ms 400ms both; }
 .apps { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
 .card {
   position: relative;
@@ -77,10 +88,15 @@ button { font: inherit; color: inherit; cursor: pointer; }
   text-decoration: none;
   box-shadow: var(--shadow);
   border: 1px solid var(--hairline);
-  transition: transform 300ms var(--spring), border-color 200ms;
+  transition: transform 300ms var(--spring), border-color 200ms, box-shadow 300ms;
+  /* Plays each time the launcher is shown, staggered by --i. */
+  animation: rise 520ms var(--spring) backwards;
+  animation-delay: calc(var(--i, 0) * 60ms + 60ms);
 }
-.card:hover { border-color: var(--accent); }
-.card:active { transform: scale(0.98); }
+.card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05), 0 14px 32px rgba(0, 0, 0, 0.1); }
+.card .app-icon { transition: transform 400ms var(--spring); }
+.card:hover .app-icon { transform: scale(1.06) rotate(-2deg); }
+.card:active { transform: scale(0.98); transition-duration: 120ms; }
 .card:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .card h2 { margin: 2px 0 4px; font-size: 19px; letter-spacing: -0.01em; }
 .card p { margin: 0; color: var(--label-2); font-size: 14px; }
@@ -109,10 +125,15 @@ button { font: inherit; color: inherit; cursor: pointer; }
   align-items: center;
   justify-content: center;
   background: var(--bg);
+  animation: fade-in 200ms both;
 }
-.opening { display: flex; flex-direction: column; align-items: center; gap: 14px; color: var(--label-2); animation: fade-in 400ms 120ms both; }
+.opening { display: flex; flex-direction: column; align-items: center; gap: 14px; color: var(--label-2); }
 .opening img { animation: pulse 1.4s var(--spring) infinite alternate; }
-.crash { max-width: 440px; text-align: center; padding: 24px; }
+.opening span { animation: fade-in 700ms 500ms both; font-size: 17px; }
+.opening-bar { width: 160px; height: 4px; border-radius: 99px; background: var(--fill); overflow: hidden; animation: fade-in 700ms 500ms both; }
+.opening-bar i { display: block; height: 100%; width: 100%; border-radius: inherit; background: var(--tint); transform-origin: left; animation: fill 1500ms cubic-bezier(0.32, 0.72, 0, 1) 200ms both; }
+@keyframes fill { from { transform: scaleX(0); } }
+.crash { max-width: 440px; text-align: center; padding: 24px; animation: rise 450ms var(--spring) backwards; }
 .crash h2 { margin: 16px 0 6px; font-size: 21px; }
 .crash p { margin: 0 0 12px; color: var(--label-2); }
 .crash pre { font-size: 12px; color: var(--label-2); background: var(--fill); padding: 8px 10px; border-radius: 10px; white-space: pre-wrap; text-align: left; max-height: 120px; overflow: auto; }
@@ -121,10 +142,29 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .row button.primary { background: var(--tint); border-color: var(--tint); color: #fff; }
 
 @keyframes fade-in { from { opacity: 0; } }
+@keyframes rise { from { opacity: 0; transform: translateY(14px) scale(0.98); } }
+@keyframes bar-in { from { opacity: 0; transform: translateY(-100%); } }
+@keyframes tab-in { from { opacity: 0; transform: scale(0.85) translateY(4px); } }
+@keyframes app-in { from { opacity: 0; transform: scale(0.985); } }
+@keyframes sheet-in { from { opacity: 0; transform: translateY(12px) scale(0.96); } }
+
+/* ── Library ⇄ app: a view transition, with the app's icon as the shared element ── */
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 900ms; animation-timing-function: var(--spring); mix-blend-mode: normal; }
+:root[data-nav='forward']::view-transition-old(root) { animation-name: vt-out-forward; }
+:root[data-nav='forward']::view-transition-new(root) { animation-name: vt-in-forward; }
+:root[data-nav='back']::view-transition-old(root) { animation-name: vt-out-back; }
+:root[data-nav='back']::view-transition-new(root) { animation-name: vt-in-back; }
+::view-transition-group(app-icon) { animation-duration: 1100ms; animation-timing-function: var(--spring); z-index: 2; }
+::view-transition-old(app-icon), ::view-transition-new(app-icon) { height: 100%; object-fit: contain; border-radius: 22.5%; }
+::view-transition-group(root) { z-index: 1; }
+@keyframes vt-out-forward { to { opacity: 0; transform: scale(0.94); } }
+@keyframes vt-in-forward { from { opacity: 0; transform: scale(1.04); } }
+@keyframes vt-out-back { to { opacity: 0; transform: scale(1.04); } }
+@keyframes vt-in-back { from { opacity: 0; transform: scale(0.94); } }
 @keyframes pulse { from { transform: scale(0.94); opacity: 0.7; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
-  .opening, .opening img { animation: none; }
-  .card { transition: none; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }
 
 /* ── Settings ──────────────────────────────────────────── */
@@ -140,7 +180,19 @@ button { font: inherit; color: inherit; cursor: pointer; }
   box-shadow: var(--shadow);
 }
 .sheet { max-height: min(720px, calc(100dvh - 32px)); overflow-y: auto; overscroll-behavior: contain; }
-.sheet::backdrop { background: rgba(0, 0, 0, 0.3); }
+.sheet { opacity: 0; transform: translateY(12px) scale(0.96); transition: opacity 220ms, transform 360ms var(--spring), overlay 360ms allow-discrete, display 360ms allow-discrete; }
+.sheet[open] { opacity: 1; transform: none; }
+@starting-style { .sheet[open] { opacity: 0; transform: translateY(12px) scale(0.96); } }
+.sheet::backdrop { background: rgba(0, 0, 0, 0); backdrop-filter: blur(0); transition: background 300ms, backdrop-filter 300ms, overlay 300ms allow-discrete, display 300ms allow-discrete; }
+.sheet[open]::backdrop { background: rgba(0, 0, 0, 0.3); backdrop-filter: blur(3px); }
+@starting-style { .sheet[open]::backdrop { background: rgba(0, 0, 0, 0); backdrop-filter: blur(0); } }
+.gear { transition: background 200ms, color 200ms, transform 500ms var(--spring); }
+.gear:hover { transform: rotate(60deg); }
+.gear:active { transform: rotate(60deg) scale(0.92); }
+.seg button { transition: background 200ms, box-shadow 200ms, transform 200ms var(--spring); }
+.seg button:active { transform: scale(0.95); }
+.plain, .row button { transition: background 150ms, transform 200ms var(--spring); }
+.plain:active:not(:disabled), .row button:active { transform: scale(0.96); }
 .sheet h2 { margin: 0 0 8px; font-size: 21px; letter-spacing: -0.01em; }
 .setting { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 0; border-top: 1px solid var(--hairline); }
 .group + .setting { border-top: 0; }
@@ -155,7 +207,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .switch:checked { background: var(--tint); box-shadow: none; }
 .switch:checked::after { transform: translateX(18px); }
 .switch:focus-visible { outline: 3px solid var(--tint); outline-offset: 2px; }
-@media (prefers-reduced-motion: reduce) { .switch, .switch::after { transition: none; } }
 @media (max-width: 420px) { .field { width: 120px; } }
 .setting p { margin: 2px 0 0; font-size: 13px; color: var(--label-2); }
 .seg { display: inline-flex; flex-shrink: 0; padding: 2px; border-radius: 10px; background: var(--fill); }
@@ -164,3 +215,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .plain { flex-shrink: 0; border: 1px solid var(--hairline); background: var(--card); border-radius: 10px; padding: 7px 12px; font-size: 13px; font-weight: 600; }
 .plain:disabled { color: var(--label-2); cursor: default; }
 .row.end { justify-content: flex-end; margin-top: 8px; }
+
+/* The bar stays put while the page beneath it transitions. */
+::view-transition-group(shell-bar) { z-index: 3; }
+::view-transition-old(shell-bar) { display: none; }
+::view-transition-new(shell-bar) { animation: none; }

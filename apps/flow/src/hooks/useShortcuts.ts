@@ -87,6 +87,10 @@ export function useShortcuts() {
           reorderSelection(false);
           return;
       }
+      if (k === '?') {
+        ui.set({ shortcutsOpen: !ui.get().shortcutsOpen });
+        return;
+      }
       if (k === 'c') {
         const c = ui.get().curtain;
         ui.set({ curtain: { ...c, on: !c.on } });

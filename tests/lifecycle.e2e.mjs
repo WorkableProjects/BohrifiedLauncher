@@ -68,7 +68,10 @@ try {
       if (id) await page.locator(`a.card[data-app="${id}"]`).click();
     }
     if (id) await waitState(id, 'active');
-    return Date.now() - t0;
+    const ms = Date.now() - t0;
+    // The opening screen holds briefly on purpose (and would swallow clicks meant for the app).
+    await page.locator('#status').waitFor({ state: 'hidden', timeout: 10000 });
+    return ms;
   };
 
   // Fresh launcher: shell only.
