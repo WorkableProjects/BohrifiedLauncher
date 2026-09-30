@@ -1,0 +1,8 @@
+{
+  "name": "@bohrified/utilities",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Small framework-free helpers shared by the launcher and packages.",
+  "exports": { ".": "./src/index.ts" }
+}

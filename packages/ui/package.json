@@ -1,0 +1,11 @@
+{
+  "name": "@bohrified/ui",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Bohrified design tokens and shared theme handling.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tokens.css": "./src/tokens.css"
+  }
+}

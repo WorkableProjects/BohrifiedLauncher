@@ -1,0 +1,27 @@
+{
+  "name": "bohrified",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Bohrified — one launcher for the peer tutoring apps.",
+  "workspaces": [
+    "packages/*",
+    "launcher",
+    "apps/flow"
+  ],
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "node scripts/build.mjs",
+    "preview": "vite preview --config launcher/vite.config.ts launcher --port 4173",
+    "typecheck": "tsc -p packages/app-sdk && tsc -p packages/persistence && tsc -p packages/ui && tsc -p packages/utilities && npm run typecheck -w launcher && npm run typecheck -w apps/flow",
+    "dev:flow": "npm run dev -w apps/flow",
+    "test:flow": "npm test -w apps/flow",
+    "test:lifecycle": "node tests/lifecycle.e2e.mjs"
+  },
+  "allowScripts": {
+    "fsevents@2.3.3": true
+  },
+  "engines": {
+    "node": ">=20.19"
+  }
+}

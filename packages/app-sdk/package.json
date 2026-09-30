@@ -1,0 +1,15 @@
+{
+  "name": "@bohrified/app-sdk",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "The Bohrified app contract: lifecycle types, the iframe host adapter, and the in-app client.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts"
+  },
+  "dependencies": {
+    "@bohrified/persistence": "*",
+    "@bohrified/utilities": "*"
+  }
+}
