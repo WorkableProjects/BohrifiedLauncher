@@ -1,0 +1,28 @@
+{
+  "launcherReadyMs": 109,
+  "launcherNav": {
+    "domContentLoadedMs": 63,
+    "loadMs": 70
+  },
+  "heapLauncherMB": 1.4,
+  "flowColdOpenMs": 292,
+  "heapFlowActiveMB": 6.9,
+  "rubricableColdOpenMs": 143,
+  "heapFlowSuspendedMB": 7.2,
+  "flowWarmOpenMs": 66,
+  "switches": 20,
+  "warmSwitchMs": {
+    "median": 66,
+    "max": 69
+  },
+  "heapDuringSwitchingMB": [
+    8.1,
+    8.2,
+    8.4,
+    8.5,
+    8.5
+  ],
+  "heapAllUnmountedMB": 2.4,
+  "flowRemountOpenMs": 193,
+  "date": "2026-09-30T13:09:15.734Z"
+}
