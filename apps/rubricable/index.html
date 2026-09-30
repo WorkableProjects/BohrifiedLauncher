@@ -422,6 +422,11 @@ if (EMBEDDED) addEventListener('message', e => {
   const t = m.settings?.theme;
   if (['system', 'light', 'dark'].includes(t) && t !== theme()) { store.set('rbl-theme', t); applyTheme(t); }
 });
+// Bohrified's settings sheet (or another tab) changed a setting.
+addEventListener('storage', e => {
+  if (e.key === 'rbl-ask') $('askstart').checked = store.get('rbl-ask') !== '0';
+  if (e.key === 'rbl-theme') applyTheme(theme());
+});
 $('ver').textContent = 'v' + VERSION;
 $('about').textContent = 'Version ' + VERSION;
 $('askstart').checked = store.get('rbl-ask') !== '0';

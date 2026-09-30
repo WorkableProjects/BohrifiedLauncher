@@ -15,5 +15,5 @@
     "noEmit": true,
     "types": ["vite/client"]
   },
-  "include": ["src", "../apps/*/bohr.app.ts"]
+  "include": ["src", "../apps/*/bohr.app.ts", "../apps/*/bohr.settings.ts"]
 }

@@ -1,5 +1,5 @@
 import './styles.css';
-import type { LifecycleState, SharedSettings } from '@bohrified/app-sdk';
+import type { AppSetting, LifecycleState, SharedSettings } from '@bohrified/app-sdk';
 import { localStore } from '@bohrified/persistence';
 import { applyTheme, isThemePref, type ThemePref } from '@bohrified/ui';
 import { el } from '@bohrified/utilities';
@@ -50,7 +50,74 @@ function renderSettings() {
   release.disabled = paused === 0;
   release.textContent = paused ? `Close ${paused} paused app${paused > 1 ? 's' : ''}` : 'No paused apps';
 }
+
+// Each app's own preferences (from its manifest), under the shared ones.
+const appSettings = $('#app-settings');
+function settingControl(s: AppSetting, appName: string): HTMLElement {
+  const label = `${appName}: ${s.label}`;
+  switch (s.kind) {
+    case 'toggle':
+      return el('input', { type: 'checkbox', role: 'switch', className: 'switch', checked: s.get(), ariaLabel: label, onchange: (e: Event) => s.set((e.target as HTMLInputElement).checked) });
+    case 'choice': {
+      const value = s.get();
+      return el(
+        'div',
+        { className: 'seg', role: 'group', ariaLabel: label },
+        ...s.options.map((o) => {
+          const b = el('button', { type: 'button', textContent: o.label, onclick: () => (s.set(o.value), renderAppSettings()) });
+          b.setAttribute('aria-pressed', String(o.value === value));
+          return b;
+        }),
+      );
+    }
+    case 'text':
+      return el('input', {
+        type: 'text',
+        className: 'field',
+        value: s.get(),
+        placeholder: s.placeholder ?? '',
+        maxLength: s.maxLength ?? 200,
+        ariaLabel: label,
+        onchange: (e: Event) => s.set((e.target as HTMLInputElement).value),
+      });
+    case 'action':
+      return el('button', {
+        type: 'button',
+        className: `plain${s.danger ? ' danger' : ''}`,
+        textContent: s.button,
+        ariaLabel: label,
+        onclick: () => {
+          if (s.confirm && !confirm(s.confirm)) return;
+          s.run();
+          renderAppSettings();
+        },
+      });
+  }
+}
+function renderAppSettings() {
+  // Don't rebuild under someone typing in a field.
+  if (sheet.open && appSettings.contains(document.activeElement) && document.activeElement instanceof HTMLInputElement && document.activeElement.type === 'text') return;
+  const withSettings = [...manager.apps.values()].filter((r) => r.manifest.settings?.settings.length);
+  // The app on screen comes first.
+  withSettings.sort((a, b) => Number(b.manifest.id === manager.active) - Number(a.manifest.id === manager.active));
+  appSettings.replaceChildren(
+    ...withSettings.flatMap((r) => [
+      el('h3', { className: 'group' }, icon(r, 16), r.manifest.name),
+      ...r.manifest.settings!.settings.map((s) =>
+        el(
+          'div',
+          { className: 'setting', dataset: { app: r.manifest.id, setting: s.id } },
+          el('div', {}, el('b', { textContent: s.label }), ...(s.description ? [el('p', { textContent: s.description })] : [])),
+          settingControl(s, r.manifest.name),
+        ),
+      ),
+    ]),
+  );
+}
+const appSettingKeys = new Set(registry.flatMap((m) => m.settings?.storageKeys ?? []));
+
 $('#gear').addEventListener('click', () => {
+  renderAppSettings();
   renderSettings();
   sheet.showModal();
 });
@@ -64,6 +131,8 @@ $('#release').addEventListener('click', () => void manager.unmountSuspended().th
 // Another Bohrified tab changed the theme.
 addEventListener('storage', (e) => {
   if (e.key === 'bohr:theme' && loadSettings().theme !== settings.theme) setTheme(loadSettings().theme);
+  // An app (or another tab) changed one of its own settings.
+  if (e.key && appSettingKeys.has(e.key) && sheet.open) renderAppSettings();
 });
 
 const STATE_LABEL: Partial<Record<LifecycleState, string>> = {

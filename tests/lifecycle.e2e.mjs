@@ -155,6 +155,17 @@ try {
   };
   check('shared theme applies to the shell and every app', Object.values(themes).every((t) => t === 'dark'), JSON.stringify(themes));
   await page.locator('[data-theme-set="system"]').click();
+
+  // App settings: controls in Bohrified's sheet reach the mounted apps live.
+  const device = () => flowFrame().evaluate(() => document.documentElement.dataset.device);
+  const deviceBefore = await device();
+  await page.locator('[data-app="flow"][data-setting="device"] button', { hasText: 'Mobile' }).click();
+  await page.locator('[data-app="rubricable"][data-setting="askOnOpen"] input').uncheck();
+  await page.waitForTimeout(300);
+  const rubricableAsk = await page.frame({ url: /\/apps\/rubricable\// }).evaluate(() => document.getElementById('askstart').checked);
+  check('app settings in the sheet reach Flow and Rubricable', (await device()) === 'mobile' && rubricableAsk === false, `flow device ${await device()}, rubricable ask ${rubricableAsk}`);
+  await page.locator('[data-app="flow"][data-setting="device"] button', { hasText: deviceBefore === 'mobile' ? 'Mobile' : 'Desktop' }).click();
+  await page.locator('[data-app="rubricable"][data-setting="askOnOpen"] input').check();
   await page.getByRole('button', { name: 'Done' }).click();
 
   // Crash isolation: a fatal error inside Flow leaves the launcher working.

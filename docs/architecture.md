@@ -31,9 +31,11 @@ bohrified/
 ├── apps/
 │   ├── flow/                 # Flow (still runs standalone: npm run dev -w apps/flow)
 │   │   ├── bohr.app.ts       # Flow's BohrApp (frame adapter + session → URL)
+│   │   ├── bohr.settings.ts  # Flow's preferences, shown in Bohrified's settings
 │   │   └── src/bohr.ts       # Flow's side of the lifecycle protocol
 │   └── rubricable/
 │       ├── bohr.app.ts
+│       ├── bohr.settings.ts
 │       └── index.html        # still opens standalone
 ├── packages/
 │   ├── app-sdk/              # contract types, frameApp() host adapter, connectBohr() client
@@ -79,6 +81,17 @@ Bohrified owns the settings that apply everywhere. They're stored in localStorag
 
 The settings message is part of the contract (`SharedSettings`, `AppInstance.applySettings`, `connectBohr({ settings })`), so a future app gets the theme without launcher changes.
 
+### App settings
+
+The same sheet also has a section for each app's own preferences. The app currently on screen comes first. An app lists them in `apps/<id>/bohr.settings.ts` (an `AppSettings`: toggles, choices, text fields and actions, each with `get`/`set` or `run`), and the registry attaches that list to the manifest as `settings`. The file only reads and writes the app's existing localStorage keys (the apps share the launcher's origin), so no app code loads and the app doesn't need to be open.
+
+| App | Settings | Stored in |
+|---|---|---|
+| Flow | Device, Liquid Glass, Hold to snap shapes, Snap dots to rings, First name, Reset profile | `flow:prefs:v1` (merged, so other fields are kept) |
+| Rubricable | Ask assignment type on open | `rbl-ask` |
+
+**Live sync:** a write from the launcher fires a `storage` event in every other same-origin document, including a mounted app's frame. Flow's `ui` store and Rubricable's page listen for their own keys and update in place. The launcher watches each app's `storageKeys` the same way, so the open sheet stays current when an app or another tab makes a change. The apps' own settings panels still work.
+
 ## Navigation, errors, persistence
 
 - **Routes:** `/` launcher, `/app/<id>` app (History API). Apps keep their own routes inside their frame. Production hosting needs a fallback to `index.html` for `/app/*`; `dist/404.html` covers static hosts.
@@ -89,7 +102,8 @@ The settings message is part of the contract (`SharedSettings`, `AppInstance.app
 
 1. Put the app in `apps/<id>/`.
 2. Add `apps/<id>/bohr.app.ts` exporting a `BohrApp`: `frameApp({ title, src })` for an existing web app, or a custom `{ mount(host, ctx) }` that returns `{ activate, suspend, unmount }`.
-3. If it holds expensive runtime, call `connectBohr({ suspend, activate, unmount, settings })` inside it and pass `protocol: true`. Apps without the client can still listen for the `settings` message, as Rubricable does.
-4. Add a manifest entry to `launcher/src/registry.ts`, add a build step in `scripts/build.mjs` (plus a dev proxy/middleware in `launcher/vite.config.ts` if it has its own server), and add a check to `tests/lifecycle.e2e.mjs`.
+3. If it has preferences worth showing in Bohrified's settings sheet, add `apps/<id>/bohr.settings.ts` (see Flow's) and listen for `storage` events on those keys in the app.
+4. If it holds expensive runtime, call `connectBohr({ suspend, activate, unmount, settings })` inside it and pass `protocol: true`. Apps without the client can still listen for the `settings` message, as Rubricable does.
+5. Add a manifest entry to `launcher/src/registry.ts` (with `settings` if you added them), add a build step in `scripts/build.mjs` (plus a dev proxy/middleware in `launcher/vite.config.ts` if it has its own server), and add a check to `tests/lifecycle.e2e.mjs`.
 
 No launcher-core changes are needed.

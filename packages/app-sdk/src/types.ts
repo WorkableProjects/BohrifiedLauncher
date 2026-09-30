@@ -1,3 +1,5 @@
+import type { AppSettings } from './settings';
+
 /**
  * The Bohrified app contract.
  *
@@ -76,4 +78,6 @@ export interface AppManifest {
   /** Accent color for the launcher card. */
   accent: string;
   load: () => Promise<{ default: BohrApp }>;
+  /** The app's own preferences, shown in Bohrified's settings sheet. Keep it light: it loads at startup. */
+  settings?: AppSettings;
 }

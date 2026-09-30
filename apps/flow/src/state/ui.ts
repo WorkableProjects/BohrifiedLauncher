@@ -113,6 +113,18 @@ export const ui = {
   },
 };
 
+// Another same-origin document (Bohrified's settings sheet, or Flow in
+// another tab) changed the prefs: take the persisted fields it wrote.
+if (typeof window !== 'undefined')
+  window.addEventListener('storage', (e) => {
+    if (e.key !== PREFS_KEY || e.newValue === null) return;
+    const next = loadPrefs();
+    const changed = PERSISTED.filter((k) => k in next && JSON.stringify(next[k]) !== JSON.stringify(state[k]));
+    if (!changed.length) return;
+    state = { ...state, ...Object.fromEntries(changed.map((k) => [k, next[k]])) };
+    listeners.forEach((fn) => fn());
+  });
+
 export function useUI<T>(selector: (s: UIState) => T): T {
   return useSyncExternalStore(ui.subscribe, () => selector(state), () => selector(initial));
 }
