@@ -26,7 +26,7 @@ The root `package.json` declares npm **workspaces**. `npm install` reads it toge
 
 Rubricable still opens on its own too: `apps/rubricable/index.html`.
 
-**Deploying:** serve `dist/` from any static host. Deep links like `/app/flow` need a fallback to `index.html`; `dist/404.html` provides one for hosts such as GitHub Pages.
+**Deploying:** Netlify is configured in `netlify.toml`: connect the repo and it builds with `npm run build`, publishes `dist/`, and rewrites `/app/*` to the shell. Any other static host works too if `/app/*` falls back to `index.html`; `dist/404.html` covers hosts without rewrites, such as GitHub Pages.
 
 ## Docs
 
