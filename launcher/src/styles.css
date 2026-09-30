@@ -1,0 +1,152 @@
+@import '@bohrified/ui/tokens.css';
+
+:root { --bar-h: 44px; }
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--label);
+  font: 15px/1.4 var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+body[data-view='app'] { overflow: hidden; }
+[hidden] { display: none !important; }
+button { font: inherit; color: inherit; cursor: pointer; }
+
+/* ── Shell bar ─────────────────────────────────────────── */
+.shell-bar {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 10;
+  height: var(--bar-h);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left));
+  background: var(--bar);
+  backdrop-filter: saturate(1.6) blur(16px);
+  -webkit-backdrop-filter: saturate(1.6) blur(16px);
+  border-bottom: 1px solid var(--hairline);
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 10px 0 6px;
+  border-radius: 10px;
+  color: inherit;
+  text-decoration: none;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.brand:hover, .brand[aria-current='page'] { background: var(--fill); }
+.tabs { display: flex; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.tab {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+.tab:hover, .tab.on { background: var(--fill); }
+.tab button { border: 0; background: none; height: 32px; }
+.tab-open { display: flex; align-items: center; gap: 6px; padding: 0 4px 0 8px; font-size: 13px; font-weight: 500; }
+.tab[data-state='suspended'] .tab-open { color: var(--label-2); }
+.tab[data-state='crashed'] .tab-open { color: var(--danger); }
+.tab-close { width: 26px; padding: 0; font-size: 17px; line-height: 1; color: var(--label-2); border-radius: 8px; }
+.tab-close:hover { color: var(--label); }
+.app-icon { border-radius: 22.5%; flex-shrink: 0; }
+
+/* ── Launcher ──────────────────────────────────────────── */
+.home { max-width: 960px; margin: 0 auto; padding: calc(var(--bar-h) + 56px) 24px 64px; }
+.home h1 { font-size: 40px; line-height: 1.1; letter-spacing: -0.03em; margin: 0; }
+.lede { color: var(--label-2); font-size: 19px; margin: 8px 0 36px; }
+.apps { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.card {
+  position: relative;
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 20px;
+  border-radius: 20px;
+  background: var(--card);
+  color: inherit;
+  text-decoration: none;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--hairline);
+  transition: transform 300ms var(--spring), border-color 200ms;
+}
+.card:hover { border-color: var(--accent); }
+.card:active { transform: scale(0.98); }
+.card:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.card h2 { margin: 2px 0 4px; font-size: 19px; letter-spacing: -0.01em; }
+.card p { margin: 0; color: var(--label-2); font-size: 14px; }
+.badge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: var(--fill);
+  color: var(--label-2);
+}
+.badge-active { color: var(--accent); }
+.badge-crashed { color: var(--danger); }
+
+/* ── Stage ─────────────────────────────────────────────── */
+.stage { position: fixed; inset: var(--bar-h) 0 0 0; }
+.app-frame { position: absolute; inset: 0; }
+.status {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+}
+.opening { display: flex; flex-direction: column; align-items: center; gap: 14px; color: var(--label-2); animation: fade-in 400ms 120ms both; }
+.opening img { animation: pulse 1.4s var(--spring) infinite alternate; }
+.crash { max-width: 440px; text-align: center; padding: 24px; }
+.crash h2 { margin: 16px 0 6px; font-size: 21px; }
+.crash p { margin: 0 0 12px; color: var(--label-2); }
+.crash pre { font-size: 12px; color: var(--label-2); background: var(--fill); padding: 8px 10px; border-radius: 10px; white-space: pre-wrap; text-align: left; max-height: 120px; overflow: auto; }
+.row { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
+.row button { border: 1px solid var(--hairline); background: var(--card); border-radius: 12px; padding: 10px 16px; font-weight: 600; }
+.row button.primary { background: var(--tint); border-color: var(--tint); color: #fff; }
+
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes pulse { from { transform: scale(0.94); opacity: 0.7; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .opening, .opening img { animation: none; }
+  .card { transition: none; }
+}
+
+/* ── Settings ──────────────────────────────────────────── */
+.gear { margin-left: auto; flex-shrink: 0; width: 32px; height: 32px; border: 0; border-radius: 10px; background: none; color: var(--label-2); display: grid; place-items: center; }
+.gear:hover { background: var(--fill); color: var(--label); }
+.sheet {
+  width: min(460px, calc(100vw - 32px));
+  border: 1px solid var(--hairline);
+  border-radius: 20px;
+  padding: 20px;
+  background: var(--card);
+  color: var(--label);
+  box-shadow: var(--shadow);
+}
+.sheet::backdrop { background: rgba(0, 0, 0, 0.3); }
+.sheet h2 { margin: 0 0 8px; font-size: 21px; letter-spacing: -0.01em; }
+.setting { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 0; border-top: 1px solid var(--hairline); }
+.setting:first-of-type { border-top: 0; }
+.setting p { margin: 2px 0 0; font-size: 13px; color: var(--label-2); }
+.seg { display: inline-flex; flex-shrink: 0; padding: 2px; border-radius: 10px; background: var(--fill); }
+.seg button { border: 0; background: none; padding: 6px 10px; border-radius: 8px; font-size: 13px; font-weight: 500; }
+.seg button[aria-pressed='true'] { background: var(--card); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
+.plain { flex-shrink: 0; border: 1px solid var(--hairline); background: var(--card); border-radius: 10px; padding: 7px 12px; font-size: 13px; font-weight: 600; }
+.plain:disabled { color: var(--label-2); cursor: default; }
+.row.end { justify-content: flex-end; margin-top: 8px; }

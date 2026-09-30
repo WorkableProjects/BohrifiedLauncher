@@ -1,0 +1,22 @@
+{
+  "name": "@bohrified/launcher",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "The Bohrified shell: launcher, app registry, routing and lifecycle.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json && vite build",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@bohrified/app-sdk": "*",
+    "@bohrified/persistence": "*",
+    "@bohrified/ui": "*",
+    "@bohrified/utilities": "*"
+  },
+  "devDependencies": {
+    "typescript": "~5.9",
+    "vite": "^8.3.1"
+  }
+}

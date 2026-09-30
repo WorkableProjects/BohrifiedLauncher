@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#F5F5F7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0B0B0F" media="(prefers-color-scheme: dark)" />
+    <meta name="description" content="Bohrified — the peer tutoring workspace." />
+    <link rel="icon" type="image/svg+xml" href="/icons/bohrified.svg" />
+    <title>Bohrified</title>
+    <script>
+      // Resolve the theme before first paint (see @bohrified/ui applyTheme).
+      try {
+        var t = JSON.parse(localStorage.getItem('bohr:theme') || '"system"');
+        document.documentElement.dataset.theme = t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+      } catch (e) {}
+    </script>
+  </head>
+  <body data-view="home">
+    <header class="shell-bar">
+      <a id="brand" class="brand" href="/" aria-label="Bohrified home">
+        <img src="/icons/bohrified.svg" alt="" width="22" height="22" />
+        <span>Bohrified</span>
+      </a>
+      <nav id="tabs" class="tabs" aria-label="Open apps"></nav>
+      <button id="gear" class="gear" type="button" title="Settings" aria-label="Settings">
+        <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.5 7.5 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.4L6.6 11a7.5 7.5 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7.4 7.4 0 0 0 1.7-1l2.4 1 2-3.4-2-1.6ZM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z" transform="translate(-1 0)"/></svg>
+      </button>
+    </header>
+    <dialog id="settings" class="sheet" aria-labelledby="settings-title">
+      <h2 id="settings-title">Settings</h2>
+      <div class="setting">
+        <div><b>Appearance</b><p>Applies to Bohrified and every app.</p></div>
+        <div class="seg" role="group" aria-label="Appearance">
+          <button type="button" data-theme-set="system">System</button>
+          <button type="button" data-theme-set="light">Light</button>
+          <button type="button" data-theme-set="dark">Dark</button>
+        </div>
+      </div>
+      <div class="setting">
+        <div><b>Memory</b><p>Paused apps keep their place for a fast return. Close them to free memory; your work is saved.</p></div>
+        <button id="release" type="button" class="plain"></button>
+      </div>
+      <form method="dialog" class="row end"><button class="primary">Done</button></form>
+    </dialog>
+    <main id="home" class="home">
+      <h1>Bohrified</h1>
+      <p class="lede">Peer tutoring apps, in one place.</p>
+      <div id="apps" class="apps"></div>
+    </main>
+    <section id="stage" class="stage" hidden aria-label="App">
+      <div id="status" class="status" hidden></div>
+    </section>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
