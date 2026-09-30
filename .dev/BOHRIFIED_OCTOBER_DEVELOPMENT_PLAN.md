@@ -54,7 +54,7 @@ Replace the previous “workspace” concept with **desktop-style window managem
 
 Build on the existing Bohr model, QMM mode, orbital diagrams, Lewis dots, and electron configuration tools.
 
-- Add a searchable/clickable **Periodic Table**.
+- Add a searchable/clickable **Periodic Table**. (ENSURE TO ATTACH CA DEPT VERSION INTO CLAUDE FOR THIS!!!)
 - Element detail view should include available educational data used by the app.
 - Allow an element to be inserted directly into the Flow canvas.
 - Make chemistry representations more interactive where practical:
