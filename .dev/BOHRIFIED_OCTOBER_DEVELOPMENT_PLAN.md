@@ -123,7 +123,7 @@ Because Bohrified is hosted on **Netlify**, include a simple deployment/configur
 # Phase 7 — Bohrified Design Language 1.2
 ### New visual language: Apple-inspired, adapted for Bohrified
 
-Base the shared design language on the attached **“Apple Design Language”** guide. The guide emphasizes content-first design, clarity, deference, depth, hierarchy, harmony, and consistency.
+Base the shared design language on the attached **“Apple Design Language”** guide. The guide emphasizes content-first design, clarity, deference, depth, hierarchy, harmony, and consistency. This is only applied to Bohrified, and new apps that are Bohrified-Exclusives.
 
 ### Core rules
 
@@ -170,7 +170,7 @@ Use **Liquid Glass-style translucency** for navigation and controls, not for the
 
 Centralize the design tokens so all apps consume the same values for typography, semantic colors, spacing, radii, glass, and motion. The source guide provides a token model covering these areas.
 
-**Release:** `Bohrified 1.2 / Flow 1.2 / Rubricable 1.2`
+**Release:** `Bohrified 1.2`
 
 ---
 
