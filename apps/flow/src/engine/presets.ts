@@ -142,31 +142,51 @@ export function electronConfiguration(electrons: number, through: string): strin
 }
 
 /** Screen-px dimensions of the orbital diagram. */
-export const ORBITAL = { box: 34, boxGap: 6, row: 46, labelW: 40, stroke: 2, arrow: 2.25 };
+export const ORBITAL = { box: 34, boxGap: 6, row: 46, labelW: 40, groupGap: 52, axisW: 60, stroke: 2, arrow: 2.25 };
+
+const ORBITAL_TYPES = ['s', 'p', 'd', 'f'] as const;
+
+/** Layout in screen px: s, p, d, f boxes each sit in their own column group, left to right. */
+function orbitalLayout(through: string) {
+  const end = SUBSHELLS.findIndex((s) => s.id === through);
+  const shown = SUBSHELLS.slice(0, end < 0 ? SUBSHELLS.length : end + 1);
+  const { box, boxGap, row, groupGap, axisW } = ORBITAL;
+  const startX = new Map<Subshell['l'], number>();
+  let x = axisW;
+  for (const l of ORBITAL_TYPES) {
+    const n = Math.max(0, ...shown.filter((s) => s.l === l).map((s) => s.boxes));
+    if (!n) continue;
+    startX.set(l, x);
+    x += n * box + (n - 1) * boxGap + groupGap;
+  }
+  return { shown, startX, w: x - groupGap, h: (shown.length - 1) * row + box };
+}
 
 /**
  * Energy orbital diagram: one row per subshell from 1s (bottom) up to
  * `through` (top), a box per orbital, and up/down arrows for `electrons`
  * placed by Aufbau, Hund's rule and the Pauli principle (0 = empty boxes).
+ * s, p, d and f boxes sit in successive columns left to right, and an
+ * "Increasing Energy" arrow runs up the left side.
  */
 export function orbitalDiagram(through: string, electrons: number, o: PresetOptions): BoardElement[] {
-  const end = SUBSHELLS.findIndex((s) => s.id === through);
-  const shown = SUBSHELLS.slice(0, end < 0 ? SUBSHELLS.length : end + 1);
   const filled = fillSubshells(electrons, through);
   const u = o.unit;
   const { box, boxGap, row, labelW } = ORBITAL;
-  const widest = Math.max(...shown.map((s) => s.boxes));
-  const width = labelW + widest * box + (widest - 1) * boxGap;
-  const height = (shown.length - 1) * row + box;
-  const left = o.cx - (width * u) / 2;
-  const top = o.cy - (height * u) / 2;
+  const { shown, startX, w, h } = orbitalLayout(through);
+  const left = o.cx - (w * u) / 2;
+  const top = o.cy - (h * u) / 2;
   const els: BoardElement[] = [];
+  const axisX = left + 12 * u;
+  els.push({ id: uid(), type: 'shape', kind: 'arrow', x1: axisX, y1: top + h * u, x2: axisX, y2: top - 26 * u, color: o.color, size: ORBITAL.stroke * u, fill: false });
+  els.push(label('Increasing Energy', left, top - 26 * u - 18 * u * 1.6, 16 * u, o.color));
   shown.forEach((s, i) => {
     const y = top + ((shown.length - 1 - i) * row) * u;
-    els.push(label(s.id, left, y + box * u * 0.5 - 9 * u * 1.3, 18 * u, o.color));
+    const x0 = left + (startX.get(s.l) ?? 0) * u;
+    els.push(label(s.id, x0 - labelW * u, y + box * u * 0.5 - 9 * u * 1.3, 18 * u, o.color));
     const count = filled.get(s.id) ?? 0;
     for (let b = 0; b < s.boxes; b++) {
-      const x = left + (labelW + b * (box + boxGap)) * u;
+      const x = x0 + b * (box + boxGap) * u;
       els.push({ id: uid(), type: 'shape', kind: 'rect', x1: x, y1: y, x2: x + box * u, y2: y + box * u, color: o.color, size: ORBITAL.stroke * u, fill: false });
       // Hund's rule: one up arrow in every box before any box gets its down arrow.
       const up = count > b;
@@ -182,10 +202,8 @@ export function orbitalDiagram(through: string, electrons: number, o: PresetOpti
 
 /** Outer size in screen px, for previews. */
 export const orbitalSize = (through: string) => {
-  const end = SUBSHELLS.findIndex((s) => s.id === through);
-  const shown = SUBSHELLS.slice(0, end < 0 ? SUBSHELLS.length : end + 1);
-  const widest = Math.max(...shown.map((s) => s.boxes));
-  return { w: ORBITAL.labelW + widest * ORBITAL.box + (widest - 1) * ORBITAL.boxGap, h: (shown.length - 1) * ORBITAL.row + ORBITAL.box };
+  const { w, h } = orbitalLayout(through);
+  return { w, h: h + 26 + 29 };
 };
 
 // ─── Lewis dot structure ──────────────────────────────────────────────
