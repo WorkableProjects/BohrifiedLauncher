@@ -234,6 +234,7 @@ try {
   await page.locator('.tab-open:has-text("Flow")').click();
   await waitState('flow', 'active');
   await settle();
+  await page.waitForTimeout(450); // let the restore animation finish before measuring
   const flowAfter = await box('flow');
   check('restoring from the taskbar keeps the window geometry', Math.abs(flowAfter.x - flowBefore.x) <= 1 && Math.abs(flowAfter.width - flowBefore.width) <= 1);
 
@@ -254,6 +255,7 @@ try {
   await page.locator('a.card[data-app="flow"]').click();
   await waitState('flow', 'active');
   await settle();
+  await page.waitForTimeout(450);
   const again = await box('flow');
   check('window geometry is remembered for the session', Math.abs(again.width - flowAfter.width) <= 2, `${Math.round(again.width)} vs ${Math.round(flowAfter.width)}`);
 
