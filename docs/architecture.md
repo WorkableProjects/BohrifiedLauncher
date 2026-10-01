@@ -2,7 +2,7 @@
 
 ## Integration report (what was found before merging)
 
-| | Flow 1.0.56 (at integration) | Rubricable 1.1 |
+| | Flow 1.0.56 (at integration) | Rubricable 1.1 (at integration) |
 |---|---|---|
 | Runtime / build | React 19 + TypeScript, Vite 8, Tailwind 4 | One vanilla HTML/JS page, no build |
 | Entry / routing | `src/main.tsx`; query-string routes (`?lesson=`, `?view=present`, `?bench`) | `index.html`; tabs toggled in-page |

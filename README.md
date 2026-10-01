@@ -4,10 +4,10 @@ One launcher for peer tutoring apps.
 
 ## Versions
 
-- **Bohrified** (launcher, "Bf") — 1.2
-- **Flow** (whiteboard "Fl") — 1.2
-- **Rubricable** (GC Rubric Maker, "Rb") — 1.2
-- **App SDK / shared packages** — 1.2
+- **Bohrified** (launcher, "Bf") — 1.2.0
+- **Flow** (whiteboard "Fl") — 1.2.0
+- **Rubricable** (GC Rubric Maker, "Rb") — 1.2.0
+- **App SDK / shared packages** — 1.2.0
 
 ## Using Bohrified 1.2
 

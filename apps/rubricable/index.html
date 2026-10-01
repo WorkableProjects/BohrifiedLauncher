@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rubricable 1.2</title>
+<title>Rubricable 1.2.0</title>
 <script>(function(){try{var t=localStorage.getItem("rbl-theme")||"system";document.documentElement.dataset.theme=t==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):t}catch(e){}})()</script>
 <style>
   :root { color-scheme:light; --bg:#f8fafc; --card:#fff; --line:#e2e8f0; --text:#0f172a; --mute:#64748b; --acc:#4f46e5; --accbg:#eef2ff; --accbd:#c7d2fe; --acctx:#3730a3;
@@ -167,7 +167,7 @@ const DEFAULT_LEVELS = [
    desc:'Most answers wrong\n\nActions: Study and get tutoring -- either from us or from Mrs. Ponce -- you are currently failing and will not perform well on the test if you do not fix it'},
   {name:'Unacceptable', grade:'F', range:'0%', pct:0, color:'#b91c1c',
    desc:'Unacceptable mistakes, left empty or none are correctly identified\n\nActions: Read questions more carefully, you automatically get a 0 if 20%+ answers in the section are left blank\n\nAND/OR\n\nStudy and get tutoring -- either from us or from Mrs. Ponce -- you are currently failing and will not perform well on the test if you do not fix it'}];
-const VERSION = '1.2';
+const VERSION = '1.2.0';
 const TYPES = {quiz:30, test:75};
 const ATYPES = ['assignment', 'quiz', 'test', 'custom'];
 const MAX_POINTS = 100000;      // upper clamp for any point value

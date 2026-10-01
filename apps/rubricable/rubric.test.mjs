@@ -22,7 +22,7 @@ const stateWith = (total, crit) => {
 
 describe('version', () => {
   it('is 1.2 everywhere in the page', () => {
-    expect(core.VERSION).toBe('1.2');
+    expect(core.VERSION).toBe('1.2.0');
     expect(html).toContain('<title>Rubricable 1.2</title>');
     expect(html).not.toMatch(/Rubricable 1\.1|VERSION = '1\.1'/);
   });
