@@ -45,10 +45,26 @@
       <div id="app-settings"></div>
       <form method="dialog" class="row end"><button class="primary">Done</button></form>
     </dialog>
+    <dialog id="quick" class="quick" aria-label="Quick launcher"></dialog>
     <main id="home" class="home">
       <h1>Bohrified</h1>
       <p class="lede">Peer tutoring apps, in one place.</p>
-      <div id="apps" class="apps"></div>
+      <a id="continue" class="continue" hidden></a>
+      <div class="finder">
+        <input id="search" class="search" type="search" placeholder="Search apps" aria-label="Search apps" autocomplete="off" spellcheck="false" />
+        <button id="quick-open" class="plain" type="button" title="Quick launcher" aria-keyshortcuts="Control+K Meta+K"><kbd id="quick-key">Ctrl K</kbd></button>
+      </div>
+      <section id="pinned" class="chips-section" aria-labelledby="pinned-h" hidden>
+        <h2 id="pinned-h" class="group">Pinned</h2>
+        <div class="chips"></div>
+      </section>
+      <section id="recent" class="chips-section" aria-labelledby="recent-h" hidden>
+        <h2 id="recent-h" class="group">Recent</h2>
+        <div class="chips"></div>
+      </section>
+      <h2 id="all-h" class="group">All apps</h2>
+      <div id="apps" class="apps" aria-labelledby="all-h"></div>
+      <p id="no-match" class="no-match" hidden>No apps match.</p>
       <footer class="version">Bohrified <span id="version"></span></footer>
     </main>
     <section id="stage" class="stage" hidden aria-label="App">

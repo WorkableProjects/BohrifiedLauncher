@@ -16,7 +16,9 @@
     "typecheck": "tsc -p packages/app-sdk && tsc -p packages/persistence && tsc -p packages/ui && tsc -p packages/utilities && npm run typecheck -w launcher && npm run typecheck -w apps/flow",
     "dev:flow": "npm run dev -w apps/flow",
     "test:flow": "npm test -w apps/flow",
-    "test:lifecycle": "node tests/lifecycle.e2e.mjs"
+    "test:lifecycle": "node tests/lifecycle.e2e.mjs",
+    "test:launcher": "vitest run --root launcher",
+    "test:launcher:e2e": "node tests/launcher.e2e.mjs"
   },
   "allowScripts": {
     "fsevents@2.3.3": true

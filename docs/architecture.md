@@ -27,7 +27,7 @@
 ```text
 bohrified/
 ├── launcher/                 # the shell: registry, routing, lifecycle, launcher UI
-│   └── src/{main,registry,lifecycle,router}.ts
+│   └── src/{main,registry,lifecycle,router,windows,library,quick}.ts
 ├── apps/
 │   ├── flow/                 # Flow (still runs standalone: npm run dev -w apps/flow)
 │   │   ├── bohr.app.ts       # Flow's BohrApp (frame adapter + session → URL)
@@ -98,12 +98,22 @@ The same sheet also has a section for each app's own preferences. The app curren
 - **Errors:** a load failure or a fatal error report (`connectBohr().reportError(e, true)`; Flow reports from a React error boundary) moves the app to CRASHED. The launcher shows Reload / Back over that app's slot. The bar and the other apps keep working. Uncaught errors inside a frame are logged but not treated as fatal.
 - **Persistent vs runtime state:** persistent data stays where each app already kept it (IndexedDB / localStorage, same origin, so nothing needed migrating). Launcher-owned data goes through `@bohrified/persistence`: localStorage `bohr:theme`, and sessionStorage `bohr:session:<id>`. No secrets exist, and none were added to the launcher.
 
+## Launcher and windows (Bohrified 1.2)
+
+- **Windows** (`launcher/src/windows.ts`). Each open app has one window in the stage; `WindowManager` owns geometry and chrome only (move, resize, minimize, maximize, snap zones, tiling) and remembers geometry per tab in `sessionStorage` (`bohr:windows:<id>`). Screens narrower than 720 px always show windows maximized.
+- **Focus = active.** The focused window is the one `ACTIVE` app. Every other window, visible or minimized, is `SUSPENDED` by the lifecycle manager and shows a *Paused* cover until it is clicked, so background windows hold no canvases, loops or WebGL. The URL (`/app/<id>`) is the focused window; `/` means no window is focused and every window is minimized (the launcher is the desktop).
+- **Closing** a window unmounts its app first (so it can save), then removes the window. Crashes stay inside the window's frame; the crash screen is drawn over that window only.
+- **Library** (`launcher/src/library.ts`). `bohr:recent` (used apps, newest first), `bohr:pins`, `bohr:activity:<id>` (what the user was doing), `bohr:seen` (versions already opened, for *New* / *Updated*). The first visit seeds `bohr:seen` so nothing is flagged.
+- **Continue with [App].** Apps report what the user is doing with `setActivity({ title, detail })` (SDK client / `AppContext`). The launcher shows it next to the most recent app. This is a hint, not state restoration: apps still reopen through their own persistence.
+- **Shortcuts.** `shellShortcut()` in the SDK maps Cmd/Ctrl + K and Cmd/Ctrl + Alt + arrows. The shell handles them directly; `connectBohr()` (and Rubricable's inline script) forward them from inside an app frame as `shortcut` messages.
+- **Quick launcher** (`launcher/src/quick.ts`): a combobox/listbox dialog over apps and window commands.
+
 ## Adding an app
 
 1. Put the app in `apps/<id>/`.
 2. Add `apps/<id>/bohr.app.ts` exporting a `BohrApp`: `frameApp({ title, src })` for an existing web app, or a custom `{ mount(host, ctx) }` that returns `{ activate, suspend, unmount }`.
 3. If it has preferences worth showing in Bohrified's settings sheet, add `apps/<id>/bohr.settings.ts` (see Flow's) and listen for `storage` events on those keys in the app.
 4. If it holds expensive runtime, call `connectBohr({ suspend, activate, unmount, settings })` inside it and pass `protocol: true`. Apps without the client can still listen for the `settings` message, as Rubricable does.
-5. Add a manifest entry to `launcher/src/registry.ts` (with `settings` if you added them), add a build step in `scripts/build.mjs` (plus a dev proxy/middleware in `launcher/vite.config.ts` if it has its own server), and add a check to `tests/lifecycle.e2e.mjs`.
+5. Add a manifest entry to `launcher/src/registry.ts` (with a `version`, optional `keywords` for search, and `settings` if you added them), add a build step in `scripts/build.mjs` (plus a dev proxy/middleware in `launcher/vite.config.ts` if it has its own server), and add a check to `tests/lifecycle.e2e.mjs`.
 
 No launcher-core changes are needed.

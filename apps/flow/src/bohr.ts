@@ -27,6 +27,13 @@ const setSuspended = (v: boolean) => {
   listeners.forEach((fn) => fn());
 };
 
+/** What "Continue with Flow" shows in the launcher. */
+const activity = () => {
+  if (!onBoard || isPristine(board.doc)) return null;
+  const pages = board.doc.pages.length;
+  return { title: board.doc.title, detail: `${pages} page${pages === 1 ? '' : 's'}` };
+};
+
 const session = () => ({ lesson: onBoard ? (isPristine(board.doc) ? 'new' : board.doc.id) : undefined });
 
 async function flush() {
@@ -34,6 +41,7 @@ async function flush() {
   (document.activeElement as HTMLElement | null)?.blur?.();
   await saveCurrent();
   bohr?.saveSession(session());
+  bohr?.setActivity(activity());
 }
 
 export const bohr = connectBohr({
@@ -49,12 +57,19 @@ export const bohr = connectBohr({
   },
 });
 
-if (bohr) board.subscribe((c) => c.type === 'replace' && bohr.saveSession(session()));
+if (bohr) {
+  board.subscribe((c) => {
+    if (c.type !== 'replace') return;
+    bohr.saveSession(session());
+    bohr.setActivity(activity());
+  });
+}
 
 /** Root reports which screen is showing, for the session. */
 export function reportScreen(screen: string) {
   onBoard = screen === 'board';
   bohr?.saveSession(session());
+  bohr?.setActivity(activity());
 }
 
 /** True while Bohrified has Flow suspended: render nothing expensive. */

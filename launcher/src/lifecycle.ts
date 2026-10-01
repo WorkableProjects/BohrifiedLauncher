@@ -1,4 +1,4 @@
-import type { AppContext, AppInstance, AppManifest, LifecycleState, SharedSettings } from '@bohrified/app-sdk';
+import type { AppActivity, AppContext, AppInstance, AppManifest, LifecycleState, SharedSettings, ShellShortcut } from '@bohrified/app-sdk';
 import { serialQueue } from '@bohrified/utilities';
 
 /**
@@ -24,11 +24,17 @@ export interface AppRecord {
 
 export interface LifecycleOptions {
   stage: HTMLElement;
+  /** Where an app's container goes (e.g. its window's body); defaults to `stage`. */
+  host?: (id: string) => HTMLElement | null;
   baseUrl: string;
   /** How many hidden apps may keep a suspended instance. */
   maxSuspended?: number;
   settings: SharedSettings;
   onChange: () => void;
+  /** An app reported what the user is working on. */
+  onActivity?: (id: string, activity: AppActivity | null) => void;
+  /** A shell shortcut was pressed while focus was inside an app. */
+  onShortcut?: (name: ShellShortcut) => void;
 }
 
 export class LifecycleManager {
@@ -114,6 +120,8 @@ export class LifecycleManager {
         console.error(`[bohrified] ${rec.manifest.name}${fatal ? ' crashed' : ' error'}:`, error);
         if (fatal) this.crash(rec, error);
       },
+      setActivity: (activity) => this.opts.onActivity?.(rec.manifest.id, activity),
+      shortcut: (name) => this.opts.onShortcut?.(name),
     };
   }
 
@@ -137,7 +145,7 @@ export class LifecycleManager {
         const container = rec.container ?? document.createElement('div');
         container.className = 'app-frame';
         container.dataset.app = rec.manifest.id;
-        if (!container.isConnected) this.opts.stage.appendChild(container);
+        if (!container.isConnected) (this.opts.host?.(rec.manifest.id) ?? this.opts.stage).appendChild(container);
         rec.container = container;
         rec.instance = await mod.default.mount(container, this.context(rec));
         rec.timing = { loadMs: tLoaded - t0, mountMs: performance.now() - tLoaded };

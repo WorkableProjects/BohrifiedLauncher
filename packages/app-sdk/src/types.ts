@@ -35,6 +35,38 @@ export interface SharedSettings {
   theme: 'system' | 'light' | 'dark';
 }
 
+/** Bohrified shortcuts that keep working while focus is inside an app. */
+export type ShellShortcut = 'quick-launcher' | 'snap-left' | 'snap-right' | 'toggle-maximize' | 'minimize';
+
+/**
+ * Which shell shortcut a key press means, if any:
+ * Cmd/Ctrl+K, and Cmd/Ctrl+Alt+Arrow for window layout.
+ */
+export function shellShortcut(e: Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey'>): ShellShortcut | null {
+  if (!(e.metaKey || e.ctrlKey) || e.shiftKey) return null;
+  if (!e.altKey) return e.key.toLowerCase() === 'k' ? 'quick-launcher' : null;
+  switch (e.key) {
+    case 'ArrowLeft':
+      return 'snap-left';
+    case 'ArrowRight':
+      return 'snap-right';
+    case 'ArrowUp':
+      return 'toggle-maximize';
+    case 'ArrowDown':
+      return 'minimize';
+    default:
+      return null;
+  }
+}
+
+/** A short description of what the user is doing in an app, shown by "Continue with <App>". */
+export interface AppActivity {
+  /** e.g. the lesson or rubric name. */
+  title: string;
+  /** e.g. "3 pages". */
+  detail?: string;
+}
+
 export interface AppContext {
   readonly appId: string;
   /** Base URL of the Bohrified deployment (ends with `/`). */
@@ -46,6 +78,10 @@ export interface AppContext {
    * and the launcher offers Reload / Back; non-fatal ones are only logged.
    */
   reportError(error: unknown, fatal?: boolean): void;
+  /** Tell the launcher what the user is working on (null clears it). */
+  setActivity(activity: AppActivity | null): void;
+  /** A Bohrified shortcut was pressed while focus is inside the app: the launcher acts on it. */
+  shortcut(name: ShellShortcut): void;
 }
 
 export interface AppInstance {
@@ -72,11 +108,15 @@ export interface AppManifest {
   /** URL-safe id, used in `/app/<id>`. */
   id: string;
   name: string;
+  /** Shown in the launcher; a change shows an "Updated" indicator until the app is opened. */
+  version: string;
   description: string;
   /** Icon image URL (resolved against the deployment base). */
   icon: string;
   /** Accent color for the launcher card. */
   accent: string;
+  /** Search terms beyond the name and description. */
+  keywords?: readonly string[];
   load: () => Promise<{ default: BohrApp }>;
   /** The app's own preferences, shown in Bohrified's settings sheet. Keep it light: it loads at startup. */
   settings?: AppSettings;

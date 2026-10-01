@@ -435,6 +435,14 @@ if (EMBEDDED) addEventListener('message', e => {
   const t = m.settings?.theme;
   if (['system', 'light', 'dark'].includes(t) && t !== theme()) { store.set('rbl-theme', t); applyTheme(t); }
 });
+// Bohrified's shortcuts (Cmd/Ctrl+K, Cmd/Ctrl+Alt+Arrows) keep working while focus is in this page.
+if (EMBEDDED) addEventListener('keydown', e => {
+  if (!(e.metaKey || e.ctrlKey) || e.shiftKey) return;
+  const name = e.altKey ? { ArrowLeft: 'snap-left', ArrowRight: 'snap-right', ArrowUp: 'toggle-maximize', ArrowDown: 'minimize' }[e.key] : e.key.toLowerCase() === 'k' && 'quick-launcher';
+  if (!name) return;
+  e.preventDefault();
+  parent.postMessage({ bohr: 1, type: 'shortcut', name }, location.origin);
+});
 // Bohrified's settings sheet (or another tab) changed a setting.
 addEventListener('storage', e => {
   if (e.key === 'rbl-ask') $('askstart').checked = store.get('rbl-ask') !== '0';

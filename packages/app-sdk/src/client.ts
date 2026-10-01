@@ -1,5 +1,5 @@
 import { isBohrMessage, type AppMessage, type HostMessage } from './protocol';
-import type { SharedSettings } from './types';
+import { shellShortcut, type AppActivity, type SharedSettings } from './types';
 
 /**
  * In-app side of the Bohrified protocol. Import from
@@ -22,6 +22,8 @@ export interface BohrClient {
   saveSession(data: unknown): void;
   /** Report an error; fatal errors show the launcher's Reload / Back screen. */
   reportError(error: unknown, fatal?: boolean): void;
+  /** Tell the launcher what the user is working on, for "Continue with <App>". */
+  setActivity(activity: AppActivity | null): void;
 }
 
 /** True when running inside the Bohrified launcher (same-origin parent). */
@@ -50,10 +52,19 @@ export function connectBohr(handlers: BohrHandlers): BohrClient | null {
     post({ bohr: 1, type: 'ack', seq: m.seq });
   });
 
+  // Bohrified's shortcuts (quick launcher, window layout) keep working while focus is inside the app.
+  window.addEventListener('keydown', (e) => {
+    const name = shellShortcut(e);
+    if (!name) return;
+    e.preventDefault();
+    post({ bohr: 1, type: 'shortcut', name });
+  });
+
   post({ bohr: 1, type: 'ready' });
 
   return {
     saveSession: (data) => post({ bohr: 1, type: 'session', data }),
+    setActivity: (context: AppActivity | null) => post({ bohr: 1, type: 'context', context }),
     reportError: (error, fatal = false) =>
       post({ bohr: 1, type: 'error', message: String((error as Error)?.message ?? error), fatal }),
   };
