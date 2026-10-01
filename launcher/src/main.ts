@@ -1,13 +1,14 @@
 import './styles.css';
 import { shellShortcut, type AppSetting, type LifecycleState, type SharedSettings, type ShellShortcut } from '@bohrified/app-sdk';
 import { localStore } from '@bohrified/persistence';
-import { applyTheme, isThemePref, type ThemePref } from '@bohrified/ui';
+import { applyTextSize, applyTheme, isTextSize, isThemePref, type TextSize, type ThemePref } from '@bohrified/ui';
 import { el } from '@bohrified/utilities';
 import { ago, continueTarget, freshness, initSeen, loadActivity, loadPins, loadRecent, markSeen, recentApps, saveActivity, savePins, saveRecent, searchApps, togglePin, touchRecent } from './library';
 import { LifecycleManager, type AppRecord } from './lifecycle';
 import { createQuickLauncher, type QuickItem } from './quick';
 import { registry } from './registry';
-import { currentAppId, navigate } from './router';
+import { createJoinPage, joinConfigured } from './join';
+import { currentRoute, navigate, navigateJoin } from './router';
 import { WindowManager, type SnapZone } from './windows';
 
 /**
@@ -38,6 +39,11 @@ const loadSettings = (): SharedSettings => {
 let settings = loadSettings();
 let stopTheme = applyTheme(settings.theme);
 
+// Text size is Bohrified's own (it scales the shell's semantic text styles).
+const savedSize = prefs.get<unknown>('textSize', 'default');
+let textSize: TextSize = isTextSize(savedSize) ? savedSize : 'default';
+applyTextSize(textSize);
+
 const windows = new WindowManager(stage, {
   onFocusRequest: (id) => navigate(id),
   // Minimizing the focused window hands focus to the next one, or back to the launcher.
@@ -46,12 +52,18 @@ const windows = new WindowManager(stage, {
   onChange: () => render(),
 });
 
+/** What apps last reported about themselves, for diagnostics. */
+const appMetrics = new Map<string, Record<string, number>>();
+
+const joinPage = createJoinPage($('#join'), { base, configured: joinConfigured(import.meta.env.VITE_LIVE_SESSION_URL) });
+
 const manager = new LifecycleManager(registry, {
   stage,
   host: (id) => windows.body(id),
   baseUrl: base,
   settings,
   onChange: () => render(),
+  onMetrics: (id, m) => appMetrics.set(id, m),
   onActivity: (id, activity) => {
     saveActivity(id, activity, Date.now());
     renderHome();
@@ -71,6 +83,7 @@ function setTheme(theme: ThemePref) {
 const sheet = $<HTMLDialogElement>('#settings');
 function renderSettings() {
   sheet.querySelectorAll<HTMLButtonElement>('[data-theme-set]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.themeSet === settings.theme)));
+  sheet.querySelectorAll<HTMLButtonElement>('[data-text-set]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.textSet === textSize)));
   const paused = [...manager.apps.values()].filter((r) => r.state === 'suspended').length;
   const release = $<HTMLButtonElement>('#release');
   release.disabled = paused === 0;
@@ -152,6 +165,13 @@ sheet.addEventListener('click', (e) => {
   if (t === sheet) sheet.close(); // backdrop
   const pref = t.closest<HTMLElement>('[data-theme-set]')?.dataset.themeSet;
   if (isThemePref(pref)) setTheme(pref);
+  const size = t.closest<HTMLElement>('[data-text-set]')?.dataset.textSet;
+  if (isTextSize(size)) {
+    textSize = size;
+    prefs.set('textSize', size);
+    applyTextSize(size);
+    renderSettings();
+  }
 });
 $('#release').addEventListener('click', () => void manager.unmountSuspended().then(renderSettings));
 // Another Bohrified tab changed the theme.
@@ -541,12 +561,12 @@ let view: 'home' | 'app' = 'home';
 function paint() {
   const onHome = manager.active === null;
   if (manager.active) lastApp = manager.active;
-  home.hidden = !onHome;
+  home.hidden = !onHome || joining;
   stage.hidden = onHome;
-  document.body.dataset.view = onHome ? 'home' : 'app';
+  document.body.dataset.view = joining ? 'join' : onHome ? 'home' : 'app';
   $('#brand').setAttribute('aria-current', onHome ? 'page' : 'false');
   const rec = manager.active ? manager.apps.get(manager.active) : null;
-  document.title = rec ? `${rec.manifest.name} · Bohrified` : 'Bohrified';
+  if (!joining) document.title = rec ? `${rec.manifest.name} · Bohrified` : 'Bohrified';
   renderHome();
   renderTabs();
   renderStatus();
@@ -564,8 +584,15 @@ function render() {
   document.startViewTransition(paint);
 }
 
+/** True while the Join Whiteboard page is showing instead of the launcher or a window. */
+let joining = false;
+
 function route() {
-  const id = currentAppId();
+  const r = currentRoute();
+  const id = r.kind === 'app' ? r.id : null;
+  joining = r.kind === 'join';
+  if (r.kind === 'join') joinPage.show(r.code);
+  else joinPage.hide();
   if (id && !manager.apps.has(id)) {
     navigate(null, true);
     return;
@@ -586,6 +613,12 @@ function route() {
   }
   void manager.open(id);
 }
+
+$('#join-link').addEventListener('click', (e) => {
+  if (e.metaKey || e.ctrlKey || e.shiftKey || (e as MouseEvent).button !== 0) return;
+  e.preventDefault();
+  navigateJoin();
+});
 
 $('#brand').addEventListener('click', (e) => {
   e.preventDefault();
@@ -635,6 +668,7 @@ function quickItems(): QuickItem[] {
   if (windows.visible().length > 1 && !windows.compact) commands.push({ id: 'win:tile', group: 'Windows', label: 'Tile windows side by side', keywords: 'arrange', run: () => windows.tile() });
   commands.push(
     { id: 'home', group: 'Bohrified', label: 'Show Bohrified home', keywords: 'launcher desktop', run: () => navigate(null) },
+    { id: 'join', group: 'Bohrified', label: 'Join a whiteboard', keywords: 'student code session tutor live', run: () => navigateJoin() },
     { id: 'settings', group: 'Bohrified', label: 'Open settings', keywords: 'preferences appearance theme', run: () => $('#gear').click() },
   );
   return [...apps, ...commands];
@@ -674,10 +708,30 @@ addEventListener(
 // Diagnostics / memory-pressure hook (e.g. from DevTools or a test harness).
 declare global {
   interface Window {
-    __bohr?: { manager: LifecycleManager; windows: WindowManager; unmountSuspended: () => Promise<void> };
+    __bohr?: { manager: LifecycleManager; windows: WindowManager; unmountSuspended: () => Promise<void>; diagnostics: () => Promise<import('./diagnostics').Diagnostics> };
   }
 }
-window.__bohr = { manager, windows, unmountSuspended: () => manager.unmountSuspended() };
+const diagnostics = async () => (await import('./diagnostics')).collect(manager, appMetrics);
+window.__bohr = { manager, windows, unmountSuspended: () => manager.unmountSuspended(), diagnostics };
+
+// Diagnostics load only when the panel is opened, and are never polled.
+const diag = $<HTMLDetailsElement>('#diag');
+diag.addEventListener('toggle', async () => {
+  if (!diag.open) return;
+  const mod = await import('./diagnostics');
+  $('#diag-out').textContent = mod.format(mod.collect(manager, appMetrics));
+});
+$('#diag-copy').addEventListener('click', async (e) => {
+  const btn = e.currentTarget as HTMLButtonElement;
+  try {
+    await navigator.clipboard.writeText($('#diag-out').textContent ?? '');
+    btn.textContent = 'Copied';
+  } catch {
+    btn.textContent = 'Select the text and copy';
+  }
+  setTimeout(() => (btn.textContent = 'Copy report'), 1500);
+});
 
 paint();
 route();
+performance.mark('bohr:shell-ready');

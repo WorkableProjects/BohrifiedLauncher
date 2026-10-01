@@ -53,10 +53,15 @@ npm run perf       # canvas benchmark in Chromium (after build)
 
 ## Version
 
-Current release: **1.1.0** (shown at the bottom of Home).
+Current release: **1.2.0** (shown at the bottom of Home).
+
+**1.2**
+- **Chemistry Tools** replaces Elements: a searchable periodic table (California Chemistry Reference Sheet data) plus linked Bohr model, orbital diagram, Lewis dot and configuration tools, including ions and blank worksheets
+- **Tutoring tools:** align and distribute, snapping to other objects with guides (hold Alt to move freely), arrow-key nudging, a Spotlight (F) that dims everything but the selection or the area under the pointer and shows on the student view, drag-to-reorder pages that undo like any edit, Home/End to jump pages, and Undo/Redo that say what they will do
+- **Student view & live session:** pause or end sharing, see how many students are watching, and share a code so a student can join from another device on Bohrified's Join Whiteboard page
 
 **1.1**
-- Chemistry Tools: the Bohr model has a **QMM** toggle (quantum mechanical model) that removes the `p =` and `n =` labels and the electrons on orbits
+- Elements: the Bohr model has a **QMM** toggle (quantum mechanical model) that removes the `p =` and `n =` labels and the electrons on orbits
 - Elements: new chemistry models: **Orbital Diagram** (boxes and up/down arrows, any range from 1s to 7p, filled by Aufbau, Hund's rule and Pauli), **Lewis Dot** (symbol plus 0–8 valence dots) and **Configuration** (`1s² 2s² 2p⁶ …` as editable text)
 - Accent color (Settings, and Home): the UI is white in Light and black in Dark, and you pick the accent: Flow pink, blue, purple, green, orange, Mono (black / white) or any custom color
 - Keyboard shortcuts moved out of Settings into their own sheet (Share & export menu, or press `?`)

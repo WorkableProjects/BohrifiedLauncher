@@ -68,6 +68,9 @@ export function frameApp(options: FrameAppOptions): BohrApp {
           case 'context':
             ctx.setActivity(m.context);
             break;
+          case 'metrics':
+            if (m.data && typeof m.data === 'object') ctx.setMetrics(m.data);
+            break;
           case 'shortcut':
             ctx.shortcut(m.name);
             break;

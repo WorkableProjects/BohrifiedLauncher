@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#F5F5F7" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0B0B0F" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
     <meta name="description" content="Bohrified — the peer tutoring workspace." />
     <link rel="icon" type="image/svg+xml" href="/icons/bohrified.svg" />
     <title>Bohrified</title>
@@ -39,13 +39,27 @@
         </div>
       </div>
       <div class="setting">
+        <div><b>Text size</b><p>Scales Bohrified’s own text.</p></div>
+        <div class="seg" role="group" aria-label="Text size">
+          <button type="button" data-text-set="default">Default</button>
+          <button type="button" data-text-set="large">Large</button>
+          <button type="button" data-text-set="larger">Larger</button>
+        </div>
+      </div>
+      <div class="setting">
         <div><b>Memory</b><p>Paused apps keep their place for a fast return. Close them to free memory; your work is saved.</p></div>
         <button id="release" type="button" class="plain"></button>
       </div>
+      <details id="diag" class="diag">
+        <summary>Diagnostics</summary>
+        <pre id="diag-out" class="diag-out" tabindex="0" aria-label="Diagnostics report"></pre>
+        <button id="diag-copy" type="button" class="plain">Copy report</button>
+      </details>
       <div id="app-settings"></div>
       <form method="dialog" class="row end"><button class="primary">Done</button></form>
     </dialog>
     <dialog id="quick" class="quick" aria-label="Quick launcher"></dialog>
+    <main id="join" class="join" hidden aria-label="Join Whiteboard"></main>
     <main id="home" class="home">
       <h1>Bohrified</h1>
       <p class="lede">Peer tutoring apps, in one place.</p>
@@ -54,6 +68,7 @@
         <input id="search" class="search" type="search" placeholder="Search apps" aria-label="Search apps" autocomplete="off" spellcheck="false" />
         <button id="quick-open" class="plain" type="button" title="Quick launcher" aria-keyshortcuts="Control+K Meta+K"><kbd id="quick-key">Ctrl K</kbd></button>
       </div>
+      <a id="join-link" class="join-entry" href="/join"><b>Join a whiteboard</b><span>Have a code from your tutor? Watch their lesson live.</span></a>
       <section id="pinned" class="chips-section" aria-labelledby="pinned-h" hidden>
         <h2 id="pinned-h" class="group">Pinned</h2>
         <div class="chips"></div>

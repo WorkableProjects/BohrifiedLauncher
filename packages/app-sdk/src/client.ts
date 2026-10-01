@@ -24,6 +24,8 @@ export interface BohrClient {
   reportError(error: unknown, fatal?: boolean): void;
   /** Tell the launcher what the user is working on, for "Continue with <App>". */
   setActivity(activity: AppActivity | null): void;
+  /** Report runtime numbers (canvases, elements, frame times) for the launcher's diagnostics. */
+  reportMetrics(data: Record<string, number>): void;
 }
 
 /** True when running inside the Bohrified launcher (same-origin parent). */
@@ -65,6 +67,7 @@ export function connectBohr(handlers: BohrHandlers): BohrClient | null {
   return {
     saveSession: (data) => post({ bohr: 1, type: 'session', data }),
     setActivity: (context: AppActivity | null) => post({ bohr: 1, type: 'context', context }),
+    reportMetrics: (data) => post({ bohr: 1, type: 'metrics', data }),
     reportError: (error, fatal = false) =>
       post({ bohr: 1, type: 'error', message: String((error as Error)?.message ?? error), fatal }),
   };

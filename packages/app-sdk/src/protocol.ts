@@ -22,6 +22,8 @@ export type AppMessage =
   | { bohr: 1; type: 'error'; message: string; fatal: boolean }
   /** What the user is working on, for "Continue with <App>" in the launcher. */
   | { bohr: 1; type: 'context'; context: AppActivity | null }
+  /** Lightweight numbers about the app's runtime (canvases, elements, frame times) for the launcher's diagnostics. */
+  | { bohr: 1; type: 'metrics'; data: Record<string, number> }
   /** A Bohrified shortcut pressed while focus is inside the app (see `shellShortcut`). */
   | { bohr: 1; type: 'shortcut'; name: ShellShortcut };
 

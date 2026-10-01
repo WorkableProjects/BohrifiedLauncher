@@ -80,6 +80,8 @@ export interface AppContext {
   reportError(error: unknown, fatal?: boolean): void;
   /** Tell the launcher what the user is working on (null clears it). */
   setActivity(activity: AppActivity | null): void;
+  /** Report runtime numbers for the launcher's diagnostics (small, cheap, occasional). */
+  setMetrics(metrics: Record<string, number>): void;
   /** A Bohrified shortcut was pressed while focus is inside the app: the launcher acts on it. */
   shortcut(name: ShellShortcut): void;
 }

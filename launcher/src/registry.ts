@@ -14,7 +14,7 @@ export const registry: readonly AppManifest[] = [
   {
     id: 'flow',
     name: 'Flow',
-    version: '1.1.0',
+    version: '1.2.0',
     keywords: ['whiteboard', 'tutoring', 'draw', 'ink', 'lesson', 'chemistry'],
     description: 'A fluid whiteboard for online tutoring: ink, shapes, pages, equations and a live student view.',
     icon: 'apps/flow/logo-192.png',
@@ -25,7 +25,7 @@ export const registry: readonly AppManifest[] = [
   {
     id: 'rubricable',
     name: 'Rubricable',
-    version: '1.1.0',
+    version: '1.2.0',
     keywords: ['rubric', 'grading', 'google classroom', 'feedback', 'points'],
     description: 'Build graded rubrics with fair point splits and copy them into Google Classroom.',
     icon: 'icons/rubricable.svg',

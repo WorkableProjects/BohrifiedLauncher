@@ -4,6 +4,7 @@ import { releaseImages } from './engine/renderer';
 import { board } from './state/board';
 import { isPristine, saveCurrent } from './state/lessons';
 import { ui } from './state/ui';
+import { percentile } from '@bohrified/app-sdk';
 
 /**
  * Flow's side of the Bohrified lifecycle. Standalone, none of this runs.
@@ -17,6 +18,32 @@ import { ui } from './state/ui';
  *  • session — which lesson is open, so a remount reopens it.
  *  • settings — Bohrified's shared appearance drives Flow's.
  */
+
+/** Runtime numbers for Bohrified's diagnostics, sent while active (cheap: a few counters every few seconds). */
+let metricsTimer = 0;
+let lastFrames = 0;
+function sendMetrics() {
+  const perf = window.__flowPerf;
+  const work = perf ? perf.work.slice(-300) : [];
+  bohr?.reportMetrics({
+    canvases: document.querySelectorAll('canvas').length,
+    elements: board.page.elements.length,
+    pages: board.doc.pages.length,
+    frames: perf?.frames ?? 0,
+    frameP95Ms: Math.round(percentile(work, 95) * 100) / 100,
+    framesSinceLast: (perf?.frames ?? 0) - lastFrames,
+  });
+  lastFrames = perf?.frames ?? 0;
+}
+const startMetrics = () => {
+  clearInterval(metricsTimer);
+  sendMetrics();
+  metricsTimer = window.setInterval(sendMetrics, 5000);
+};
+const stopMetrics = () => {
+  clearInterval(metricsTimer);
+  metricsTimer = 0;
+};
 
 let suspended = false;
 let onBoard = false;
@@ -45,13 +72,22 @@ async function flush() {
 }
 
 export const bohr = connectBohr({
-  activate: () => setSuspended(false),
+  activate: () => {
+    setSuspended(false);
+    startMetrics();
+  },
   suspend: async () => {
     await flush();
     setSuspended(true);
     releaseImages();
+    stopMetrics();
+    // One last report so diagnostics shows the released state (0 canvases).
+    requestAnimationFrame(sendMetrics);
   },
-  unmount: flush,
+  unmount: async () => {
+    stopMetrics();
+    await flush();
+  },
   settings: ({ theme }) => {
     if (ui.get().appearance !== theme) ui.set({ appearance: theme });
   },

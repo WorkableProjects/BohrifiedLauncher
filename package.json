@@ -1,7 +1,7 @@
 {
   "name": "bohrified",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.2.0",
   "type": "module",
   "description": "Bohrified — one launcher for the peer tutoring apps.",
   "workspaces": [
@@ -19,7 +19,11 @@
     "test:rubricable": "vitest run --root apps/rubricable",
     "test:lifecycle": "node tests/lifecycle.e2e.mjs",
     "test:launcher": "vitest run --root launcher",
-    "test:launcher:e2e": "node tests/launcher.e2e.mjs"
+    "test:launcher:e2e": "node tests/launcher.e2e.mjs",
+    "relay": "node scripts/session-relay.mjs",
+    "test:relay": "node --test tests/relay.test.mjs",
+    "test:packages": "vitest run --root packages/app-sdk && vitest run --root packages/ui",
+    "test": "npm run test:flow && npm run test:launcher && npm run test:packages && npm run test:rubricable && npm run test:relay"
   },
   "allowScripts": {
     "fsevents@2.3.3": true

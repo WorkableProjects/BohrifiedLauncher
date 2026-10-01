@@ -197,6 +197,33 @@ try {
   });
   check('a new app registers from a manifest alone', extra.log.join() === 'activate,suspend,unmount' && extra.state === 'unmounted', extra.log.join());
 
+  // Budgets (packages/app-sdk/src/budgets.ts): everything measured so far stays within its limit.
+  const diag = await page.evaluate(() => window.__bohr.diagnostics());
+  const over = diag.budgets.filter((b) => !b.ok);
+  check('all measured performance budgets are met', over.length === 0 && diag.budgets.length >= 3, over.map((b) => `${b.label} ${b.value}${b.unit} > ${b.max}`).join('; ') || `${diag.budgets.length} checked`);
+  metrics.budgets = Object.fromEntries(diag.budgets.map((b) => [b.name, b.value]));
+
+  // Window management + lifecycle: only the focused window runs; the other is paused behind a cover.
+  await open('flow');
+  await page.keyboard.press('Control+k');
+  await page.keyboard.type('rub');
+  await page.keyboard.press('Enter');
+  await waitState('rubricable', 'active');
+  check('a visible background window is suspended', (await state('flow')) === 'suspended' && (await page.locator('.win[data-app="flow"][data-min="false"] .win-cover').isVisible()));
+
+  // Continue with <App> after switching and suspending.
+  await page.locator('#brand').click();
+  check('Continue with <App> names the last app used', (await page.locator('#continue').innerText()).includes('Continue with Rubricable'));
+
+  // Join Whiteboard routing (no relay is configured in this build, so it explains that).
+  await page.goto(`http://localhost:${PORT}/join`);
+  check('/join shows the Join Whiteboard form', await page.getByRole('heading', { name: 'Join Whiteboard' }).isVisible());
+  await page.goto(`http://localhost:${PORT}/join/K7QX2M`);
+  await page.locator('.join-pill').waitFor();
+  check('/join/<CODE> deep link opens the join page and shows its state', (await page.locator('.join-identity').innerText()).includes('K7Q X2M') && (await page.locator('.join-pill').innerText()).length > 0);
+  await page.getByRole('button', { name: 'Leave' }).click();
+  check('Leave returns to the code form and removes the viewer', (await page.locator('.join-frame').count()) === 0 && (await page.locator('#join-code').isVisible()));
+
   check('no uncaught errors in the launcher', errors.length === 0, errors.join(' | '));
   metrics.date = new Date().toISOString();
   writeFileSync('docs/performance/latest.json', JSON.stringify(metrics, null, 2) + '\n');

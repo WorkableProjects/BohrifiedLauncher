@@ -33,6 +33,8 @@ export interface LifecycleOptions {
   onChange: () => void;
   /** An app reported what the user is working on. */
   onActivity?: (id: string, activity: AppActivity | null) => void;
+  /** An app reported runtime numbers. */
+  onMetrics?: (id: string, metrics: Record<string, number>) => void;
   /** A shell shortcut was pressed while focus was inside an app. */
   onShortcut?: (name: ShellShortcut) => void;
 }
@@ -121,6 +123,7 @@ export class LifecycleManager {
         if (fatal) this.crash(rec, error);
       },
       setActivity: (activity) => this.opts.onActivity?.(rec.manifest.id, activity),
+      setMetrics: (metrics) => this.opts.onMetrics?.(rec.manifest.id, metrics),
       shortcut: (name) => this.opts.onShortcut?.(name),
     };
   }

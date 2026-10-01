@@ -3,3 +3,18 @@ export type { AppActivity, AppContext, ShellShortcut, AppInstance, AppManifest, 
 export type { AppMessage, HostCommand, HostMessage } from './protocol';
 export { frameApp, type FrameAppOptions } from './frame';
 export { jsonPrefs, rawPref, type AppSetting, type AppSettings } from './settings';
+export {
+  SESSION_ALPHABET,
+  SESSION_CODE_LENGTH,
+  isJoinMessage,
+  joinPath,
+  newSessionCode,
+  normalizeSessionCode,
+  parseJoinInput,
+  relayUrl,
+  sessionSocketUrl,
+  type JoinMessage,
+  type JoinState,
+  type SessionRole,
+} from './live';
+export { BUDGETS, checkBudgets, percentile, type Budget, type BudgetName, type BudgetResult } from './budgets';
