@@ -18,7 +18,7 @@ import {
   undo,
 } from '../state/actions';
 import { board, useBoard } from '../state/board';
-import { openElements, openEquation, setTool, ui, useUI, type AppearancePref, type DevicePref } from '../state/ui';
+import { openChemistry, openEquation, setTool, ui, useUI, type AppearancePref, type DevicePref } from '../state/ui';
 import { markIsOn, setMark, spansOf, withSpans } from '../engine/richtext';
 import type { EquationElement, TextElement } from '../engine/types';
 import { FormatButtons, FORMATS, type FormatSpec, type MarkState } from './FormatBar';
@@ -164,7 +164,7 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
           <AppTile icon="timer" color="#FF9500" label="Timer" detail={timerOpen ? 'On' : 'Countdown'} on={timerOpen} onClick={() => ui.set({ timerOpen: !timerOpen })} />
           <AppTile icon="curtain" color="#5856D6" label="Screen Hider" detail={curtain ? 'On' : 'Reveal steps'} on={curtain} shortcut="C" onClick={() => ui.set({ curtain: { ...ui.get().curtain, on: !curtain } })} />
           <AppTile icon="equation" color="var(--brand)" label="LaTeX Equation" detail="Typeset math" onClick={() => { close(); openEquation(); }} />
-          <AppTile icon="atom" color="#34C759" label="Elements" detail="Bohr model, orbitals & more" onClick={() => { close(); openElements(); }} />
+          <AppTile icon="atom" color="#34C759" label="Chemistry Tools" detail="Periodic table, models & more" onClick={() => { close(); openChemistry(); }} />
           <AppTile icon="textBox" color="#007AFF" label="Text" detail="Rich text & notes" shortcut="T" onClick={() => { close(); setTool(ui.get().textKind); }} />
         </div>
       </Popover>

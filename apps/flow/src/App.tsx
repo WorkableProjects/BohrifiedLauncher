@@ -12,7 +12,7 @@ import { useUI } from './state/ui';
 import { ActionsBar, SelectionBar, TitleBar, ZoomBar } from './ui/Bars';
 import { Curtain } from './ui/Curtain';
 import { EquationSheet } from './ui/EquationSheet';
-import { ElementsSheet } from './ui/ElementsSheet';
+import { ChemistryTools } from './ui/ChemistryTools';
 import { ShortcutsSheet } from './ui/ShortcutsSheet';
 import { usePresence } from './hooks/usePresence';
 import { GlassProvider } from './ui/GlassProvider';
@@ -65,7 +65,7 @@ export default function App({ onHome }: { onHome: () => void }) {
       </main>
       <PagesPanel appearance={appearance} />
       <EquationSheet appearance={appearance} />
-      <ElementsSheet appearance={appearance} />
+      <ChemistryTools appearance={appearance} />
       <ShortcutsSheet />
       <FpsMeter />
     </GlassProvider>

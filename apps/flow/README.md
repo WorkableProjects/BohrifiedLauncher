@@ -28,8 +28,8 @@ npm run perf       # canvas benchmark in Chromium (after build)
 - Infinite canvas: pinch or ⌘-scroll to zoom, two-finger or space-drag to pan. Palm rejection once a stylus is detected
 
 **Apps** (top-right ▦ menu)
-- **Timer**, **Screen Hider**, **LaTeX Equation**, **Elements** and **Text**, in one place
-- **Elements:** science resources in a few clicks. The **Bohr model** preset asks for 1–5 energy levels and places a nucleus (with `p =` / `n =` to fill in) plus one ring per level, as ordinary editable shapes and text, selected together so you can move or resize it. Add electrons with the Dot tool
+- **Timer**, **Screen Hider**, **LaTeX Equation**, **Chemistry Tools** and **Text**, in one place
+- **Chemistry Tools:** one place for the chemistry resources. A searchable, clickable **Periodic Table** (from the California Standards Test Chemistry Reference Sheet, with its names and masses) shows each element's atomic number, mass, group and period, category, energy levels, valence electrons and electron configuration, and can drop an element tile on the board. The **Bohr Model**, **Orbital Diagram**, **Lewis Dot** and **Configuration** tools all draw the same element: change the element or its electron count (ions included) and every tool updates. Orbital arrows follow the Aufbau, Hund and Pauli rules (with the textbook exceptions such as Cr and Cu), and Lewis dots follow the valence electrons. *Blank worksheet* inserts the empty template for a student to fill in. Everything inserts as ordinary editable shapes and text.
 - **LaTeX Equation:** type TeX, watch it typeset live, insert it as a vector object. Move, resize (it stays sharp at any zoom), and double-click or tap **Edit** to change it. MathJax loads only when the sheet first opens
 
 **For tutoring**
@@ -56,7 +56,7 @@ npm run perf       # canvas benchmark in Chromium (after build)
 Current release: **1.1.0** (shown at the bottom of Home).
 
 **1.1**
-- Elements: the Bohr model has a **QMM** toggle (quantum mechanical model) that removes the `p =` and `n =` labels
+- Chemistry Tools: the Bohr model has a **QMM** toggle (quantum mechanical model) that removes the `p =` and `n =` labels and the electrons on orbits
 - Elements: new chemistry models: **Orbital Diagram** (boxes and up/down arrows, any range from 1s to 7p, filled by Aufbau, Hund's rule and Pauli), **Lewis Dot** (symbol plus 0–8 valence dots) and **Configuration** (`1s² 2s² 2p⁶ …` as editable text)
 - Accent color (Settings, and Home): the UI is white in Light and black in Dark, and you pick the accent: Flow pink, blue, purple, green, orange, Mono (black / white) or any custom color
 - Keyboard shortcuts moved out of Settings into their own sheet (Share & export menu, or press `?`)

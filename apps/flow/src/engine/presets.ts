@@ -19,7 +19,7 @@ export interface PresetOptions {
 }
 
 /** Screen-px dimensions of the Bohr model. */
-export const BOHR = { nucleus: 56, gap: 40, stroke: 2.5, label: 22 };
+export const BOHR = { nucleus: 56, gap: 40, stroke: 2.5, label: 22, electron: 5 };
 
 const circle = (cx: number, cy: number, r: number, color: ColorToken, size: number): ShapeElement => ({
   id: uid(),
@@ -45,27 +45,55 @@ const label = (text: string, x: number, y: number, fontSize: number, color: Colo
   fontSize,
 });
 
+/** Most rings a Bohr model can have: periods 1–7. */
+export const MAX_SHELLS = 7;
+
+export interface BohrOptions {
+  /** Quantum mechanical model: no p = / n = labels, and no electrons placed on orbits. */
+  qmm?: boolean;
+  /** Electrons in each energy level, innermost first. Draws one ring per entry and puts the electrons on them. */
+  shells?: readonly number[];
+  /** Fills in the nucleus labels ("p = 6") instead of leaving them blank. */
+  protons?: number;
+  neutrons?: number;
+}
+
 /**
  * Bohr model: a nucleus with "p =" and "n =" labels to fill in, surrounded
  * by one ring per energy level (1–5). With `qmm` (quantum mechanical model)
- * the labels are left off, so the rings stand alone.
+ * the labels are left off, so the rings stand alone. Given `shells`, it is
+ * drawn for a real atom: a ring per occupied level with its electrons evenly
+ * spaced on it, and the labels filled in from `protons` / `neutrons`.
  */
-export function bohrModel(levels: number, o: PresetOptions, opts: { qmm?: boolean } = {}): BoardElement[] {
-  const n = Math.max(1, Math.min(MAX_ENERGY_LEVELS, Math.round(levels)));
+export function bohrModel(levels: number, o: PresetOptions, opts: BohrOptions = {}): BoardElement[] {
+  const shells = opts.shells?.slice(0, MAX_SHELLS);
+  const n = shells ? Math.max(1, shells.length) : Math.max(1, Math.min(MAX_ENERGY_LEVELS, Math.round(levels)));
   const u = o.unit;
   const size = BOHR.stroke * u;
   const nucleus = BOHR.nucleus * u;
   const els: BoardElement[] = [circle(o.cx, o.cy, nucleus, o.color, size)];
   for (let k = 1; k <= n; k++) els.push(circle(o.cx, o.cy, nucleus + k * BOHR.gap * u, o.color, size));
+  if (shells && !opts.qmm) {
+    shells.forEach((count, i) => {
+      const r = nucleus + (i + 1) * BOHR.gap * u;
+      // Start at the top and go clockwise; offset each ring a little so the dots don't line up in a spoke.
+      for (let d = 0; d < count; d++) {
+        const a = -Math.PI / 2 + (d / count) * Math.PI * 2 + (count === 1 ? Math.PI / 2 : 0);
+        els.push({ id: uid(), type: 'dot', x: o.cx + r * Math.cos(a), y: o.cy + r * Math.sin(a), r: BOHR.electron * u, color: o.color });
+      }
+    });
+  }
   if (opts.qmm) return els;
   const fs = BOHR.label * u;
   const x = o.cx - nucleus * 0.5;
-  els.push(label('p =', x, o.cy - fs * 1.35, fs, o.color), label('n =', x, o.cy + fs * 0.1, fs, o.color));
+  const p = opts.protons === undefined ? 'p =' : `p = ${opts.protons}`;
+  const nn = opts.neutrons === undefined ? 'n =' : `n = ${opts.neutrons}`;
+  els.push(label(p, x, o.cy - fs * 1.35, fs, o.color), label(nn, x, o.cy + fs * 0.1, fs, o.color));
   return els;
 }
 
 /** Outer radius in screen px, for previews and fitting. */
-export const bohrRadius = (levels: number) => BOHR.nucleus + Math.min(MAX_ENERGY_LEVELS, Math.max(1, levels)) * BOHR.gap;
+export const bohrRadius = (levels: number, max = MAX_ENERGY_LEVELS) => BOHR.nucleus + Math.min(max, Math.max(1, levels)) * BOHR.gap;
 
 /**
  * Where a dot dropped at `p` should land: exactly on the nearest circle or
@@ -170,7 +198,15 @@ function orbitalLayout(through: string) {
  * "Increasing Energy" arrow runs up the left side.
  */
 export function orbitalDiagram(through: string, electrons: number, o: PresetOptions): BoardElement[] {
-  const filled = fillSubshells(electrons, through);
+  return orbitalDiagramOf(through, fillSubshells(electrons, through), o);
+}
+
+/**
+ * The same diagram for explicit electrons per subshell (e.g. a real
+ * element's ground state, exceptions included). Arrows follow Hund's rule
+ * and the Pauli principle: every box gets one up arrow before any gets a down arrow.
+ */
+export function orbitalDiagramOf(through: string, filled: ReadonlyMap<string, number>, o: PresetOptions): BoardElement[] {
   const u = o.unit;
   const { box, boxGap, row, labelW } = ORBITAL;
   const { shown, startX, w, h } = orbitalLayout(through);
@@ -217,7 +253,7 @@ export const LEWIS = { symbol: 44, gap: 14, dot: 4, pair: 9 };
  * Lewis dot structure: an element symbol with valence electrons placed
  * around it — one on each side (top, right, bottom, left) before any pair up.
  */
-export function lewisDot(symbol: string, valence: number, o: PresetOptions): BoardElement[] {
+export function lewisDot(symbol: string, valence: number, o: PresetOptions, charge = ''): BoardElement[] {
   const v = Math.max(0, Math.min(MAX_VALENCE, Math.round(valence)));
   const u = o.unit;
   const sym = symbol.trim().slice(0, 2) || 'X';
@@ -229,6 +265,11 @@ export function lewisDot(symbol: string, valence: number, o: PresetOptions): Boa
       id: uid(), type: 'text', x: o.cx - w / 2, y: o.cy - h / 2, text: sym, spans: [{ text: sym, marks: { bold: true } }], color: o.color, fontSize: fs,
     },
   ];
+  if (charge) {
+    // Ion charge as a superscript at the top right, clear of the dots.
+    const cs = fs * 0.5;
+    els.push({ id: uid(), type: 'text', x: o.cx + w / 2 + LEWIS.gap * u * 1.5, y: o.cy - h / 2 - cs * 0.5, text: charge, spans: [{ text: charge, marks: { bold: true } }], color: o.color, fontSize: cs });
+  }
   const hx = w / 2 + LEWIS.gap * u;
   const hy = h / 2 + LEWIS.gap * u * 0.4;
   const off = (LEWIS.pair / 2) * u;
@@ -261,6 +302,56 @@ export const lewisExtent = (symbol: string) => ({
 export function electronConfigText(electrons: number, through: string, o: PresetOptions): BoardElement[] {
   const text = electronConfiguration(electrons, through) || '—';
   const fs = 26 * o.unit;
+  const w = text.length * fs * 0.56;
+  return [{ id: uid(), type: 'text', x: o.cx - w / 2, y: o.cy - fs * 0.65, text, spans: [{ text, marks: { bold: true } }], color: o.color, fontSize: fs }];
+}
+
+// ─── Element tile ─────────────────────────────────────────────────────
+
+/** Screen-px size of an element tile (the periodic table cell). */
+export const TILE = { w: 132, h: 156 };
+
+export interface TileData {
+  z: number;
+  symbol: string;
+  name: string;
+  /** Average atomic mass as printed, e.g. "22.99" or "(98)". */
+  mass: string;
+}
+
+/**
+ * An element's periodic-table cell: atomic number, symbol, name and atomic
+ * mass in a rounded box, laid out like the key on the California Chemistry
+ * Reference Sheet.
+ */
+export function elementTile(t: TileData, o: PresetOptions): BoardElement[] {
+  const u = o.unit;
+  const w = TILE.w * u;
+  const h = TILE.h * u;
+  const left = o.cx - w / 2;
+  const top = o.cy - h / 2;
+  const centered = (text: string, fs: number, y: number, bold: boolean): BoardElement => ({
+    id: uid(),
+    type: 'text',
+    x: o.cx - (text.length * fs * (bold ? 0.6 : 0.52)) / 2,
+    y,
+    text,
+    spans: bold ? [{ text, marks: { bold: true } }] : undefined,
+    color: o.color,
+    fontSize: fs,
+  });
+  return [
+    { id: uid(), type: 'shape', kind: 'rect', x1: left, y1: top, x2: left + w, y2: top + h, color: o.color, size: 2.5 * u, fill: false },
+    centered(String(t.z), 20 * u, top + 10 * u, false),
+    centered(t.symbol, 56 * u, top + 36 * u, true),
+    centered(t.name, 17 * u, top + 104 * u, false),
+    centered(t.mass, 20 * u, top + 126 * u, false),
+  ];
+}
+
+/** A single bold line of text centred on the point, e.g. an electron configuration. */
+export function textLine(text: string, o: PresetOptions, size = 26): BoardElement[] {
+  const fs = size * o.unit;
   const w = text.length * fs * 0.56;
   return [{ id: uid(), type: 'text', x: o.cx - w / 2, y: o.cy - fs * 0.65, text, spans: [{ text, marks: { bold: true } }], color: o.color, fontSize: fs }];
 }

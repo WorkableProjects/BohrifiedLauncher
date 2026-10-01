@@ -59,8 +59,8 @@ export interface UIState {
   curtain: { on: boolean; y: number };
   /** LaTeX equation sheet; `editId` re-edits an existing equation. */
   equation: { open: boolean; editId: string | null };
-  /** Elements app (science presets such as the Bohr model). */
-  elementsOpen: boolean;
+  /** Chemistry Tools (periodic table, Bohr model, orbital diagram, Lewis dot, configuration). */
+  chemistryOpen: boolean;
   shortcutsOpen: boolean;
   /** Transient HUD message (e.g. "Shape snapped"). */
   toast: string | null;
@@ -92,7 +92,7 @@ const initial: UIState = {
   timerOpen: false,
   curtain: { on: false, y: 0.45 },
   equation: { open: false, editId: null },
-  elementsOpen: false,
+  chemistryOpen: false,
   shortcutsOpen: false,
   toast: null,
 };
@@ -168,8 +168,8 @@ export const setTool = (tool: Tool) =>
   });
 
 // The two app sheets share a spot at the top right, so opening one closes the other.
-export const openEquation = (editId: string | null = null) => ui.set({ equation: { open: true, editId }, elementsOpen: false });
-export const openElements = () => ui.set({ elementsOpen: true, equation: { open: false, editId: null } });
+export const openEquation = (editId: string | null = null) => ui.set({ equation: { open: true, editId }, chemistryOpen: false });
+export const openChemistry = () => ui.set({ chemistryOpen: true, equation: { open: false, editId: null } });
 
 /** Forget the user profile so the first-launch welcome runs again. Lessons are kept. */
 export const resetProfile = () => ui.set({ name: null, device: null });
