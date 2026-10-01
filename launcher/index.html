@@ -23,10 +23,15 @@
         <span>Bohrified</span>
       </a>
       <nav id="tabs" class="tabs" aria-label="Open apps"></nav>
+      <button id="unmax" class="gear" type="button" title="Exit full screen" aria-label="Exit full screen" hidden>
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>
+      </button>
       <button id="gear" class="gear" type="button" title="Settings" aria-label="Settings">
         <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.5 7.5 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.4L6.6 11a7.5 7.5 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7.4 7.4 0 0 0 1.7-1l2.4 1 2-3.4-2-1.6ZM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z" transform="translate(-1 0)"/></svg>
       </button>
     </header>
+    <div id="hotzone" class="hotzone" aria-hidden="true"></div>
+    <div id="split-picker" class="split-picker" role="dialog" aria-label="Choose an app for the other side" hidden></div>
     <dialog id="settings" class="sheet" aria-labelledby="settings-title">
       <h2 id="settings-title">Settings</h2>
       <h3 class="group">Bohrified</h3>
@@ -63,20 +68,20 @@
     <main id="home" class="home">
       <h1>Bohrified</h1>
       <p class="lede">Peer tutoring apps, in one place.</p>
-      <a id="continue" class="continue" hidden></a>
       <div class="finder">
         <input id="search" class="search" type="search" placeholder="Search apps" aria-label="Search apps" autocomplete="off" spellcheck="false" />
         <button id="quick-open" class="plain" type="button" title="Quick launcher" aria-keyshortcuts="Control+K Meta+K"><kbd id="quick-key">Ctrl K</kbd></button>
       </div>
-      <a id="join-link" class="join-entry" href="/join"><b>Join a whiteboard</b><span>Have a code from your tutor? Watch their lesson live.</span></a>
       <section id="pinned" class="chips-section" aria-labelledby="pinned-h" hidden>
         <h2 id="pinned-h" class="group">Pinned</h2>
         <div class="chips"></div>
       </section>
+      <a id="continue" class="continue" hidden></a>
       <section id="recent" class="chips-section" aria-labelledby="recent-h" hidden>
         <h2 id="recent-h" class="group">Recent</h2>
         <div class="chips"></div>
       </section>
+      <a id="join-link" class="join-entry" href="/join"><b>Join a whiteboard</b><span>Have a code from your tutor? Watch their lesson live.</span></a>
       <h2 id="all-h" class="group">All apps</h2>
       <div id="apps" class="apps" aria-labelledby="all-h"></div>
       <p id="no-match" class="no-match" hidden>No apps match.</p>

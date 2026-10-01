@@ -72,7 +72,6 @@
   tr.w td { background:var(--soft2); border-top:2px solid var(--line); }
   [hidden] { display:none !important; }
   #status { min-width:90px; } #status.bad { color:var(--danger); }
-  #saved { max-width:190px; }
   #live { margin:10px 0 0; } #live:empty { display:none; } #live.bad { background:transparent; border-color:var(--dangerbd); color:var(--danger); }
   .fmsg { display:block; font-size:11px; color:var(--danger); max-width:150px; } .fmsg:empty { display:none; }
   #totalmsg { flex-basis:100%; color:var(--danger); font-size:12px; } #totalmsg:empty { display:none; }
@@ -91,9 +90,6 @@
 <body>
 <header>
   <h1><span class="logo">R</span>Rubricable <span class="ver" id="ver"></span></h1>
-  <label class="small">Rubric <select id="saved" title="Switch between saved rubrics" aria-label="Saved rubrics"></select></label>
-  <button id="newrub" title="Start a new rubric (the current one stays saved)">New</button>
-  <button id="delrub" class="danger" title="Delete this saved rubric">Delete</button>
   <span id="status" class="small" role="status" aria-live="polite"></span>
   <label class="small">Type <select id="atype" title="Assignment type sets the total points"><option value="assignment">Practice Assignment (custom)</option><option value="quiz">Quiz (30 pts)</option><option value="test">Unit Test (75 pts)</option><option value="custom">Ignore — custom points</option></select></label>
   <label class="small">Total Points <input id="total" type="number" min="0" step="any" value="30" aria-describedby="totalmsg"></label>
@@ -374,17 +370,11 @@ function say(msg, bad) {
 let dirty = false, saveTimer;
 const readLib = () => parseLibrary(store.get(STORE_KEY));
 function setStatus(text, bad) { const el = $('status'); el.textContent = text; el.classList.toggle('bad', !!bad); }
-function refreshSaved(lib) {
-  const items = lib.items.some(i => i.id === cur.id) ? lib.items : [{id:cur.id, name:rubricName({S}), updatedAt:Infinity}, ...lib.items];
-  $('saved').innerHTML = items.map(i => `<option value="${esc(i.id)}"${i.id === cur.id ? ' selected' : ''}>${esc(i.id === cur.id ? rubricName({S}) : i.name)}</option>`).join('');
-  $('delrub').disabled = !lib.items.some(i => i.id === cur.id);
-}
 function persist() {
   const lib = upsertRubric(readLib(), cur.id, sanitizeState(snapshot()) || defaultState(), Date.now());
   const ok = store.set(STORE_KEY, serializeLibrary(lib));
   setStatus(ok ? 'Saved' : 'Not saved: browser storage is unavailable', !ok);
   if (ok) readLibCache = lib;
-  refreshSaved(ok ? lib : {items: []});
 }
 function flush() { clearTimeout(saveTimer); if (dirty) { dirty = false; persist(); } }
 function touch() {
@@ -446,14 +436,12 @@ function update() {
       `<tr><td colspan="${S.levels.length+3}" class="small">Add a criterion title on the canvas.</td></tr>`) +
     `<tr class="w"><td class="small">6</td><td>Exact level percentages</td><td class="small">${fmt(v.sum)} / ${fmt(v.total)}</td>` +
     v.weights.map(w => `<td>${fmt(w*100)}%</td>`).join('') + '</tr></tbody>';
-  refreshSaved(readLibCache);
 }
 let readLibCache = emptyLibrary();
 
 document.addEventListener('input', e => {
   const t = e.target;
   if (t.id === 'askstart') return store.set('rbl-ask', t.checked ? '1' : '0');
-  if (t.id === 'saved') return;
   if (t.id === 'atype') { S.total = typeTotal(t.value, S.total); $('total').value = S.total; update(); return touch(); }
   if (t.id === 'total') {
     S.total = t.value;
@@ -491,36 +479,9 @@ document.addEventListener('click', e => {
   }
 });
 
-// ---- saved rubrics ----
 function openState(st, id) {
   loadInto(st); cur.id = id; renderLevels(); renderCriteria(); saveSession();
 }
-$('saved').onchange = () => {
-  flush();
-  const lib = readLib(), item = lib.items.find(i => i.id === $('saved').value);
-  if (!item) return;
-  lib.currentId = item.id; store.set(STORE_KEY, serializeLibrary(lib)); readLibCache = lib;
-  openState(item.state, item.id); setStatus('Saved'); say(`Opened "${item.name}".`);
-};
-$('newrub').onclick = () => {
-  flush();
-  const wasEmpty = isEmptyState({S});
-  const fresh = defaultState();
-  openState(fresh, wasEmpty ? cur.id : 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6));
-  setStatus(''); say('Started a new rubric. The previous one is still saved.');
-  if ($('askstart').checked) $('start').hidden = false;
-  document.querySelector('#criteria [data-f="name"]')?.focus();
-};
-$('delrub').onclick = () => {
-  const lib = readLib(), item = lib.items.find(i => i.id === cur.id); if (!item) return;
-  if (!confirm(`Delete "${item.name}" from your saved rubrics?`)) return;
-  const next = removeRubric(lib, cur.id);
-  store.set(STORE_KEY, serializeLibrary(next)); readLibCache = next; dirty = false; clearTimeout(saveTimer);
-  const n = next.items.find(i => i.id === next.currentId);
-  openState(n ? n.state : defaultState(), n ? n.id : 'r' + Date.now().toString(36));
-  say('Rubric deleted.');
-};
-
 // ---- exports ----
 function download(blob, name) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);

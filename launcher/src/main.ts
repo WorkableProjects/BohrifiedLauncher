@@ -49,6 +49,7 @@ const windows = new WindowManager(stage, {
   // Minimizing the focused window hands focus to the next one, or back to the launcher.
   onMinimize: (id) => manager.active === id && navigate(windows.visible()[0] ?? null),
   onClose: (id) => void closeWindow(id),
+  onTile: (id, side) => snapWithPicker(id, side),
   onChange: () => render(),
 });
 
@@ -570,6 +571,97 @@ function paint() {
   renderHome();
   renderTabs();
   renderStatus();
+  renderImmersive();
+  keepSplit();
+}
+
+// ── Full screen (macOS style) ────────────────────────────────────────────────
+// A maximized window takes the whole screen: the bar slides away and returns
+// when the pointer touches the top edge (or the bar gets keyboard focus).
+const barEl = $('.shell-bar');
+const hotzone = $('#hotzone');
+const unmax = $('#unmax');
+let hideBarTimer = 0;
+
+function renderImmersive() {
+  const id = manager.active;
+  const on = !!id && !joining && !windows.compact && windows.mode(id) === 'maximized' && !windows.isMinimized(id);
+  document.body.toggleAttribute('data-immersive', on);
+  unmax.hidden = !on;
+  if (!on) document.body.removeAttribute('data-reveal');
+}
+const reveal = (on: boolean) => {
+  clearTimeout(hideBarTimer);
+  if (on) document.body.setAttribute('data-reveal', '');
+  else
+    hideBarTimer = window.setTimeout(() => {
+      // Stay while the bar is in use: keyboard focus inside it, or a sheet open.
+      if (barEl.matches(':hover, :focus-within') || sheet.open || quick.isOpen) return;
+      document.body.removeAttribute('data-reveal');
+    }, 450);
+};
+hotzone.addEventListener('pointerenter', () => reveal(true));
+barEl.addEventListener('pointerenter', () => reveal(true));
+barEl.addEventListener('pointerleave', () => reveal(false));
+barEl.addEventListener('focusin', () => reveal(true));
+barEl.addEventListener('focusout', () => reveal(false));
+unmax.addEventListener('click', () => {
+  if (manager.active) windows.restore(manager.active);
+  reveal(false);
+});
+
+// ── Split View ───────────────────────────────────────────────────────────────
+// Tile a window to one side, then pick what fills the other. The two stay
+// active together and a divider between them resizes the split.
+const picker = $('#split-picker');
+let pendingSnap: { id: string; zone: 'left' | 'right'; partner: string } | null = null;
+
+function closePicker() {
+  picker.hidden = true;
+  picker.replaceChildren();
+}
+
+function snapWithPicker(id: string, side: 'left' | 'right') {
+  if (windows.compact) return;
+  windows.snap(id, side);
+  const others = [...manager.apps.values()].filter((r) => r.manifest.id !== id);
+  if (!others.length) return;
+  showPicker(id, side === 'left' ? 'right' : 'left', others);
+}
+
+function showPicker(partner: string, side: 'left' | 'right', apps: AppRecord[]) {
+  const name = manager.apps.get(partner)?.manifest.name ?? 'this app';
+  picker.style.left = side === 'left' ? '0' : '50%';
+  picker.hidden = false;
+  picker.replaceChildren(
+    el('h2', { textContent: 'Choose an app for this side' }),
+    el('p', { textContent: `It will sit next to ${name}. Both stay active.` }),
+    el(
+      'div',
+      { className: 'split-choices' },
+      ...apps.map((r) => {
+        const b = el('button', { type: 'button', className: 'split-choice', dataset: { app: r.manifest.id } }, icon(r, 40), el('span', { textContent: r.manifest.name }));
+        b.addEventListener('click', () => {
+          closePicker();
+          pendingSnap = { id: r.manifest.id, zone: side, partner };
+          navigate(r.manifest.id);
+        });
+        return b;
+      }),
+    ),
+    el('button', { type: 'button', className: 'plain', textContent: 'Cancel', onclick: closePicker }),
+  );
+  picker.querySelector<HTMLElement>('.split-choice')?.focus();
+}
+picker.addEventListener('keydown', (e) => e.key === 'Escape' && closePicker());
+
+/** Leaving the side-by-side layout (maximizing, moving, closing one) ends Split View. */
+function keepSplit() {
+  const members = manager.splitMembers;
+  windows.setLive(members);
+  if (!members.length) return;
+  const pair = windows.splitPair();
+  if (!pair || !members.every((m) => pair.includes(m))) void manager.setSplit([]);
 }
 
 /** Switching between the library and an app crossfades and zooms; the app's icon travels between the two. */
@@ -611,6 +703,17 @@ function route() {
     windows.minimizeAll();
     windows.setFocused(null);
   }
+  if (id && pendingSnap?.id === id) {
+    // Split View: put the chosen app on its side and keep it active beside its partner.
+    // The split is set first so opening the new app doesn't pause its partner.
+    const p = pendingSnap;
+    pendingSnap = null;
+    windows.snap(id, p.zone);
+    void manager.setSplit([p.partner, id]);
+  } else if (!id || pendingSnap) {
+    pendingSnap = null;
+    closePicker();
+  }
   void manager.open(id);
 }
 
@@ -631,7 +734,13 @@ const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
 const MOD = isMac ? '⌘' : 'Ctrl';
 $('#quick-key').textContent = `${MOD} K`;
 
-const snapActive = (zone: SnapZone) => manager.active && windows.snap(manager.active, zone);
+const snapActive = (zone: SnapZone) => {
+  const id = manager.active;
+  if (!id) return;
+  // Tiling to a side offers the other side to another app, as macOS does.
+  if (zone === 'left' || zone === 'right') snapWithPicker(id, zone);
+  else windows.snap(id, zone);
+};
 const toggleMax = () => manager.active && windows.toggleMaximize(manager.active);
 const minimizeActive = () => manager.active && windows.minimize(manager.active);
 const closeActive = () => manager.active && void closeWindow(manager.active);
@@ -654,8 +763,8 @@ function quickItems(): QuickItem[] {
   if (focused && !windows.compact) {
     const max = windows.mode(focused) === 'maximized';
     commands.push(
-      { id: 'win:left', group: 'Windows', label: 'Snap window to the left', hint: `${MOD} Alt ←`, keywords: 'tile half', run: () => snapActive('left') },
-      { id: 'win:right', group: 'Windows', label: 'Snap window to the right', hint: `${MOD} Alt →`, keywords: 'tile half', run: () => snapActive('right') },
+      { id: 'win:left', group: 'Windows', label: 'Tile window to the left', hint: `${MOD} Alt ←`, keywords: 'snap half split', run: () => snapActive('left') },
+      { id: 'win:right', group: 'Windows', label: 'Tile window to the right', hint: `${MOD} Alt →`, keywords: 'snap half split', run: () => snapActive('right') },
       { id: 'win:max', group: 'Windows', label: max ? 'Restore window' : 'Maximize window', hint: `${MOD} Alt ↑`, keywords: 'fullscreen full screen', run: toggleMax },
     );
   }
@@ -665,6 +774,7 @@ function quickItems(): QuickItem[] {
       { id: 'win:close', group: 'Windows', label: 'Close window', keywords: 'quit', run: closeActive },
     );
   }
+  if (focused && !windows.compact && manager.apps.size > 1) commands.push({ id: 'win:split', group: 'Windows', label: 'Split View with another app…', keywords: 'side by side tile two apps', run: () => snapWithPicker(focused, 'left') });
   if (windows.visible().length > 1 && !windows.compact) commands.push({ id: 'win:tile', group: 'Windows', label: 'Tile windows side by side', keywords: 'arrange', run: () => windows.tile() });
   commands.push(
     { id: 'home', group: 'Bohrified', label: 'Show Bohrified home', keywords: 'launcher desktop', run: () => navigate(null) },

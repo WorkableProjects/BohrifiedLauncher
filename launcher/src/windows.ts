@@ -42,6 +42,8 @@ export interface WindowHooks {
   onFocusRequest(id: string): void;
   onMinimize(id: string): void;
   onClose(id: string): void;
+  /** The user chose "Tile window to the left / right" from the maximize button's menu (Split View). */
+  onTile(id: string, side: 'left' | 'right'): void;
   /** Anything the tabs or commands show changed. */
   onChange(): void;
 }
@@ -57,8 +59,8 @@ const KEEP = 96;
 const saved = sessionStore('bohr:windows:');
 
 /** The rectangle a snap zone fills, for a stage of `w` × `h`. */
-export function zoneRect(zone: SnapZone, w: number, h: number): Rect {
-  const hw = Math.round(w / 2);
+export function zoneRect(zone: SnapZone, w: number, h: number, ratio = 0.5): Rect {
+  const hw = Math.round(w * ratio);
   const hh = Math.round(h / 2);
   switch (zone) {
     case 'left':
@@ -157,9 +159,21 @@ export class WindowManager {
   private focused: string | null = null;
   private readonly preview = el('div', { className: 'snap-preview', hidden: true, ariaHidden: 'true' });
   private cascade = 0;
+  /** Windows that run alongside the focused one (Split View): they get no Paused cover. */
+  private live = new Set<string>();
+  /** Where the divider between a left and a right window sits, as a share of the stage width. */
+  private ratio = 0.5;
+  private readonly divider = el('div', { className: 'split-divider', role: 'separator', ariaOrientation: 'vertical', ariaLabel: 'Resize split', tabIndex: 0, hidden: true });
 
   constructor(private readonly stage: HTMLElement, private readonly hooks: WindowHooks) {
-    stage.append(this.preview);
+    stage.append(this.preview, this.divider);
+    this.divider.addEventListener('pointerdown', (e) => this.startDividerDrag(e));
+    this.divider.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      e.preventDefault();
+      this.setRatio(this.ratio + (e.key === 'ArrowRight' ? 0.02 : -0.02));
+    });
+    this.divider.addEventListener('dblclick', () => this.setRatio(0.5));
     new ResizeObserver(() => this.relayoutAll()).observe(stage);
   }
 
@@ -245,15 +259,65 @@ export class WindowManager {
         this.stack.push(id);
       }
     }
+    this.applyFocus();
+    this.hooks.onChange();
+  }
+
+  /** Mark which windows run alongside the focused one (Split View). */
+  setLive(ids: readonly string[]) {
+    this.live = new Set(ids);
+    this.applyFocus();
+  }
+
+  private applyFocus() {
     this.stack.forEach((wid, z) => {
       const w = this.wins.get(wid)!;
-      const on = wid === id;
+      const on = wid === this.focused;
+      const running = on || this.live.has(wid);
       w.el.style.zIndex = String(z + 1);
       w.el.classList.toggle('focused', on);
       w.el.dataset.focus = String(on);
-      w.body.inert = !on; // The cover stands in for a suspended app.
+      w.el.dataset.live = String(running);
+      w.body.inert = !running; // The cover stands in for a suspended app.
     });
-    this.hooks.onChange();
+  }
+
+  /** The visible windows snapped to the left and right halves, if there are such a pair. */
+  splitPair(): [string, string] | null {
+    const vis = this.ids().filter((id) => !this.wins.get(id)!.minimized && this.wins.get(id)!.mode === 'snapped');
+    const left = vis.find((id) => this.wins.get(id)!.zone === 'left');
+    const right = vis.find((id) => this.wins.get(id)!.zone === 'right');
+    return left && right ? [left, right] : null;
+  }
+
+  private setRatio(r: number) {
+    this.ratio = Math.min(0.75, Math.max(0.25, r));
+    this.relayoutAll();
+  }
+
+  private startDividerDrag(e: PointerEvent) {
+    if (e.button !== 0) return;
+    const stage = this.stage.getBoundingClientRect();
+    this.divider.setPointerCapture(e.pointerId);
+    this.stage.classList.add('dragging');
+    const move = (ev: PointerEvent) => this.setRatio((ev.clientX - stage.left) / stage.width);
+    const end = () => {
+      this.divider.removeEventListener('pointermove', move);
+      this.divider.removeEventListener('pointerup', end);
+      this.divider.removeEventListener('pointercancel', end);
+      this.stage.classList.remove('dragging');
+    };
+    this.divider.addEventListener('pointermove', move);
+    this.divider.addEventListener('pointerup', end);
+    this.divider.addEventListener('pointercancel', end);
+  }
+
+  private updateDivider() {
+    const pair = this.splitPair();
+    this.divider.hidden = !pair || this.compact;
+    if (this.divider.hidden) return;
+    const { w } = this.size();
+    this.divider.style.left = `${Math.round(w * this.ratio) - 6}px`;
   }
 
   minimize(id: string) {
@@ -284,7 +348,7 @@ export class WindowManager {
   private current(win: Win): Rect {
     const { w, h } = this.size();
     if (this.compact || win.mode === 'maximized') return { x: 0, y: 0, w, h };
-    if (win.mode === 'snapped' && win.zone) return zoneRect(win.zone, w, h);
+    if (win.mode === 'snapped' && win.zone) return zoneRect(win.zone, w, h, this.ratio);
     return clampRect(win.rect, w, h);
   }
 
@@ -308,11 +372,13 @@ export class WindowManager {
     win.maxBtn.title = maxLabel;
     win.maxBtn.ariaLabel = maxLabel;
     win.maxBtn.hidden = this.compact;
+    this.updateDivider();
   }
 
   private relayoutAll() {
     if (!this.stage.clientWidth) return;
     for (const win of this.wins.values()) this.layout(win);
+    this.updateDivider();
   }
 
   private save(win: Win) {
@@ -365,6 +431,16 @@ export class WindowManager {
     const minBtn = control('win-min', `Minimize ${name}`, ICON.min, () => this.minimize(id));
     const maxBtn = control('win-max', `Maximize ${name}`, ICON.max, () => this.toggleMaximize(id));
     const closeBtn = control('win-close', `Close ${name}`, ICON.close, () => this.hooks.onClose(id));
+    // Hovering (or focusing) the maximize button offers Split View, as on macOS.
+    const item = (label: string, run: () => void) => el('button', { type: 'button', className: 'win-menu-item', textContent: label, onclick: run });
+    const menu = el(
+      'div',
+      { className: 'win-menu', role: 'group', ariaLabel: `${name} layout` },
+      item('Tile Window to Left of Screen', () => this.hooks.onTile(id, 'left')),
+      item('Tile Window to Right of Screen', () => this.hooks.onTile(id, 'right')),
+      item('Enter Full Screen', () => this.toggleMaximize(id)),
+    );
+    const maxWrap = el('div', { className: 'win-max-wrap' }, maxBtn, menu);
 
     const title = el(
       'div',
@@ -372,7 +448,7 @@ export class WindowManager {
       el('img', { src: info.icon, alt: '', width: 18, height: 18, className: 'app-icon', draggable: false }),
       el('span', { textContent: name }),
     );
-    const bar = el('div', { className: 'win-bar' }, title, el('div', { className: 'win-controls' }, minBtn, maxBtn, closeBtn));
+    const bar = el('div', { className: 'win-bar' }, title, el('div', { className: 'win-controls' }, minBtn, maxWrap, closeBtn));
     const body = el('div', { className: 'win-body' });
     const cover = el(
       'button',
@@ -381,7 +457,7 @@ export class WindowManager {
       el('b', { textContent: name }),
       el('span', { textContent: 'Paused · click to resume' }),
     );
-    const root = el('section', { className: 'win', role: 'group', ariaLabel: name, dataset: { app: id, focus: 'false', min: 'false', mode: 'normal' } });
+    const root = el('section', { className: 'win', role: 'group', ariaLabel: name, dataset: { app: id, focus: 'false', live: 'false', min: 'false', mode: 'normal' } });
     root.style.setProperty('--accent', info.accent);
     root.append(bar, body, cover, ...HANDLES.map((h) => el('i', { className: `rz rz-${h}`, dataset: { h } })));
 
@@ -449,7 +525,7 @@ export class WindowManager {
   private showPreview(zone: SnapZone | 'max' | null, w: number, h: number) {
     this.preview.hidden = !zone;
     if (!zone) return;
-    const r = zone === 'max' ? { x: 0, y: 0, w, h } : zoneRect(zone, w, h);
+    const r = zone === 'max' ? { x: 0, y: 0, w, h } : zoneRect(zone, w, h, this.ratio);
     Object.assign(this.preview.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px` });
   }
 
