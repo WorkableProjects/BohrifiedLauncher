@@ -16,8 +16,14 @@ const SHORTCUTS: [string, string][] = [
   ['⌘ + scroll / pinch', 'Zoom'],
   ['⌘0 · ⌘1', 'Actual size · Fit'],
   ['⌘D · ⌫', 'Duplicate · Delete'],
+  ['← ↑ → ↓', 'Nudge selection (⇧ for 10 px)'],
+  ['Alt + drag', 'Move without snapping'],
+  ['F', 'Spotlight (Esc ends it)'],
+  ['⌘Z · ⇧⌘Z', 'Undo · Redo (shows what changed)'],
   ['C', 'Screen Hider'],
   ['PgUp · PgDn', 'Previous · Next page'],
+  ['Home · End', 'First · Last page'],
+  ['⌥P', 'Pages (drag, or Alt + ↑↓, to reorder)'],
   ['?', 'This list'],
 ];
 

@@ -1,5 +1,6 @@
 import { getController } from '../canvas/instance';
 import { pageToPng } from '../engine/export';
+import { alignElements, distributeElements, nudgeElements, type AlignMode, type Axis } from '../engine/arrange';
 import { elementBounds, translateElement, uid, unionRects } from '../engine/geometry';
 import { downloadBlob, exportDocument, listLessons, readImageFile, safeFilename } from '../engine/persistence';
 import { boardTheme, type Appearance } from '../engine/theme';
@@ -13,8 +14,43 @@ const selected = () => {
   return board.page.elements.filter((e) => sel.has(e.id));
 };
 
-export const undo = () => board.undo();
-export const redo = () => board.redo();
+export function undo() {
+  const label = board.undoLabel;
+  if (!label) return;
+  board.undo();
+  toast(`Undid: ${label}`);
+}
+
+export function redo() {
+  const label = board.redoLabel;
+  if (!label) return;
+  board.redo();
+  toast(`Redid: ${label}`);
+}
+
+// ─── Arrange ──────────────────────────────────────────────────────────
+
+export function alignSelection(mode: AlignMode) {
+  const els = selected();
+  if (els.length < 2) return;
+  board.replaceElements(alignElements(els, mode));
+}
+
+export function distributeSelection(axis: Axis) {
+  const els = selected();
+  if (els.length < 3) return;
+  board.replaceElements(distributeElements(els, axis));
+}
+
+/** Move the selection by screen pixels (so a nudge looks the same at any zoom). Repeated nudges are one undo step. */
+export function nudgeSelection(dxPx: number, dyPx: number) {
+  const els = selected();
+  if (!els.length) return;
+  const z = board.page.camera.z;
+  board.replaceElements(nudgeElements(els, dxPx / z, dyPx / z), board.page.id, 'nudge');
+}
+
+export const toggleSpotlight = () => ui.set({ spotlight: !ui.get().spotlight });
 
 export function deleteSelection() {
   const sel = ui.get().selection;

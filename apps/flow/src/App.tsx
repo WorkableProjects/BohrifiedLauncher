@@ -3,7 +3,9 @@ import { flushSync } from 'react-dom';
 import { BoardCanvas } from './canvas/BoardCanvas';
 import { getController } from './canvas/instance';
 import { TextEditor, type EditRequest } from './canvas/TextEditor';
-import { channelSupported, TutorSync } from './engine/sync';
+import { channelSupported, channelTransport } from './engine/transport';
+import { LOCAL_CHANNEL, TutorSync, type SyncMessage } from './engine/sync';
+import { attachTutor, tutorName } from './state/live';
 import { useAppearance } from './hooks/useAppearance';
 import { useAutosave } from './hooks/useAutosave';
 import { useShortcuts } from './hooks/useShortcuts';
@@ -12,7 +14,8 @@ import { useUI } from './state/ui';
 import { ActionsBar, SelectionBar, TitleBar, ZoomBar } from './ui/Bars';
 import { Curtain } from './ui/Curtain';
 import { EquationSheet } from './ui/EquationSheet';
-import { ElementsSheet } from './ui/ElementsSheet';
+import { ChemistryTools } from './ui/ChemistryTools';
+import { SharingSheet } from './ui/SharingSheet';
 import { ShortcutsSheet } from './ui/ShortcutsSheet';
 import { usePresence } from './hooks/usePresence';
 import { GlassProvider } from './ui/GlassProvider';
@@ -33,10 +36,15 @@ export default function App({ onHome }: { onHome: () => void }) {
   useAutosave();
 
   useEffect(() => {
-    if (!channelSupported()) return;
-    const s = new TutorSync(board, () => getController()?.viewport ?? { width: window.innerWidth, height: window.innerHeight });
+    const local = channelSupported() ? [channelTransport<SyncMessage>(LOCAL_CHANNEL)] : [];
+    const s = new TutorSync(board, () => getController()?.viewport ?? { width: window.innerWidth, height: window.innerHeight }, local, { tutorName: tutorName() });
     sync.current = s;
-    return () => s.destroy();
+    // A running live session (relay code) follows the board across suspend / resume.
+    attachTutor(s);
+    return () => {
+      attachTutor(null);
+      s.destroy();
+    };
   }, []);
 
   const events = useMemo<ControllerEvents>(
@@ -65,7 +73,8 @@ export default function App({ onHome }: { onHome: () => void }) {
       </main>
       <PagesPanel appearance={appearance} />
       <EquationSheet appearance={appearance} />
-      <ElementsSheet appearance={appearance} />
+      <ChemistryTools appearance={appearance} />
+      <SharingSheet />
       <ShortcutsSheet />
       <FpsMeter />
     </GlassProvider>

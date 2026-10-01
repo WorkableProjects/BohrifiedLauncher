@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { pageThumbnail } from '../engine/export';
 import { boardTheme, type Appearance } from '../engine/theme';
@@ -19,6 +19,36 @@ export function PagesPanel({ appearance }: { appearance: Appearance }) {
   const version = useBoard((b) => b.version);
   const [thumbs, setThumbs] = useState<Record<string, string>>({});
   const { mounted, leaving } = usePresence(open);
+  // Drag-to-reorder: which page is held, and the slot it would land in (0..pages.length).
+  const [drag, setDrag] = useState<{ id: string; slot: number } | null>(null);
+  const list = useRef<HTMLOListElement>(null);
+
+  // Keep the current page in view as the lesson grows.
+  useEffect(() => {
+    if (open) list.current?.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest' });
+  }, [open, active]);
+
+  const drop = () => {
+    if (!drag) return;
+    const from = pages.findIndex((p) => p.id === drag.id);
+    // Removing the page shifts every later slot up by one.
+    board.movePageTo(drag.id, drag.slot > from ? drag.slot - 1 : drag.slot);
+    setDrag(null);
+  };
+
+  /** Arrow keys walk the list; Alt + arrow moves the page. */
+  const onThumbKey = (e: React.KeyboardEvent, id: string, i: number) => {
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    e.preventDefault();
+    const d = e.key === 'ArrowUp' ? -1 : 1;
+    if (e.altKey) {
+      board.movePage(id, d);
+      requestAnimationFrame(() => list.current?.querySelector<HTMLElement>(`[data-page="${id}"]`)?.focus());
+    } else {
+      const next = pages[i + d];
+      if (next) list.current?.querySelector<HTMLElement>(`[data-page="${next.id}"]`)?.focus();
+    }
+  };
 
   // Thumbnails regenerate lazily while the panel is open (debounced).
   useEffect(() => {
@@ -43,11 +73,35 @@ export function PagesPanel({ appearance }: { appearance: Appearance }) {
         <h2 className="text-headline font-semibold tracking-title">Pages</h2>
         <ToolButton icon="close" label="Close pages" iconSize={13} onClick={() => ui.set({ pagesOpen: false })} />
       </header>
-      <ol className="flex-1 space-y-3 overflow-y-auto px-3 pb-3">
+      <ol ref={list} className="flex-1 space-y-3 overflow-y-auto px-3 pb-3" onDragEnd={() => setDrag(null)}>
         {pages.map((p, i) => (
-          <li key={p.id} className="group">
+          <li
+            key={p.id}
+            className={`group relative rounded-[14px] ${drag?.id === p.id ? 'opacity-40' : ''}`}
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.effectAllowed = 'move';
+              e.dataTransfer.setData('text/plain', p.id);
+              setDrag({ id: p.id, slot: i });
+            }}
+            onDragOver={(e) => {
+              if (!drag) return;
+              e.preventDefault();
+              const r = e.currentTarget.getBoundingClientRect();
+              const slot = e.clientY < r.top + r.height / 2 ? i : i + 1;
+              if (slot !== drag.slot) setDrag({ ...drag, slot });
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              drop();
+            }}
+          >
+            {drag && drag.slot === i && drag.id !== p.id && <span aria-hidden className="absolute -top-2 right-0 left-0 h-1 rounded-full bg-tint" />}
+            {drag && drag.slot === pages.length && i === pages.length - 1 && <span aria-hidden className="absolute right-0 -bottom-2 left-0 h-1 rounded-full bg-tint" />}
             <button
               type="button"
+              data-page={p.id}
+              onKeyDown={(e) => onThumbKey(e, p.id, i)}
               onClick={() => board.setActivePage(p.id)}
               aria-current={p.id === active}
               className={`spring block w-full overflow-hidden rounded-[14px] bg-bg p-0 ${p.id === active ? 'shadow-[0_0_0_3px_var(--tint)]' : 'shadow-[0_0_0_1px_var(--hairline)] hover:shadow-[0_0_0_2px_var(--separator)]'}`}
@@ -55,6 +109,7 @@ export function PagesPanel({ appearance }: { appearance: Appearance }) {
               {thumbs[p.id] ? <img src={thumbs[p.id]} alt="" className="block h-[110px] w-full object-cover" draggable={false} /> : <div className="h-[110px]" />}
             </button>
             <div className="mt-1 flex items-center gap-1 px-1">
+              <span className="sr-only">Drag to reorder, or press Alt with the arrow keys.</span>
               <span className="w-5 text-footnote font-semibold text-label-2 tabular-nums">{i + 1}</span>
               <input
                 value={p.name}

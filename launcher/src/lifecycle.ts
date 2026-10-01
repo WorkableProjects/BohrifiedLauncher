@@ -1,4 +1,4 @@
-import type { AppContext, AppInstance, AppManifest, LifecycleState, SharedSettings } from '@bohrified/app-sdk';
+import type { AppActivity, AppContext, AppInstance, AppManifest, LifecycleState, SharedSettings, ShellShortcut } from '@bohrified/app-sdk';
 import { serialQueue } from '@bohrified/utilities';
 
 /**
@@ -24,16 +24,26 @@ export interface AppRecord {
 
 export interface LifecycleOptions {
   stage: HTMLElement;
+  /** Where an app's container goes (e.g. its window's body); defaults to `stage`. */
+  host?: (id: string) => HTMLElement | null;
   baseUrl: string;
   /** How many hidden apps may keep a suspended instance. */
   maxSuspended?: number;
   settings: SharedSettings;
   onChange: () => void;
+  /** An app reported what the user is working on. */
+  onActivity?: (id: string, activity: AppActivity | null) => void;
+  /** An app reported runtime numbers. */
+  onMetrics?: (id: string, metrics: Record<string, number>) => void;
+  /** A shell shortcut was pressed while focus was inside an app. */
+  onShortcut?: (name: ShellShortcut) => void;
 }
 
 export class LifecycleManager {
   readonly apps = new Map<string, AppRecord>();
   private activeId: string | null = null;
+  /** Apps shown side by side (Split View): they stay active together; focus just moves between them. */
+  private split = new Set<string>();
   /** Transitions are serialized so rapid switching can't interleave mounts. */
   private readonly run = serialQueue();
   private readonly maxSuspended: number;
@@ -52,6 +62,30 @@ export class LifecycleManager {
     return this.activeId;
   }
 
+  /** The apps currently in Split View (empty when not splitting). */
+  get splitMembers(): string[] {
+    return [...this.split];
+  }
+
+  /**
+   * Keep these apps active together (Split View). The focused app is whichever
+   * was opened last; leaving the group (opening something else, or the
+   * launcher) ends the split and pauses the rest.
+   */
+  setSplit(ids: readonly string[]): Promise<void> {
+    return this.run(async () => {
+      this.split = new Set(ids.length > 1 ? ids : []);
+      for (const id of this.split) {
+        const rec = this.apps.get(id);
+        if (rec && rec.state !== 'active') await this.activate(rec);
+      }
+      for (const rec of this.apps.values()) {
+        if (rec.state === 'active' && rec.manifest.id !== this.activeId && !this.split.has(rec.manifest.id)) await this.suspend(rec);
+      }
+      this.opts.onChange();
+    });
+  }
+
   /** Shared settings changed: tell every mounted app. */
   setSettings(settings: SharedSettings) {
     this.settings = settings;
@@ -68,10 +102,17 @@ export class LifecycleManager {
     return this.run(async () => {
       if (id === this.activeId) return;
       const prev = this.activeId ? this.apps.get(this.activeId) : null;
+      // Moving focus inside a split keeps both apps running; anything else ends it.
+      const wasSplit = this.split;
+      if (!id || !wasSplit.has(id)) this.split = new Set();
       this.activeId = id;
-      if (prev) await this.suspend(prev);
+      if (prev && !this.split.has(prev.manifest.id)) await this.suspend(prev);
+      for (const other of wasSplit) {
+        const rec = this.apps.get(other);
+        if (rec && rec !== prev && !this.split.has(other) && other !== id && rec.state === 'active') await this.suspend(rec);
+      }
       const rec = id ? this.apps.get(id) : null;
-      if (rec) await this.activate(rec);
+      if (rec && rec.state !== 'active') await this.activate(rec);
       await this.enforcePolicy();
       this.opts.onChange();
     });
@@ -114,6 +155,9 @@ export class LifecycleManager {
         console.error(`[bohrified] ${rec.manifest.name}${fatal ? ' crashed' : ' error'}:`, error);
         if (fatal) this.crash(rec, error);
       },
+      setActivity: (activity) => this.opts.onActivity?.(rec.manifest.id, activity),
+      setMetrics: (metrics) => this.opts.onMetrics?.(rec.manifest.id, metrics),
+      shortcut: (name) => this.opts.onShortcut?.(name),
     };
   }
 
@@ -137,14 +181,14 @@ export class LifecycleManager {
         const container = rec.container ?? document.createElement('div');
         container.className = 'app-frame';
         container.dataset.app = rec.manifest.id;
-        if (!container.isConnected) this.opts.stage.appendChild(container);
+        if (!container.isConnected) (this.opts.host?.(rec.manifest.id) ?? this.opts.stage).appendChild(container);
         rec.container = container;
         rec.instance = await mod.default.mount(container, this.context(rec));
         rec.timing = { loadMs: tLoaded - t0, mountMs: performance.now() - tLoaded };
         this.set(rec, 'ready');
       } else rec.timing = {};
       // The user may have switched away while this app was loading.
-      if (this.activeId !== rec.manifest.id) return this.suspend(rec);
+      if (this.activeId !== rec.manifest.id && !this.split.has(rec.manifest.id)) return this.suspend(rec);
       const tAct = performance.now();
       rec.container!.hidden = false;
       await rec.instance!.activate();

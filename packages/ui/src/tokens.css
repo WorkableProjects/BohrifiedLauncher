@@ -1,32 +1,133 @@
 /*
- * Bohrified design tokens. Role-named, and dark mode is a token swap:
- * `data-theme` on <html> is always the resolved 'light' or 'dark'
- * (see applyTheme in ./index.ts).
+ * Bohrified design tokens (Design Language 1.2).
+ *
+ * One source for typography, semantic colour, spacing, radii, glass and
+ * motion. Bohrified's shell and any Bohrified-exclusive app consume these;
+ * apps that also ship on their own (Flow, Rubricable) keep their own styles.
+ *
+ * Roles, not values: write `color: var(--label)`, never a hex. Dark mode is a
+ * token swap: `data-theme` on <html> is always the resolved 'light' or
+ * 'dark' (see applyTheme in ./index.ts).
  */
 :root {
   color-scheme: light;
-  --bg: #f5f5f7;
-  --card: #ffffff;
-  --label: #1d1d1f;
-  --label-2: #6e6e73;
-  --hairline: rgba(0, 0, 0, 0.1);
-  --fill: rgba(0, 0, 0, 0.05);
-  --tint: #ff6083;
+
+  /* ── Color: semantic roles (system defaults) ─────────── */
+  --label: #000000;
+  --label-2: rgba(60, 60, 67, 0.6);
+  --label-3: rgba(60, 60, 67, 0.3);
+  --background: #ffffff;           /* base surface */
+  --background-2: #f2f2f7;         /* secondary surface: grouped page, wells */
+  --separator: rgba(60, 60, 67, 0.29);
+  --tint: #ff6083;                 /* the one interactive accent for Bohrified */
+  --tint-contrast: #ffffff;        /* text on a tint fill */
   --danger: #ff3b30;
-  --bar: rgba(245, 245, 247, 0.86);
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
-  --spring: cubic-bezier(0.32, 0.72, 0, 1);
+  --success: #34c759;
+  --fill: rgba(120, 120, 128, 0.12);
+  --fill-2: rgba(120, 120, 128, 0.2);
+
+  /* Page layout built from the roles above: content sits on cards over a grouped page. */
+  --bg: var(--background-2);
+  --card: var(--background);
+  --hairline: var(--separator);
+
+  /* ── Typography ──────────────────────────────────────── */
   --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, 'Segoe UI', system-ui, sans-serif;
+  /* Scalable: the Text size setting changes --text-scale (1, 1.15, 1.3). */
+  --text-scale: 1;
+  --fs-display: calc(40px * var(--text-scale));
+  --fs-large-title: calc(34px * var(--text-scale));
+  --fs-title-1: calc(28px * var(--text-scale));
+  --fs-title-2: calc(22px * var(--text-scale));
+  --fs-title-3: calc(20px * var(--text-scale));
+  --fs-headline: calc(17px * var(--text-scale));
+  --fs-body: calc(17px * var(--text-scale));
+  --fs-callout: calc(16px * var(--text-scale));
+  --fs-subhead: calc(15px * var(--text-scale));
+  --fs-footnote: calc(13px * var(--text-scale));
+  --fs-caption: calc(12px * var(--text-scale));
+  --fs-caption-2: calc(11px * var(--text-scale));
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+  --tracking-tight: -0.02em;
+
+  /* ── Layout: a 4 pt grid, 8 pt rhythm ────────────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --inset: max(var(--space-4), env(safe-area-inset-left));   /* side inset */
+  --target: 44px;                                            /* minimum interactive size */
+
+  /* ── Shape: concentric radii. inner = outer − the inset between them ── */
+  --radius-window: 16px;
+  --radius-card: 20px;
+  --radius-control: 12px;                                    /* a control inset 8 px inside a card */
+  --radius-chip: 999px;
+  --radius-icon: 22.5%;                                      /* app icon squircle approximation */
+
+  /* ── Icons ───────────────────────────────────────────── */
+  --icon-stroke: 1.5;                                        /* line weight next to 15–17 px text */
+
+  /* ── Material: Liquid Glass-style translucency for navigation and controls only ── */
+  --glass: rgba(255, 255, 255, 0.72);
+  --glass-solid: #f2f2f7;                                    /* when transparency is reduced */
+  --glass-blur: saturate(1.6) blur(20px);
+  --glass-edge: rgba(255, 255, 255, 0.5);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+  --shadow-float: 0 2px 4px rgba(0, 0, 0, 0.1), 0 18px 48px rgba(0, 0, 0, 0.24);
+  --bar: var(--glass);
+
+  /* ── Motion: springs, brief and interruptible ────────── */
+  --spring: cubic-bezier(0.32, 0.72, 0, 1);
+  --spring-soft: linear(0, 0.23 6%, 0.63 14%, 0.92 25%, 1.03 37%, 1.02 50%, 1);
+  --dur-1: 120ms;                                            /* press feedback */
+  --dur-2: 220ms;                                            /* fades, small moves */
+  --dur-3: 360ms;                                            /* windows, sheets */
 }
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --bg: #0b0b0f;
-  --card: #1c1c22;
-  --label: #f5f5f7;
-  --label-2: #a1a1a6;
-  --hairline: rgba(255, 255, 255, 0.12);
-  --fill: rgba(255, 255, 255, 0.08);
+  --label: #ffffff;
+  --label-2: rgba(235, 235, 245, 0.6);
+  --label-3: rgba(235, 235, 245, 0.3);
+  --background: #000000;
+  --background-2: #1c1c1e;
+  --separator: rgba(84, 84, 88, 0.65);
   --danger: #ff453a;
-  --bar: rgba(11, 11, 15, 0.86);
+  --success: #30d158;
+  --fill: rgba(120, 120, 128, 0.24);
+  --fill-2: rgba(120, 120, 128, 0.36);
+  --card: var(--background-2);
+  --bg: var(--background);
+  --glass: rgba(28, 28, 30, 0.72);
+  --glass-solid: #1c1c1e;
+  --glass-edge: rgba(255, 255, 255, 0.12);
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.3);
+  --shadow-float: 0 2px 4px rgba(0, 0, 0, 0.5), 0 18px 48px rgba(0, 0, 0, 0.6);
 }
+/* Reduce Transparency: glass becomes an opaque surface. */
+@media (prefers-reduced-transparency: reduce) {
+  :root { --glass: var(--glass-solid); --glass-blur: none; --glass-edge: var(--separator); }
+}
+/* Reduce Motion: no decorative movement; state changes are instant. */
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-1: 0ms; --dur-2: 0ms; --dur-3: 0ms; }
+}
+
+/* Semantic text styles: use these instead of ad-hoc font sizes. */
+.t-display { font: var(--fw-bold) var(--fs-display) / 1.1 var(--font); letter-spacing: var(--tracking-tight); }
+.t-large-title { font: var(--fw-bold) var(--fs-large-title) / 1.15 var(--font); letter-spacing: var(--tracking-tight); }
+.t-title-1 { font: var(--fw-bold) var(--fs-title-1) / 1.2 var(--font); letter-spacing: var(--tracking-tight); }
+.t-title-2 { font: var(--fw-bold) var(--fs-title-2) / 1.25 var(--font); }
+.t-title-3 { font: var(--fw-semibold) var(--fs-title-3) / 1.25 var(--font); }
+.t-headline { font: var(--fw-semibold) var(--fs-headline) / 1.3 var(--font); }
+.t-body { font: var(--fw-regular) var(--fs-body) / 1.4 var(--font); }
+.t-callout { font: var(--fw-regular) var(--fs-callout) / 1.4 var(--font); }
+.t-subhead { font: var(--fw-regular) var(--fs-subhead) / 1.35 var(--font); }
+.t-footnote { font: var(--fw-regular) var(--fs-footnote) / 1.35 var(--font); }
+.t-caption { font: var(--fw-regular) var(--fs-caption) / 1.3 var(--font); }

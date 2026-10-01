@@ -4,25 +4,29 @@ import { Icon, type IconName } from '../icons/Icon';
 import type { Appearance } from '../engine/theme';
 import type { Background } from '../engine/types';
 import {
+  alignSelection,
   copyPng,
   deleteSelection,
+  distributeSelection,
   duplicateSelection,
   exportPng,
   goToPage,
   newDocument,
   openDocument,
-  openPresenter,
   redo,
   reorderSelection,
   saveDocument,
+  toggleSpotlight,
   undo,
 } from '../state/actions';
+import type { AlignMode } from '../engine/arrange';
 import { board, useBoard } from '../state/board';
-import { openElements, openEquation, setTool, ui, useUI, type AppearancePref, type DevicePref } from '../state/ui';
+import { useLive } from '../state/live';
+import { openChemistry, openEquation, openSharing, setTool, ui, useUI, type AppearancePref, type DevicePref } from '../state/ui';
 import { markIsOn, setMark, spansOf, withSpans } from '../engine/richtext';
 import type { EquationElement, TextElement } from '../engine/types';
 import { FormatButtons, FORMATS, type FormatSpec, type MarkState } from './FormatBar';
-import { channelSupported } from '../engine/sync';
+import { channelSupported } from '../engine/transport';
 import { BubbleGroup } from './Bubble';
 import { AccentPicker, Divider, Segmented, Toggle, ToolButton } from './controls';
 import { Glass } from './Glass';
@@ -130,6 +134,13 @@ function AppTile({ icon, color, label, detail, on, shortcut, onClick }: { icon: 
 export function ActionsBar({ appearance }: { appearance: Appearance }) {
   const canUndo = useBoard((b) => b.canUndo);
   const canRedo = useBoard((b) => b.canRedo);
+  const undoLabel = useBoard((b) => b.undoLabel);
+  const redoLabel = useBoard((b) => b.redoLabel);
+  const undoDepth = useBoard((b) => b.undoDepth);
+  const redoDepth = useBoard((b) => b.redoDepth);
+  const spotlight = useUI((s) => s.spotlight);
+  const sharingOpen = useUI((s) => s.sharingOpen);
+  const viewers = useLive((s) => s.viewers);
   const background = useBoard((b) => b.page.background);
   const timerOpen = useUI((s) => s.timerOpen);
   const curtain = useUI((s) => s.curtain.on);
@@ -145,11 +156,18 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
   return (
     <Glass radius={26} className="absolute top-[max(16px,env(safe-area-inset-top))] right-4 z-20" role="toolbar" aria-label="Actions">
       <div className="flex items-center gap-0.5 p-1.5">
-        <ToolButton icon="undo" label="Undo" shortcut="⌘Z" disabled={!canUndo} onClick={undo} />
-        <ToolButton icon="redo" label="Redo" shortcut="⇧⌘Z" disabled={!canRedo} onClick={redo} />
+        {/* The tooltip names what the click would do, with how many steps are available. */}
+        <ToolButton icon="undo" label={undoLabel ? `Undo ${undoLabel}` : 'Undo'} shortcut={`⌘Z${undoDepth ? ` · ${undoDepth} step${undoDepth === 1 ? '' : 's'}` : ''}`} disabled={!canUndo} onClick={undo}>
+          {undoDepth > 0 && <span aria-hidden className="pointer-events-none absolute -top-0.5 -right-0.5 min-w-4 rounded-full bg-fill-2 px-1 text-center text-[10px] leading-4 font-semibold text-label-2 tabular-nums">{undoDepth > 99 ? '99+' : undoDepth}</span>}
+        </ToolButton>
+        <ToolButton icon="redo" label={redoLabel ? `Redo ${redoLabel}` : 'Redo'} shortcut={`⇧⌘Z${redoDepth ? ` · ${redoDepth} step${redoDepth === 1 ? '' : 's'}` : ''}`} disabled={!canRedo} onClick={redo} />
         <Divider />
         <ToolButton ref={paperRef} icon={BACKGROUNDS.find((b) => b.value === background)?.icon ?? 'bgDots'} label="Paper" active={menu === 'paper'} onClick={() => toggle('paper')} className="max-sm:hidden" />
-        {channelSupported() && <ToolButton icon="present" label="Student view" onClick={openPresenter} className="max-md:hidden mobile:hidden" />}
+        {channelSupported() && (
+          <ToolButton icon="present" label={viewers ? `Student view · ${viewers} watching` : 'Student view'} active={sharingOpen} onClick={() => (sharingOpen ? ui.set({ sharingOpen: false }) : openSharing())} className="max-md:hidden mobile:hidden">
+            {viewers > 0 && <span aria-hidden className="pointer-events-none absolute -top-0.5 -right-0.5 min-w-4 rounded-full bg-[#34C759] px-1 text-center text-[10px] leading-4 font-semibold text-white tabular-nums">{viewers}</span>}
+          </ToolButton>
+        )}
         <ToolButton ref={appsRef} icon="apps" label="Apps" iconSize={19} active={menu === 'apps'} onClick={() => toggle('apps')}>
           {(timerOpen || curtain) && menu !== 'apps' && <span aria-hidden className="absolute top-2 right-2 h-2 w-2 rounded-full bg-tint shadow-[0_0_0_2px_var(--bg)]" />}
         </ToolButton>
@@ -164,7 +182,8 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
           <AppTile icon="timer" color="#FF9500" label="Timer" detail={timerOpen ? 'On' : 'Countdown'} on={timerOpen} onClick={() => ui.set({ timerOpen: !timerOpen })} />
           <AppTile icon="curtain" color="#5856D6" label="Screen Hider" detail={curtain ? 'On' : 'Reveal steps'} on={curtain} shortcut="C" onClick={() => ui.set({ curtain: { ...ui.get().curtain, on: !curtain } })} />
           <AppTile icon="equation" color="var(--brand)" label="LaTeX Equation" detail="Typeset math" onClick={() => { close(); openEquation(); }} />
-          <AppTile icon="atom" color="#34C759" label="Elements" detail="Bohr model, orbitals & more" onClick={() => { close(); openElements(); }} />
+          <AppTile icon="atom" color="#34C759" label="Chemistry Tools" detail="Periodic table, models & more" onClick={() => { close(); openChemistry(); }} />
+          <AppTile icon="eye" color="#FF3B30" label="Spotlight" detail={spotlight ? 'On' : 'Dim all but one area'} on={spotlight} shortcut="F" onClick={() => { close(); toggleSpotlight(); }} />
           <AppTile icon="textBox" color="#007AFF" label="Text" detail="Rich text & notes" shortcut="T" onClick={() => { close(); setTool(ui.get().textKind); }} />
         </div>
       </Popover>
@@ -191,7 +210,7 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
       <Popover open={menu === 'share'} onClose={close} anchor={shareRef} placement="bottom" label="Share and export" className="w-[280px] p-1.5">
         <MenuItem icon="image" label="Export page as PNG" onClick={() => { close(); exportPng(appearance); }} />
         <MenuItem icon="duplicate" label="Copy page image" onClick={() => { close(); copyPng(appearance); }} />
-        <MenuItem icon="present" label="Open student view" onClick={() => { close(); openPresenter(); }} />
+        <MenuItem icon="present" label="Student view & live session…" onClick={() => { close(); openSharing(); }} />
         <div className="mx-3 my-1 h-px bg-hairline" />
         <MenuItem icon="keyboard" label="Keyboard shortcuts" hint="?" onClick={() => { close(); ui.set({ shortcutsOpen: true }); }} />
         <MenuItem icon="open" label="Save lesson (.flow)" hint="⌘S" onClick={() => { close(); saveDocument(); }} />
@@ -228,6 +247,13 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
             <p className="text-footnote text-label-2">WebGL refraction on toolbars</p>
           </div>
           <Toggle checked={s.liquidGlass} onChange={(v) => ui.set({ liquidGlass: v })} label="Liquid Glass" />
+        </div>
+        <div className="mt-3 flex min-h-11 items-center justify-between gap-3">
+          <div>
+            <p className="text-subhead text-label">Snap to objects</p>
+            <p className="text-footnote text-label-2">Guides when moving; hold Alt to move freely</p>
+          </div>
+          <Toggle checked={s.snapObjects} onChange={(v) => ui.set({ snapObjects: v })} label="Snap to objects" />
         </div>
         <p className="mt-4 mb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Device</p>
         <Segmented<DevicePref>
@@ -269,7 +295,18 @@ export function ZoomBar() {
 
 // ─── Contextual selection actions ────────────────────────────────────
 
+const ALIGN: { mode: AlignMode; label: string }[] = [
+  { mode: 'left', label: 'Align left' },
+  { mode: 'center', label: 'Align centers' },
+  { mode: 'right', label: 'Align right' },
+  { mode: 'top', label: 'Align top' },
+  { mode: 'middle', label: 'Align middles' },
+  { mode: 'bottom', label: 'Align bottom' },
+];
+
 export function SelectionBar() {
+  const arrangeRef = useRef<HTMLButtonElement>(null);
+  const [arrangeOpen, setArrangeOpen] = useState(false);
   const selection = useUI((s) => s.selection);
   const tool = useUI((s) => s.tool);
   const elements = useBoard((b) => b.page.elements);
@@ -315,11 +352,43 @@ export function SelectionBar() {
             <Divider />
           </>
         )}
+        {count > 1 && (
+          <>
+            <button
+              ref={arrangeRef}
+              type="button"
+              tabIndex={tab}
+              aria-haspopup="dialog"
+              aria-expanded={arrangeOpen}
+              onClick={() => setArrangeOpen((o) => !o)}
+              className={`spring flex h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-subhead font-semibold hover:bg-fill active:scale-[0.94] ${arrangeOpen ? 'bg-fill text-label' : 'text-tint'}`}
+            >
+              <Icon name="more" size={17} /> Arrange
+            </button>
+            <Divider />
+          </>
+        )}
         <ToolButton icon="duplicate" label="Duplicate" shortcut="⌘D" iconSize={19} tabIndex={tab} onClick={duplicateSelection} />
         <ToolButton icon="chevronRight" label="Bring to front" shortcut="]" iconSize={14} className="-rotate-90" tabIndex={tab} onClick={() => reorderSelection(true)} />
         <ToolButton icon="chevronLeft" label="Send to back" shortcut="[" iconSize={14} className="-rotate-90" tabIndex={tab} onClick={() => reorderSelection(false)} />
         <ToolButton icon="trash" label="Delete" shortcut="⌫" iconSize={19} className="text-danger!" tabIndex={tab} onClick={deleteSelection} />
       </div>
+      <Popover open={arrangeOpen && visible && count > 1} onClose={() => setArrangeOpen(false)} anchor={arrangeRef} placement="top" label="Arrange" className="w-[300px] p-2">
+        <p className="px-2 pt-1 pb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Align {count} items</p>
+        <div className="grid grid-cols-3 gap-1.5">
+          {ALIGN.map((a) => (
+            <button key={a.mode} type="button" onClick={() => alignSelection(a.mode)} className="spring min-h-11 rounded-xl bg-fill px-2 text-subhead font-semibold text-label hover:bg-fill-2 active:scale-[0.96]">
+              {a.label.replace('Align ', '')}
+            </button>
+          ))}
+        </div>
+        <p className="px-2 pt-3 pb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Distribute</p>
+        <div className="grid grid-cols-2 gap-1.5">
+          <button type="button" disabled={count < 3} onClick={() => distributeSelection('x')} className="spring min-h-11 rounded-xl bg-fill px-2 text-subhead font-semibold text-label hover:bg-fill-2 active:scale-[0.96] disabled:opacity-35">Horizontally</button>
+          <button type="button" disabled={count < 3} onClick={() => distributeSelection('y')} className="spring min-h-11 rounded-xl bg-fill px-2 text-subhead font-semibold text-label hover:bg-fill-2 active:scale-[0.96] disabled:opacity-35">Vertically</button>
+        </div>
+        {count < 3 && <p className="px-2 pt-2 text-footnote text-label-2">Select three or more to distribute.</p>}
+      </Popover>
     </Glass>
   );
 }

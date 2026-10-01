@@ -15,7 +15,7 @@ import { chromium } from 'playwright-core';
 
 const PORT = 4180;
 const executablePath = process.env.CHROMIUM_PATH ?? (existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined);
-const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'pipe' });
+const server = spawn(process.execPath, [new URL('../../../node_modules/vite/bin/vite.js', import.meta.url).pathname, 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'pipe' });
 await new Promise((resolve, reject) => {
   server.stdout.on('data', (d) => String(d).includes(String(PORT)) && resolve());
   server.on('exit', (c) => reject(new Error(`preview exited ${c}`)));
@@ -118,17 +118,48 @@ try {
   await page.keyboard.press('Control+z');
   check('equation insert is undoable', !(await types()).includes('equation'));
 
-  // Elements: a Bohr model with three energy levels = nucleus + 3 rings + p/n labels.
+  // Chemistry Tools: sodium from the periodic table → a Bohr model with 3 levels and its 11 electrons.
   const before = (await types()).filter((t) => t === 'ellipse').length;
+  const chem = page.getByRole('dialog', { name: 'Chemistry Tools' });
   await page.getByRole('button', { name: 'Apps' }).click();
-  await page.getByRole('button', { name: /Elements/ }).click();
-  await page.getByRole('radio', { name: '3 energy levels' }).click();
-  await page.getByRole('dialog', { name: 'Elements' }).getByRole('button', { name: 'Insert', exact: true }).click();
+  await page.getByRole('button', { name: /Chemistry Tools/ }).click();
+  check('Chemistry Tools opens on the periodic table', await chem.getByRole('group', { name: 'Periodic table of the elements' }).isVisible());
+  await chem.getByRole('searchbox', { name: 'Search the periodic table' }).fill('sodium');
+  await page.keyboard.press('Enter');
+  check('searching selects the element and shows its details', await chem.getByRole('heading', { name: /Sodium/ }).isVisible() && (await chem.getByText('22.99').count()) > 0);
+  await chem.getByRole('radio', { name: 'Bohr Model' }).click();
+  await chem.getByRole('button', { name: 'Insert', exact: true }).click();
+  const filled = await page.evaluate(() => {
+    const els = window.__flowBoard.page.elements;
+    return {
+      rings: els.filter((e) => e.type === 'shape' && e.kind === 'ellipse').length,
+      dots: els.filter((e) => e.type === 'dot').length,
+      labels: els.filter((e) => e.type === 'text').map((e) => e.text),
+    };
+  });
+  check('Chemistry Tools inserts sodium: 3 levels, 11 electrons, p = 11, n = 12', filled.rings - before === 4 && filled.dots === 11 && filled.labels.includes('p = 11') && filled.labels.includes('n = 12'), JSON.stringify(filled));
+  await page.keyboard.press('Control+z');
+  check('the whole model undoes in one step', (await page.evaluate(() => window.__flowBoard.page.elements.filter((e) => e.type === 'dot').length)) === 0);
+
+  // Changing the electron count updates the other tools (Na⁺ has the neon configuration).
+  await page.getByRole('button', { name: 'Apps' }).click();
+  await page.getByRole('button', { name: /Chemistry Tools/ }).click();
+  await chem.getByRole('radio', { name: 'Configuration' }).click();
+  await chem.getByRole('button', { name: 'Fewer electrons' }).click();
+  check('losing an electron makes the Na⁺ ion', (await chem.getByText(/Na⁺ · Sodium/).count()) > 0 && (await chem.getByText('1s² 2s² 2p⁶').count()) > 0);
+  await chem.getByRole('radio', { name: 'Lewis Dot' }).click();
+  check('the ion shows in Lewis Dot too (0 valence electrons)', (await chem.getByText(/0 valence/).count()) > 0);
+
+  // The blank worksheet draws just the template: nucleus + 3 rings + empty p / n labels.
+  await chem.getByRole('radio', { name: 'Bohr Model' }).click();
+  await chem.getByRole('switch', { name: 'Blank worksheet' }).click();
+  await chem.getByRole('button', { name: 'More electrons' }).click();
+  await chem.getByRole('button', { name: 'Insert', exact: true }).click();
   const bohr = await page.evaluate(() => {
     const els = window.__flowBoard.page.elements;
     return { rings: els.filter((e) => e.type === 'shape' && e.kind === 'ellipse').length, labels: els.filter((e) => e.type === 'text' && /^[pn] =$/.test(e.text)).length };
   });
-  check('Elements inserts a Bohr model with 3 energy levels', bohr.rings - before === 4 && bohr.labels === 2, JSON.stringify(bohr));
+  check('blank worksheet inserts the empty Bohr template', bohr.rings - before === 4 && bohr.labels === 2, JSON.stringify(bohr));
 
   // Dot tool: a tap near the outer orbit lands exactly on it.
   const orbit = await page.evaluate(() => {
@@ -181,7 +212,7 @@ try {
   // Reset Profile brings back the first-launch welcome.
   await page.getByRole('button', { name: 'All lessons' }).click().catch(() => {});
   page.once('dialog', (d) => d.accept());
-  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.getByRole('button', { name: 'Settings' }).last().click();
   await page.getByRole('button', { name: 'Reset Profile' }).click();
   check('Reset Profile shows the welcome again', await page.getByRole('textbox', { name: 'First name' }).isVisible());
 

@@ -1,3 +1,4 @@
+import { snapMove } from '../engine/arrange';
 import { strokePath } from '../engine/freehand';
 import {
   elementBounds,
@@ -13,6 +14,7 @@ import {
   translateElement,
   uid,
   unionRects,
+  viewportRect,
   worldToScreen,
   zoomAt,
 } from '../engine/geometry';
@@ -41,6 +43,17 @@ export interface LaserPoint {
   t: number;
 }
 
+/** A temporary focus region: everything outside it is dimmed. World coordinates. */
+export type Spot = { kind: 'circle'; x: number; y: number; r: number } | { kind: 'rect'; x: number; y: number; w: number; h: number };
+
+/** Ephemeral state streamed to student views. */
+export interface Presence {
+  laser?: LaserPoint[];
+  live?: LiveStroke | null;
+  /** The tutor's spotlight (null: none). */
+  spot?: Spot | null;
+}
+
 export interface ControllerEvents {
   /**
    * A canvas was repainted. `region` is the changed area in screen px, or
@@ -52,7 +65,7 @@ export interface ControllerEvents {
   /** Ask the UI to open the inline text editor. */
   onEditText?: (req: { element: TextElement; isNew: boolean }) => void;
   /** Stream ephemeral presence to viewers (laser, in-progress ink). */
-  onPresence?: (p: { laser?: LaserPoint[]; live?: LiveStroke | null }) => void;
+  onPresence?: (p: Presence) => void;
   /** Frame timing samples (ms) for the perf HUD / benchmarks. */
   onFrame?: (ms: number) => void;
 }
@@ -64,7 +77,7 @@ type Interaction =
   | { kind: 'shape'; pointerId: number; start: Vec; end: Vec }
   | { kind: 'pan'; pointerId: number; start: Vec; cam: Camera }
   | { kind: 'pinch'; startDist: number; startMid: Vec; cam: Camera }
-  | { kind: 'move'; pointerId: number; start: Vec; originals: BoardElement[]; moved: BoardElement[]; dragged: boolean }
+  | { kind: 'move'; pointerId: number; start: Vec; originals: BoardElement[]; moved: BoardElement[]; dragged: boolean; guides: { x: number[]; y: number[] }; targets?: Rect[] }
   | { kind: 'scale'; pointerId: number; origin: Vec; startDist: number; originals: BoardElement[]; moved: BoardElement[] }
   | { kind: 'marquee'; pointerId: number; start: Vec; end: Vec; additive: boolean };
 
@@ -72,6 +85,10 @@ const LASER_LIFETIME = 900;
 const HOLD_TO_SNAP_MS = 520;
 const HANDLE_R = 9;
 const SETTLE_MS = 160;
+const SPOT_RADIUS = 110;
+/** A spotlight that nobody is steering fades itself out. */
+const SPOT_IDLE_MS = 12000;
+const SPOT_FADE_MS = 220;
 
 export class CanvasController {
   private sceneCtx: CanvasRenderingContext2D;
@@ -96,7 +113,17 @@ export class CanvasController {
   private laser: LaserPoint[] = [];
   private remoteLaser: LaserPoint[] = [];
   private remoteLive: LiveStroke | null = null;
+  /** Spotlight fade, 0..1, moved toward its target a little each frame (so it can reverse mid-fade). */
+  private spotAlpha = 0;
+  private spotShape: Spot | null = null;
+  private remoteSpot: Spot | null = null;
+  private spotLastMove = 0;
+  private spotSent = '';
+  private lastSpotFrame = 0;
   private unsub: () => void;
+  private unsubUi: () => void;
+  private spotTimer = 0;
+  private spotWasOn = false;
   private ro: ResizeObserver;
   readOnly = false;
 
@@ -113,6 +140,7 @@ export class CanvasController {
     this.tiles = new TileCache(() => this.store.page.elements, (id) => this.hidden.has(id), theme);
     if (new URLSearchParams(location.search).has('bench')) (window as unknown as { __flowTiles: TileCache }).__flowTiles = this.tiles;
     this.unsub = store.subscribe(this.onStoreChange);
+    this.unsubUi = ui.subscribe(this.onUiChange);
     this.ro = new ResizeObserver(() => this.resize());
     this.ro.observe(live);
     this.resize();
@@ -124,6 +152,8 @@ export class CanvasController {
     clearTimeout(this.settleTimer);
     this.tiles.clear();
     this.unsub();
+    this.unsubUi();
+    clearInterval(this.spotTimer);
     this.ro.disconnect();
     this.unbindEvents();
   }
@@ -211,9 +241,10 @@ export class CanvasController {
   }
 
   /** Receive viewer-side presence from the tutor window. */
-  setRemotePresence(p: { laser?: LaserPoint[]; live?: LiveStroke | null }) {
+  setRemotePresence(p: Presence) {
     if (p.laser) this.remoteLaser = p.laser;
     if (p.live !== undefined) this.remoteLive = p.live;
+    if (p.spot !== undefined) this.remoteSpot = p.spot;
     this.liveDirty = true;
     this.schedule();
   }
@@ -226,6 +257,73 @@ export class CanvasController {
     if (it && (it.kind === 'move' || it.kind === 'scale' || it.kind === 'erase')) this.updateHidden(new Set());
     this.events.onPresence?.({ live: null });
     this.invalidate();
+  }
+
+  // ─── Spotlight ──────────────────────────────────────────────────────
+
+  private onUiChange = () => {
+    const s = ui.get();
+    if (s.spotlight !== this.spotWasOn) {
+      this.spotWasOn = s.spotlight;
+      clearInterval(this.spotTimer);
+      if (s.spotlight && !this.readOnly) {
+        this.spotLastMove = performance.now();
+        // Temporary by design: it fades itself out when nobody is steering it.
+        this.spotTimer = window.setInterval(() => {
+          if (performance.now() - this.spotLastMove > SPOT_IDLE_MS) ui.set({ spotlight: false });
+        }, 1000);
+      }
+    }
+    if (s.spotlight || this.spotAlpha > 0) {
+      this.liveDirty = true;
+      this.schedule();
+    }
+  };
+
+  /** Where the local spotlight points: the selection if there is one, otherwise the pointer. */
+  private computeSpot(): Spot {
+    const sel = this.selectionBounds();
+    const z = this.camera.z;
+    if (sel) {
+      const pad = 10 / z;
+      return { kind: 'rect', x: sel.x - pad, y: sel.y - pad, w: sel.w + pad * 2, h: sel.h + pad * 2 };
+    }
+    const at = this.hover ? screenToWorld(this.camera, this.hover.x, this.hover.y) : this.worldCenter();
+    return { kind: 'circle', x: at.x, y: at.y, r: SPOT_RADIUS / z };
+  }
+
+  /** Dim everything but the spot. Fades in and out; reversing mid-fade just turns it around. */
+  private drawSpotlight(ctx: CanvasRenderingContext2D, now: number): boolean {
+    const wanted = this.readOnly ? this.remoteSpot : ui.get().spotlight ? this.computeSpot() : null;
+    if (!this.readOnly) {
+      const key = wanted ? JSON.stringify(wanted, (_, v) => (typeof v === 'number' ? Math.round(v * 10) / 10 : v)) : '';
+      if (key !== this.spotSent) {
+        this.spotSent = key;
+        this.events.onPresence?.({ spot: wanted });
+      }
+    }
+    if (wanted) this.spotShape = wanted;
+    const target = wanted ? 1 : 0;
+    const dt = this.lastSpotFrame ? Math.min(64, now - this.lastSpotFrame) : 16;
+    this.lastSpotFrame = now;
+    const step = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 1 : dt / SPOT_FADE_MS;
+    this.spotAlpha = target > this.spotAlpha ? Math.min(target, this.spotAlpha + step) : Math.max(target, this.spotAlpha - step);
+    if (this.spotAlpha <= 0.001 || !this.spotShape) {
+      this.lastSpotFrame = 0;
+      return false;
+    }
+    const cam = this.camera;
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    ctx.beginPath();
+    ctx.rect(0, 0, this.width, this.height);
+    const s = this.spotShape;
+    const a = worldToScreen(cam, s.x, s.y);
+    if (s.kind === 'circle') ctx.arc(a.x, a.y, s.r * cam.z, 0, Math.PI * 2);
+    else ctx.roundRect(a.x, a.y, s.w * cam.z, s.h * cam.z, 14);
+    ctx.fillStyle = `rgba(0,0,0,${0.58 * this.spotAlpha})`;
+    ctx.fill('evenodd');
+    this.liveRects.push({ x: 0, y: 0, w: this.width, h: this.height });
+    return this.spotAlpha !== target || !!wanted;
   }
 
   // ─── Store wiring ───────────────────────────────────────────────────
@@ -321,7 +419,7 @@ export class CanvasController {
       sceneChanged = changes === 'all' || changes.length > 0;
       this.sceneChanges = complete ? [] : 'all';
     }
-    if (this.liveDirty || this.laser.length || this.remoteLaser.length) {
+    if (this.liveDirty || this.laser.length || this.remoteLaser.length || this.spotAlpha > 0.001) {
       this.liveRects = [];
       animating = this.renderLive() || animating;
       this.liveDirty = false;
@@ -393,6 +491,7 @@ export class CanvasController {
     if (it?.kind === 'move' || it?.kind === 'scale') {
       for (const el of it.moved) drawElement(ctx, el, this.theme);
       this.markLive(unionRects(it.moved.map(elementBounds)), 12);
+      if (it.kind === 'move' && (it.guides.x.length || it.guides.y.length)) this.drawGuides(ctx, it.guides);
     }
 
     // Selection chrome (screen space for constant-size handles).
@@ -413,6 +512,8 @@ export class CanvasController {
       ctx.fill();
       ctx.stroke();
     }
+
+    const spotting = this.drawSpotlight(ctx, performance.now());
 
     // Eraser cursor.
     const tool = ui.get().tool;
@@ -446,7 +547,7 @@ export class CanvasController {
     const a = this.drawLaser(ctx, this.laser, now);
     const b = this.drawLaser(ctx, this.remoteLaser, now);
     if (tool === 'laser' && this.hover && !this.interaction) this.drawLaserDot(ctx, this.hover.x, this.hover.y, 1);
-    return a || b;
+    return a || b || spotting;
   }
 
   private drawLiveStroke(ctx: CanvasRenderingContext2D, s: LiveStroke) {
@@ -513,6 +614,29 @@ export class CanvasController {
     ctx.arc(sx, sy, 2.5, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
+  }
+
+  /** Thin dashed alignment guides across the viewport while a snap is active. */
+  private drawGuides(ctx: CanvasRenderingContext2D, g: { x: number[]; y: number[] }) {
+    const cam = this.camera;
+    const v = viewportRect(cam, this.width, this.height);
+    ctx.save();
+    ctx.lineWidth = 1 / cam.z;
+    ctx.strokeStyle = this.theme.selection;
+    ctx.globalAlpha = 0.85;
+    ctx.setLineDash([5 / cam.z, 4 / cam.z]);
+    ctx.beginPath();
+    for (const x of g.x) {
+      ctx.moveTo(x, v.y);
+      ctx.lineTo(x, v.y + v.h);
+    }
+    for (const y of g.y) {
+      ctx.moveTo(v.x, y);
+      ctx.lineTo(v.x + v.w, y);
+    }
+    ctx.stroke();
+    ctx.restore();
+    this.markLive(v, 2);
   }
 
   /** Draw a fading laser trail in screen space. Returns true if still visible. */
@@ -792,8 +916,22 @@ export class CanvasController {
     if (next !== sel) ui.set({ selection: next });
     const originals = page.elements.filter((el) => next.has(el.id));
     if (originals.length) {
-      this.interaction = { kind: 'move', pointerId: e.pointerId, start: world, originals, moved: originals, dragged: false };
+      this.interaction = { kind: 'move', pointerId: e.pointerId, start: world, originals, moved: originals, dragged: false, guides: { x: [], y: [] } };
     }
+  }
+
+  /** Bounds of the on-screen elements a moving selection can snap to (at most 400). */
+  private snapTargets(moving: readonly BoardElement[]): Rect[] {
+    const ids = new Set(moving.map((m) => m.id));
+    const view = inflate(viewportRect(this.camera, this.width, this.height), 160 / this.camera.z);
+    const out: Rect[] = [];
+    for (const el of this.store.page.elements) {
+      if (ids.has(el.id)) continue;
+      const b = elementBounds(el);
+      if (rectsIntersect(b, view)) out.push(b);
+      if (out.length >= 400) break;
+    }
+    return out;
   }
 
   /** World position for a dot placed at screen point `p`. */
@@ -845,8 +983,9 @@ export class CanvasController {
     const it = this.interaction;
     const tool = ui.get().tool;
 
+    if (ui.get().spotlight) this.spotLastMove = performance.now();
     if (!it) {
-      if (tool === 'eraser' || tool === 'laser' || tool === 'dot') {
+      if (tool === 'eraser' || tool === 'laser' || tool === 'dot' || ui.get().spotlight) {
         this.liveDirty = true;
         this.schedule();
       }
@@ -917,7 +1056,20 @@ export class CanvasController {
           it.dragged = true;
           this.setHidden(it.originals.map((o) => o.id));
         }
-        it.moved = it.originals.map((o) => translateElement(o, dx, dy));
+        let mx = dx, my = dy;
+        it.guides = { x: [], y: [] };
+        if (ui.get().snapObjects && !e.altKey) {
+          // Neighbours are measured once per drag, from what is on screen now.
+          it.targets ??= this.snapTargets(it.originals);
+          const b = unionRects(it.originals.map(elementBounds));
+          if (b && it.targets.length) {
+            const s = snapMove({ ...b, x: b.x + dx, y: b.y + dy }, it.targets, 6 / cam.z);
+            mx += s.dx;
+            my += s.dy;
+            it.guides = { x: s.guidesX, y: s.guidesY };
+          }
+        }
+        it.moved = it.originals.map((o) => translateElement(o, mx, my));
         break;
       }
       case 'scale': {

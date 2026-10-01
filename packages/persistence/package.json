@@ -1,7 +1,7 @@
 {
   "name": "@bohrified/persistence",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.2.0",
   "type": "module",
   "description": "Safe, namespaced JSON storage for the launcher and apps (storage can be blocked or full).",
   "exports": { ".": "./src/index.ts" }

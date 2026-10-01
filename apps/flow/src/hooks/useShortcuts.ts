@@ -6,6 +6,7 @@ import {
   deleteSelection,
   duplicateSelection,
   goToPage,
+  nudgeSelection,
   handlePaste,
   insertImage,
   openDocument,
@@ -15,6 +16,7 @@ import {
   reorderSelection,
   saveDocument,
   selectAll,
+  toggleSpotlight,
   undo,
 } from '../state/actions';
 import { board } from '../state/board';
@@ -69,6 +71,11 @@ export function useShortcuts() {
           deleteSelection();
           return;
         case 'Escape':
+          // The spotlight is temporary: Escape ends it before it clears anything else.
+          if (ui.get().spotlight) {
+            ui.set({ spotlight: false });
+            return;
+          }
           ui.set({ selection: new Set(), pagesOpen: false });
           ctrl?.cancelInteraction();
           return;
@@ -80,6 +87,24 @@ export function useShortcuts() {
           e.preventDefault();
           goToPage(1);
           return;
+        case 'Home':
+        case 'End': {
+          e.preventDefault();
+          const pages = board.doc.pages;
+          board.setActivePage((e.key === 'Home' ? pages[0] : pages[pages.length - 1]).id);
+          return;
+        }
+        case 'ArrowLeft':
+        case 'ArrowRight':
+        case 'ArrowUp':
+        case 'ArrowDown': {
+          const s = ui.get();
+          if (s.tool !== 'select' || !s.selection.size) return;
+          e.preventDefault();
+          const step = e.shiftKey ? 10 : 1;
+          nudgeSelection(e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0, e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0);
+          return;
+        }
         case ']':
           reorderSelection(true);
           return;
@@ -89,6 +114,10 @@ export function useShortcuts() {
       }
       if (k === '?') {
         ui.set({ shortcutsOpen: !ui.get().shortcutsOpen });
+        return;
+      }
+      if (k === 'f') {
+        toggleSpotlight();
         return;
       }
       if (k === 'c') {

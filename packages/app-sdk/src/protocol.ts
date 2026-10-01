@@ -4,7 +4,7 @@
  * unrelated traffic.
  */
 
-import type { SharedSettings } from './types';
+import type { AppActivity, SharedSettings, ShellShortcut } from './types';
 
 export type HostCommand = 'activate' | 'suspend' | 'unmount';
 
@@ -19,7 +19,13 @@ export type AppMessage =
   | { bohr: 1; type: 'ack'; seq: number }
   /** Small serializable state used to restore the app after an unmount. */
   | { bohr: 1; type: 'session'; data: unknown }
-  | { bohr: 1; type: 'error'; message: string; fatal: boolean };
+  | { bohr: 1; type: 'error'; message: string; fatal: boolean }
+  /** What the user is working on, for "Continue with <App>" in the launcher. */
+  | { bohr: 1; type: 'context'; context: AppActivity | null }
+  /** Lightweight numbers about the app's runtime (canvases, elements, frame times) for the launcher's diagnostics. */
+  | { bohr: 1; type: 'metrics'; data: Record<string, number> }
+  /** A Bohrified shortcut pressed while focus is inside the app (see `shellShortcut`). */
+  | { bohr: 1; type: 'shortcut'; name: ShellShortcut };
 
 export const isBohrMessage = (d: unknown): d is { bohr: 1; type: string } =>
   typeof d === 'object' && d !== null && (d as { bohr?: unknown }).bohr === 1;

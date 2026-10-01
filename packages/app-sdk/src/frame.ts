@@ -65,6 +65,15 @@ export function frameApp(options: FrameAppOptions): BohrApp {
           case 'error':
             ctx.reportError(new Error(m.message), m.fatal);
             break;
+          case 'context':
+            ctx.setActivity(m.context);
+            break;
+          case 'metrics':
+            if (m.data && typeof m.data === 'object') ctx.setMetrics(m.data);
+            break;
+          case 'shortcut':
+            ctx.shortcut(m.name);
+            break;
         }
       };
       window.addEventListener('message', onMessage);

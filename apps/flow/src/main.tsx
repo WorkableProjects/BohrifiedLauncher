@@ -14,7 +14,8 @@ declare global {
 // Benchmark hook (scripts/perf.mjs): exposes the store only when asked.
 if (new URLSearchParams(location.search).has('bench')) window.__flowBoard = board;
 
-const presenting = new URLSearchParams(location.search).get('view') === 'present';
+const view = new URLSearchParams(location.search).get('view');
+const presenting = view === 'present' || view === 'join';
 
 /** A render crash: inside Bohrified the launcher shows Reload / Back; standalone, offer a reload. */
 class CrashBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {

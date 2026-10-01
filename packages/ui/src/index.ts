@@ -21,3 +21,5 @@ export function applyTheme(pref: ThemePref): () => void {
   mq.addEventListener('change', apply);
   return () => mq.removeEventListener('change', apply);
 }
+
+export { COLOR_ROLES, MIN_TARGET, SPACING, TEXT_SCALES, TEXT_STYLES, applyTextSize, concentricRadius, isTextSize, type TextSize } from './tokens';
