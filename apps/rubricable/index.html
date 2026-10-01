@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rubricable 1.1</title>
+<title>Rubricable 1.2</title>
 <script>(function(){try{var t=localStorage.getItem("rbl-theme")||"system";document.documentElement.dataset.theme=t==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):t}catch(e){}})()</script>
 <style>
   :root { color-scheme:light; --bg:#f8fafc; --card:#fff; --line:#e2e8f0; --text:#0f172a; --mute:#64748b; --acc:#4f46e5; --accbg:#eef2ff; --accbd:#c7d2fe; --acctx:#3730a3;
@@ -71,6 +71,13 @@
   .ex { color:var(--dim); font-size:11px; margin-left:4px; }
   tr.w td { background:var(--soft2); border-top:2px solid var(--line); }
   [hidden] { display:none !important; }
+  #status { min-width:90px; } #status.bad { color:var(--danger); }
+  #saved { max-width:190px; }
+  #live { margin:10px 0 0; } #live:empty { display:none; } #live.bad { background:transparent; border-color:var(--dangerbd); color:var(--danger); }
+  .fmsg { display:block; font-size:11px; color:var(--danger); max-width:150px; } .fmsg:empty { display:none; }
+  #totalmsg { flex-basis:100%; color:var(--danger); font-size:12px; } #totalmsg:empty { display:none; }
+  [aria-invalid=true] { border-color:var(--danger) !important; }
+  #empty { margin:0 0 10px; }
   #modal, .overlay { position:fixed; inset:0; background:#0f172a99; display:flex; align-items:center; justify-content:center; padding:16px; z-index:20; }
   #modal .box, .overlay .box { background:var(--field); border-radius:14px; max-width:560px; width:100%; padding:20px; max-height:90vh; overflow:auto; }
   #modal h2, .overlay h2 { margin:0 0 10px; font-size:18px; }
@@ -84,8 +91,13 @@
 <body>
 <header>
   <h1><span class="logo">R</span>Rubricable <span class="ver" id="ver"></span></h1>
+  <label class="small">Rubric <select id="saved" title="Switch between saved rubrics" aria-label="Saved rubrics"></select></label>
+  <button id="newrub" title="Start a new rubric (the current one stays saved)">New</button>
+  <button id="delrub" class="danger" title="Delete this saved rubric">Delete</button>
+  <span id="status" class="small" role="status" aria-live="polite"></span>
   <label class="small">Type <select id="atype" title="Assignment type sets the total points"><option value="assignment">Practice Assignment (custom)</option><option value="quiz">Quiz (30 pts)</option><option value="test">Unit Test (75 pts)</option><option value="custom">Ignore — custom points</option></select></label>
-  <label class="small">Total Points <input id="total" type="number" min="0" value="30"></label>
+  <label class="small">Total Points <input id="total" type="number" min="0" step="any" value="30" aria-describedby="totalmsg"></label>
+  <div id="totalmsg" role="status" aria-live="polite"></div>
   <button class="gear" id="gear" title="Settings" aria-label="Settings">⚙</button>
   <button class="primary" id="csv" hidden>Export to Google Classroom CSV</button>
   <button class="primary" id="paste" title="Copy the rubric as sheet cells to paste into Google Sheets">Copy &amp; paste into a Sheet</button>
@@ -93,17 +105,19 @@
   <button id="xlsx-one" hidden title="One sheet: values sit to the right of the rubric.">XLSX: values on same sheet</button>
 </header>
 <main>
+  <div id="live" class="note" role="status" aria-live="polite"></div>
   <div class="tabs">
     <button class="tab on" data-tab="canvas">Rubric Canvas</button>
     <button class="tab" data-tab="values">Values Breakdown</button>
   </div>
   <section id="canvas">
     <div class="card"><div class="small" style="margin-bottom:6px">Performance levels (row 6) — names, grades, ranges and percentages are editable. Unacceptable (0%) is only granted when a category is under 20% complete or everything is wrong; leave a comment explaining it.</div><div class="levels" id="levels"></div></div>
-    <div id="warn" class="small" style="color:var(--danger);margin-bottom:8px"></div>
+    <div id="empty" class="small">Name your first criterion below to start the rubric. Everything you type is saved automatically.</div>
+    <div id="warn" class="small" role="status" aria-live="polite" style="color:var(--danger);margin-bottom:8px"></div>
     <div id="criteria"></div>
   </section>
   <section id="values" hidden>
-    <p class="small">Leave a criterion's Total points blank to split the remaining points evenly. Criteria sit at rows 5, 10, 15… Row 6 keeps the exact level weights. Points are whole numbers, adjusted so no two levels tie; the exact value is shown in gray.</p>
+    <p class="small">Leave a criterion's Total points blank to split the remaining points evenly. Criteria sit at rows 5, 10, 15… Row 6 keeps the exact level weights. Points keep up to 2 decimals (0.5, 2.25…), adjusted so no two levels tie; the exact value is shown in gray.</p>
     <div class="wrap"><table id="vt"></table></div>
   </section>
 </main>
@@ -136,10 +150,12 @@
     <li>In Google Classroom, import the rubric from that Sheet.</li>
   </ol>
   <textarea id="paste-text" readonly></textarea>
-  <div class="row"><button class="primary" id="copy">Copy</button><span id="copied" hidden>Copied!</span>
+  <div class="row"><button class="primary" id="copy">Copy</button><span id="copied" role="status" aria-live="polite"></span>
     <button id="close" style="margin-left:auto">Close</button></div>
 </div></div>
 <script>
+// ---- rubric-core:start ----
+// Pure logic (no DOM). rubric.test.mjs extracts this block and runs it in node:vm.
 const DEFAULT_LEVELS = [
   {name:'Perfection', grade:'A+', range:'100%', pct:100, color:'#16a34a',
    desc:'No mistakes, all correctly identified (A+)\n\nAction: Nothing, you are good here'},
@@ -155,132 +171,296 @@ const DEFAULT_LEVELS = [
    desc:'Most answers wrong\n\nActions: Study and get tutoring -- either from us or from Mrs. Ponce -- you are currently failing and will not perform well on the test if you do not fix it'},
   {name:'Unacceptable', grade:'F', range:'0%', pct:0, color:'#b91c1c',
    desc:'Unacceptable mistakes, left empty or none are correctly identified\n\nActions: Read questions more carefully, you automatically get a 0 if 20%+ answers in the section are left blank\n\nAND/OR\n\nStudy and get tutoring -- either from us or from Mrs. Ponce -- you are currently failing and will not perform well on the test if you do not fix it'}];
-const VERSION = '1.1';
+const VERSION = '1.2';
 const TYPES = {quiz:30, test:75};
-const store = {get:k => { try { return localStorage.getItem(k); } catch { return null; } }, set:(k,v) => { try { localStorage.setItem(k,v); } catch {} }};
-let nid = 1;
-const blank = () => ({id:nid++, name:'', desc:'', pts:'', ld: DEFAULT_LEVELS.map(l => l.desc)});
-const S = {total:30, levels: DEFAULT_LEVELS.map(l => ({...l})), criteria:[blank()]};
+const ATYPES = ['assignment', 'quiz', 'test', 'custom'];
+const MAX_POINTS = 100000;      // upper clamp for any point value
+const MAX_CRITERIA = 200, MAX_RUBRICS = 12, MAX_TEXT = 20000;
+const STORE_KEY = 'rbl-rubrics', SCHEMA = 2;
+
+// Decimal handling: points are rounded to 2 decimals (half up, tolerant of float error).
+function roundPts(x) {
+  x = Number(x);
+  if (!Number.isFinite(x)) return 0;
+  if (x < 0) return -roundPts(-x) || 0;
+  return Math.round(x * 100 + 1e-6) / 100;
+}
+// Display / export text: at most 2 decimals, no trailing zeros, no float artifacts.
+function fmt(x) { return String(roundPts(x)); }
+
+// Parse a user-entered points value. blank => auto. value is null when unusable.
+function parsePoints(raw) {
+  const s = String(raw ?? '').trim();
+  if (s === '') return {blank:true, value:null, issue:''};
+  const n = Number(s);
+  if (!Number.isFinite(n)) return {blank:false, value:null, issue:'Not a number, using auto.'};
+  if (n < 0) return {blank:false, value:null, issue:'Points cannot be negative, using auto.'};
+  if (n > MAX_POINTS) return {blank:false, value:MAX_POINTS, issue:'Capped at ' + MAX_POINTS + '.'};
+  const r = roundPts(n);
+  return {blank:false, value:r, issue: Math.abs(r - n) > 1e-9 ? 'Rounded to 2 decimals (' + r + ').' : ''};
+}
+function parseTotal(raw) {
+  const p = parsePoints(raw);
+  if (p.blank) return {value:0, issue:'Enter the total points.'};
+  if (p.value === null) return {value:0, issue: /negative/.test(p.issue) ? 'Total points cannot be negative.' : 'Total points must be a number.'};
+  return {value:p.value, issue:p.issue};
+}
+const clampPct = (x) => { const n = Number(x); return Number.isFinite(n) ? Math.min(100, Math.max(0, roundPts(n))) : 0; };
+function levelIssues(levels) {
+  const out = [];
+  levels.forEach(l => {
+    const s = String(l.pct ?? '').trim(), n = Number(s);
+    if (s === '' || !Number.isFinite(n)) out.push(`${l.name || 'A level'}: enter a percentage (using 0%).`);
+    else if (n < 0 || n > 100) out.push(`${l.name || 'A level'}: percentage must be 0-100 (using ${clampPct(n)}%).`);
+  });
+  return out;
+}
+// Choosing Quiz / Unit Test sets the total; editing the total away from it makes the type custom.
+const typeTotal = (type, current) => TYPES[type] ?? current;
+const typeForTotal = (type, total) => (TYPES[type] !== undefined && roundPts(total) !== TYPES[type]) ? 'custom' : type;
+
+// Largest-remainder split in 0.01 units so criterion maxima sum to the total exactly.
+function distribute(total, count) {
+  if (!count || !(total > 0)) return Array(count).fill(0);
+  const units = Math.round(roundPts(total) * 100), base = Math.floor(units / count);
+  let left = units - base * count;
+  return Array.from({length:count}, () => (base + (left-- > 0 ? 1 : 0)) / 100);
+}
+function uniquePts(max, weights) {
+  const out = [];
+  weights.forEach((w, j) => {
+    let p = roundPts(max * w);
+    if (w > 0 && p < .01) p = .01;
+    if (j > 0 && p >= out[j-1]) p = roundPts(out[j-1] - .01);
+    out.push(Math.max(0, p));
+  });
+  return out;
+}
+const title = (l) => `${l.name} (${l.grade})`;
+function compute(S) {
+  const total = parseTotal(S.total).value;
+  const act = S.criteria.filter(c => c.name.trim());
+  const parsed = act.map(c => parsePoints(c.pts));
+  const fixed = parsed.map(p => p.value !== null);
+  const fixedSum = roundPts(parsed.reduce((a, p) => a + (p.value ?? 0), 0));
+  const autoCount = fixed.filter(f => !f).length;
+  const autoMaxes = distribute(Math.max(0, roundPts(total - fixedSum)), autoCount);
+  let k = 0;
+  const maxes = act.map((c, i) => fixed[i] ? parsed[i].value : autoMaxes[k++]);
+  const weights = S.levels.map(l => clampPct(l.pct) / 100);
+  return {total, weights, sum: roundPts(maxes.reduce((a, b) => a + b, 0)), rows: act.map((c, i) => ({c, row:5*(i+1), max:maxes[i], issue:parsed[i].issue,
+    exact: weights.map(w => maxes[i] * w), pts: uniquePts(maxes[i], weights)}))};
+}
+
+// ---- exports (all numbers go through fmt so every format agrees with the screen) ----
+const csvCell = v => /[",\r\n]/.test(String(v)) ? `"${String(v).replace(/"/g,'""')}"` : String(v);
+function buildCsv(v, levels) {
+  const lines = [['Criterion Name','Description','Level Title','Description','Points']];
+  v.rows.forEach(r => levels.forEach((l, j) => lines.push([r.c.name, r.c.desc, title(l), r.c.ld[j] || '', fmt(r.pts[j])])));
+  return lines.map(l => l.map(csvCell).join(',')).join('\r\n');
+}
+// Tab-separated grid in the Classroom template layout (values only, no formulas).
+function buildGrid(v, levels) {
+  const g = [['It is recommended that you do not edit rubrics in spreadsheet format'], ['v1.0-s']];
+  v.rows.forEach(r => g.push([r.c.name], [r.c.desc], ['', ...r.pts.map(fmt)], ['', ...levels.map(title)], ['', ...levels.map((_, j) => r.c.ld[j] || '')]));
+  const q = x => /[\t\n"]/.test(String(x)) ? `"${String(x).replace(/"/g,'""')}"` : String(x);
+  return g.map(row => row.map(q).join('\t')).join('\n');
+}
+// Spreadsheet formula for a level's points: max x percentage, to 2 decimals.
+const xlsxPointFormula = (maxRef, pctRef) => `ROUND(${maxRef}*${pctRef},2)`;
+
+// ---- persistence: schema-versioned, tolerant of corrupt or old data ----
+const makeCriterion = (id) => ({id, name:'', desc:'', pts:'', ld: DEFAULT_LEVELS.map(l => l.desc)});
+const str = (x, d, max = MAX_TEXT) => typeof x === 'string' ? x.slice(0, max) : d;
+function defaultState() {
+  return {S:{total:30, levels: DEFAULT_LEVELS.map(l => ({...l})), criteria:[makeCriterion(1)]}, nid:2, atype:'assignment'};
+}
+// Accepts {S, nid, atype} (also the old 1.1 session shape); returns a clean state or null.
+function sanitizeState(raw) {
+  if (!raw || typeof raw !== 'object' || !raw.S || typeof raw.S !== 'object') return null;
+  const s = raw.S;
+  const levels = DEFAULT_LEVELS.map((d, j) => {
+    const l = Array.isArray(s.levels) && s.levels[j] && typeof s.levels[j] === 'object' ? s.levels[j] : {};
+    const n = Number(l.pct);
+    return {name:str(l.name, d.name, 100), grade:str(l.grade, d.grade, 100), range:str(l.range, d.range, 100),
+      pct: (l.pct === '' || l.pct === null || l.pct === undefined || !Number.isFinite(n)) ? d.pct : clampPct(n),
+      color: typeof l.color === 'string' && /^#[0-9a-f]{6}$/i.test(l.color) ? l.color : d.color, desc:str(l.desc, d.desc)};
+  });
+  const seen = new Set();
+  let top = 0;
+  const criteria = (Array.isArray(s.criteria) ? s.criteria : []).filter(c => c && typeof c === 'object').slice(0, MAX_CRITERIA).map(c => {
+    let id = Number.isInteger(c.id) && c.id > 0 && !seen.has(c.id) ? c.id : 0;
+    if (!id) { id = top + 1; while (seen.has(id)) id++; }
+    seen.add(id); top = Math.max(top, id);
+    const ld = DEFAULT_LEVELS.map((d, j) => Array.isArray(c.ld) && typeof c.ld[j] === 'string' ? c.ld[j].slice(0, MAX_TEXT) : d.desc);
+    return {id, name:str(c.name, '', 500), desc:str(c.desc, ''), pts: typeof c.pts === 'number' && Number.isFinite(c.pts) ? String(c.pts) : str(c.pts, '', 40), ld};
+  });
+  let nid = Math.max(top + 1, Number.isInteger(raw.nid) ? raw.nid : 0);
+  if (!criteria.length || criteria[criteria.length-1].name.trim()) criteria.push(makeCriterion(nid++));
+  let total = 30;
+  if (typeof s.total === 'number' && Number.isFinite(s.total)) total = Math.min(MAX_POINTS, Math.max(0, roundPts(s.total)));
+  else if (typeof s.total === 'string' && s.total.length <= 40) total = s.total;
+  return {S:{total, levels, criteria}, nid, atype: ATYPES.includes(raw.atype) ? raw.atype : 'assignment'};
+}
+const isEmptyState = (st) => st.S.criteria.every(c => !c.name.trim() && !c.desc.trim() && String(c.pts).trim() === '');
+const rubricName = (st) => (st.S.criteria.find(c => c.name.trim())?.name.trim() || 'Untitled rubric').slice(0, 60);
+const emptyLibrary = () => ({v:SCHEMA, currentId:null, items:[]});
+// Library of saved rubrics: {v, currentId, items:[{id, name, updatedAt, state}]}.
+function parseLibrary(text) {
+  try {
+    const raw = JSON.parse(text);
+    if (!raw || typeof raw !== 'object') return emptyLibrary();
+    const lib = emptyLibrary(), ids = new Set();
+    const bare = raw.S ? sanitizeState(raw) : null;   // a lone state from an older build
+    if (bare) lib.items.push({id: 'r-legacy', name: rubricName(bare), updatedAt: 0, state: bare});
+    (Array.isArray(raw.items) ? raw.items : []).forEach(it => {
+      const state = it && typeof it === 'object' ? sanitizeState(it.state) : null;
+      if (!state || typeof it.id !== 'string' || !it.id || ids.has(it.id)) return;
+      ids.add(it.id);
+      lib.items.push({id:it.id.slice(0, 40), name: rubricName(state), updatedAt: Number.isFinite(it.updatedAt) ? it.updatedAt : 0, state});
+    });
+    lib.items = lib.items.slice(0, MAX_RUBRICS * 2);
+    lib.currentId = typeof raw.currentId === 'string' && lib.items.some(i => i.id === raw.currentId) ? raw.currentId : (lib.items[0]?.id ?? null);
+    return lib;
+  } catch { return emptyLibrary(); }
+}
+function upsertRubric(lib, id, state, now) {
+  const items = lib.items.filter(i => i.id !== id);
+  items.push({id, name: rubricName(state), updatedAt: now, state});
+  items.sort((a, b) => b.updatedAt - a.updatedAt);
+  return {v:SCHEMA, currentId:id, items: items.slice(0, MAX_RUBRICS)};
+}
+const removeRubric = (lib, id) => {
+  const items = lib.items.filter(i => i.id !== id);
+  return {v:SCHEMA, currentId: lib.currentId === id ? (items[0]?.id ?? null) : lib.currentId, items};
+};
+const serializeLibrary = (lib) => JSON.stringify({v:SCHEMA, currentId:lib.currentId, items:lib.items.map(i => ({id:i.id, name:i.name, updatedAt:i.updatedAt, state:{S:i.state.S, nid:i.state.nid, atype:i.state.atype}}))});
+// ---- rubric-core:end ----
+
+const store = {get:k => { try { return localStorage.getItem(k); } catch { return null; } },
+  set:(k,v) => { try { localStorage.setItem(k,v); return true; } catch { return false; } }};
+let nid = 2;
+const blank = () => makeCriterion(nid++);
+const S = defaultState().S;
+const cur = {id: 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)};
 const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const snapshot = () => ({S, nid, atype: $('atype').value});
+
 // Inside Bohrified the page can be unmounted when you switch apps; keep the
 // rubric for this browser session so it comes back as you left it.
 const EMBEDDED = (() => { try { return window.parent !== window && window.parent.location.origin === location.origin; } catch { return false; } })();
 function saveSession() {
   if (!EMBEDDED) return;
-  try { sessionStorage.setItem('rbl-session', JSON.stringify({S, nid, atype: $('atype').value})); } catch {}
+  try { sessionStorage.setItem('rbl-session', JSON.stringify({id:cur.id, ...snapshot()})); } catch {}
 }
-function restoreSession() {
-  if (!EMBEDDED) return false;
-  try {
-    const saved = JSON.parse(sessionStorage.getItem('rbl-session'));
-    if (!saved?.S?.criteria?.length) return false;
-    Object.assign(S, saved.S); nid = saved.nid; $('atype').value = saved.atype; $('total').value = S.total;
-    return true;
-  } catch { return false; }
+function readSession() {
+  if (!EMBEDDED) return null;
+  try { const raw = JSON.parse(sessionStorage.getItem('rbl-session')); const st = sanitizeState(raw); return st && {id: typeof raw.id === 'string' ? raw.id : null, st}; } catch { return null; }
 }
-const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const title = (l) => `${l.name} (${l.grade})`;
-const active = () => S.criteria.filter(c => c.name.trim());
+function loadInto(st) {
+  Object.assign(S, st.S); nid = st.nid; $('atype').value = st.atype; $('total').value = S.total;
+}
 
-// Largest-remainder split so criterion maxima sum to the total exactly.
-function distribute(total, ws) {
-  const sum = ws.reduce((a,b) => a+b, 0);
-  if (!ws.length || sum <= 0) return ws.map(() => 0);
-  const raw = ws.map(w => total*w/sum), out = raw.map(Math.floor);
-  let left = Math.round(total) - out.reduce((a,b) => a+b, 0);
-  raw.map((r,i) => ({i, f:r-Math.floor(r)})).sort((a,b) => b.f-a.f || a.i-b.i).forEach(o => { if (left-- > 0) out[o.i]++; });
-  return out;
+// ---- messages ----
+let liveTimer;
+function say(msg, bad) {
+  const el = $('live'); clearTimeout(liveTimer);
+  el.textContent = msg; el.classList.toggle('bad', !!bad);
+  if (msg) liveTimer = setTimeout(() => { el.textContent = ''; }, bad ? 12000 : 5000);
 }
-// Allowed decimal parts for level points; anything else snaps to the nearest one.
-const FRACS = [0,.1,.2,.3,.33,.4,.5,.6,.67,.7,.8,.9,1];
-function snap(x) {
-  const w = Math.floor(x), f = x - w;
-  const nearest = FRACS.reduce((a,b) => Math.abs(b-f) < Math.abs(a-f) ? b : a);
-  return +(w + nearest).toFixed(2);
+
+// ---- autosave: debounced, flushed when the page is hidden ----
+let dirty = false, saveTimer;
+const readLib = () => parseLibrary(store.get(STORE_KEY));
+function setStatus(text, bad) { const el = $('status'); el.textContent = text; el.classList.toggle('bad', !!bad); }
+function refreshSaved(lib) {
+  const items = lib.items.some(i => i.id === cur.id) ? lib.items : [{id:cur.id, name:rubricName({S}), updatedAt:Infinity}, ...lib.items];
+  $('saved').innerHTML = items.map(i => `<option value="${esc(i.id)}"${i.id === cur.id ? ' selected' : ''}>${esc(i.id === cur.id ? rubricName({S}) : i.name)}</option>`).join('');
+  $('delrub').disabled = !lib.items.some(i => i.id === cur.id);
 }
-// Largest allowed value strictly below x.
-function below(x) {
-  const w = Math.floor(x - 1e-9), f = +(x - w).toFixed(2);
-  const lower = FRACS.filter(a => a < f - 1e-9);
-  return +(w + lower[lower.length-1]).toFixed(2);
+function persist() {
+  const lib = upsertRubric(readLib(), cur.id, sanitizeState(snapshot()) || defaultState(), Date.now());
+  const ok = store.set(STORE_KEY, serializeLibrary(lib));
+  setStatus(ok ? 'Saved' : 'Not saved: browser storage is unavailable', !ok);
+  if (ok) readLibCache = lib;
+  refreshSaved(ok ? lib : {items: []});
 }
-// Snapped points, forced strictly descending so no two levels share a value
-// (Classroom needs distinct points). Exact weights stay untouched in `exact`.
-function uniquePts(max, weights) {
-  const out = [];
-  weights.forEach((w, j) => {
-    let p = snap(max * w);
-    if (w > 0 && p < .1) p = .1;
-    if (j > 0 && p >= out[j-1]) p = below(out[j-1]);
-    out.push(Math.max(0, p));
-  });
-  return out;
+function flush() { clearTimeout(saveTimer); if (dirty) { dirty = false; persist(); } }
+function touch() {
+  dirty = true; saveSession(); setStatus('Saving…');
+  clearTimeout(saveTimer); saveTimer = setTimeout(flush, 500);
 }
-function compute() {
-  const total = Math.max(0, +S.total || 0), act = active();
-  // Criteria with "Total points" entered keep that value; the rest split what's left.
-  const fixed = act.map(c => String(c.pts).trim() !== '');
-  const fixedSum = act.reduce((a,c,i) => a + (fixed[i] ? Math.max(0, +(+c.pts || 0).toFixed(2)) : 0), 0);
-  const autoMaxes = distribute(Math.max(0, total - fixedSum), act.map((c,i) => fixed[i] ? 0 : 1).filter(Boolean));
-  let k = 0;
-  const maxes = act.map((c,i) => fixed[i] ? Math.max(0, +(+c.pts || 0).toFixed(2)) : autoMaxes[k++]);
-  const weights = S.levels.map(l => (+l.pct || 0) / 100);
-  return {total, weights, rows: act.map((c,i) => ({c, row:5*(i+1), max:maxes[i],
-    exact: weights.map(w => maxes[i]*w), pts: uniquePts(maxes[i], weights)}))};
-}
+addEventListener('pagehide', flush);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
 
 function renderLevels() {
   $('levels').innerHTML = S.levels.map((l,j) => `<div class="lv" style="--c:${l.color}">
-    <input class="n" data-lv="${j}" data-k="name" value="${esc(l.name)}">
-    <input class="g" data-lv="${j}" data-k="grade" value="${esc(l.grade)}" title="Letter grade">
-    <input data-lv="${j}" data-k="range" value="${esc(l.range)}">
-    <div><input class="p" type="number" min="0" max="100" data-lv="${j}" data-k="pct" value="${l.pct}">%</div></div>`).join('');
+    <input class="n" data-lv="${j}" data-k="name" aria-label="Level ${j+1} name" value="${esc(l.name)}">
+    <input class="g" data-lv="${j}" data-k="grade" value="${esc(l.grade)}" title="Letter grade" aria-label="Level ${j+1} letter grade">
+    <input data-lv="${j}" data-k="range" aria-label="Level ${j+1} range" value="${esc(l.range)}">
+    <div><input class="p" type="number" min="0" max="100" step="any" data-lv="${j}" data-k="pct" aria-label="Level ${j+1} percent" value="${esc(l.pct)}">%</div></div>`).join('');
 }
 function renderCriteria() {
   $('criteria').innerHTML = S.criteria.map((c,i) => {
     const isBlank = i === S.criteria.length-1 && !c.name.trim();
     return `<div class="card ${isBlank?'blank':''}" data-id="${c.id}">
     <div class="top"><div class="names">
-      <input data-f="name" placeholder="Criterion ${i+1} name" value="${esc(c.name)}">
-      <textarea data-f="desc" rows="2" placeholder="Criterion description">${esc(c.desc)}</textarea></div>
+      <input data-f="name" placeholder="Criterion ${i+1} name" aria-label="Criterion ${i+1} name" value="${esc(c.name)}">
+      <textarea data-f="desc" rows="2" placeholder="Criterion description" aria-label="Criterion ${i+1} description">${esc(c.desc)}</textarea></div>
       <label class="small">Total points<br><input data-f="pts" type="number" min="0" step="any" value="${esc(c.pts)}" placeholder="auto" style="width:90px"></label>
+      <span class="fmsg" data-m="pts" role="status" aria-live="polite"></span>
       <button class="danger" data-del>Delete Criterion</button></div>
     <div class="scroll"><div class="cells">${S.levels.map((l,j) => `<div class="cell" style="--c:${l.color}">
       <div class="t" data-t="${j}">${esc(title(l))}</div><div class="pts" data-p="${j}">—</div><div class="r">${esc(l.range)}</div>
-      <textarea rows="14" data-ld="${j}" placeholder="Level description">${esc(c.ld[j]||'')}</textarea></div>`).join('')}</div></div></div>`;
+      <textarea rows="14" data-ld="${j}" aria-label="${esc(l.name)} description" placeholder="Level description">${esc(c.ld[j]||'')}</textarea></div>`).join('')}</div></div></div>`;
   }).join('');
   update();
 }
 // Updates computed text in place so typing never loses focus.
 function update() {
-  const v = compute();
+  const v = compute(S), tot = parseTotal(S.total);
+  $('totalmsg').textContent = tot.issue;
+  if (tot.issue) $('total').setAttribute('aria-invalid', 'true'); else $('total').removeAttribute('aria-invalid');
   document.querySelectorAll('#criteria .card').forEach(card => {
     const r = v.rows.find(r => r.c.id === +card.dataset.id);
-    card.querySelector('[data-f="pts"]').placeholder = r ? r.max : 'auto';
+    const ptsIn = card.querySelector('[data-f="pts"]');
+    ptsIn.placeholder = r ? fmt(r.max) : 'auto';
+    const issue = r ? r.issue : parsePoints(ptsIn.value).issue;
+    card.querySelector('[data-m="pts"]').textContent = issue;
+    if (issue) ptsIn.setAttribute('aria-invalid', 'true'); else ptsIn.removeAttribute('aria-invalid');
     S.levels.forEach((l,j) => {
-      card.querySelector(`[data-p="${j}"]`).textContent = r ? r.pts[j] + ' pts' : '—';
+      card.querySelector(`[data-p="${j}"]`).textContent = r ? fmt(r.pts[j]) + ' pts' : '—';
       card.querySelector(`[data-t="${j}"]`).textContent = title(l);
     });
   });
-  const sum = v.rows.reduce((a,r) => a + r.max, 0);
+  $('empty').hidden = v.rows.length > 0;
   const tiny = v.rows.filter(r => new Set(r.pts).size < r.pts.length).map(r => r.c.name);
-  $('warn').textContent = (v.rows.length && sum !== v.total ? `Criterion points add up to ${sum}, but the total is ${v.total}. ` : '') +
-    (tiny.length ? `Too few points for ${S.levels.length} distinct levels: ${tiny.join(', ')}.` : '');
+  $('warn').textContent = [
+    v.rows.length && Math.abs(v.sum - v.total) > 0.005 ? `Criterion points add up to ${fmt(v.sum)}, but the total is ${fmt(v.total)}.` : '',
+    tiny.length ? `Too few points for ${S.levels.length} distinct levels: ${tiny.join(', ')}.` : '',
+    ...levelIssues(S.levels)].filter(Boolean).join(' ');
   $('vt').innerHTML = `<thead><tr><th>Row</th><th>Criterion</th><th>Max</th>${S.levels.map(l => `<th>${esc(title(l))}</th>`).join('')}</tr></thead><tbody>` +
-    (v.rows.map(r => `<tr><td class="small">${r.row}</td><td><b>${esc(r.c.name)}</b></td><td><b>${r.max}</b></td>` +
-      r.pts.map((p,j) => `<td>${p}<span class="ex">(${+r.exact[j].toFixed(2)})</span></td>`).join('') + '</tr>').join('') ||
+    (v.rows.map(r => `<tr><td class="small">${r.row}</td><td><b>${esc(r.c.name)}</b></td><td><b>${fmt(r.max)}</b></td>` +
+      r.pts.map((p,j) => `<td>${fmt(p)}<span class="ex">(${fmt(r.exact[j])})</span></td>`).join('') + '</tr>').join('') ||
       `<tr><td colspan="${S.levels.length+3}" class="small">Add a criterion title on the canvas.</td></tr>`) +
-    `<tr class="w"><td class="small">6</td><td>Exact level percentages</td><td class="small">${v.rows.reduce((a,r)=>a+r.max,0)} / ${v.total}</td>` +
-    v.weights.map(w => `<td>${+(w*100).toFixed(2)}%</td>`).join('') + '</tr></tbody>';
-  saveSession();
+    `<tr class="w"><td class="small">6</td><td>Exact level percentages</td><td class="small">${fmt(v.sum)} / ${fmt(v.total)}</td>` +
+    v.weights.map(w => `<td>${fmt(w*100)}%</td>`).join('') + '</tr></tbody>';
+  refreshSaved(readLibCache);
 }
+let readLibCache = emptyLibrary();
 
 document.addEventListener('input', e => {
   const t = e.target;
-  if (t.id === 'atype') { if (TYPES[t.value]) { S.total = TYPES[t.value]; $('total').value = S.total; } return update(); }
   if (t.id === 'askstart') return store.set('rbl-ask', t.checked ? '1' : '0');
-  if (t.id === 'total') { S.total = t.value; return update(); }
-  if (t.dataset.lv !== undefined) { S.levels[t.dataset.lv][t.dataset.k] = t.value; return update(); }
+  if (t.id === 'saved') return;
+  if (t.id === 'atype') { S.total = typeTotal(t.value, S.total); $('total').value = S.total; update(); return touch(); }
+  if (t.id === 'total') {
+    S.total = t.value;
+    $('atype').value = typeForTotal($('atype').value, parseTotal(t.value).value);
+    update(); return touch();
+  }
+  if (t.dataset.lv !== undefined) { S.levels[t.dataset.lv][t.dataset.k] = t.value; update(); return touch(); }
   const card = t.closest('.card[data-id]'); if (!card) return;
   const c = S.criteria.find(c => c.id === +card.dataset.id);
   if (t.dataset.ld !== undefined) c.ld[t.dataset.ld] = t.value;
@@ -289,15 +469,13 @@ document.addEventListener('input', e => {
   if (t.dataset.f === 'name' && S.criteria[S.criteria.length-1].name.trim()) {
     S.criteria.push(blank());
     card.classList.remove('blank');
-    $('criteria').insertAdjacentHTML('beforeend', '<div id="tmp"></div>');
-    $('tmp').remove();
-    const keep = t, pos = t.selectionStart;
+    const pos = t.selectionStart;
     renderCriteria();
     const again = document.querySelector(`.card[data-id="${c.id}"] [data-f="name"]`);
     again.focus(); again.setSelectionRange(pos, pos);
-    return;
+    return touch();
   }
-  update();
+  update(); touch();
 });
 document.addEventListener('click', e => {
   if (e.target.dataset.tab) {
@@ -309,19 +487,49 @@ document.addEventListener('click', e => {
     const id = +e.target.closest('.card').dataset.id;
     S.criteria = S.criteria.filter(c => c.id !== id);
     if (!S.criteria.length || S.criteria[S.criteria.length-1].name.trim()) S.criteria.push(blank());
-    renderCriteria();
+    renderCriteria(); touch();
   }
 });
 
-function download(blob, name) {
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); URL.revokeObjectURL(a.href);
+// ---- saved rubrics ----
+function openState(st, id) {
+  loadInto(st); cur.id = id; renderLevels(); renderCriteria(); saveSession();
 }
-const csvCell = v => /[",\r\n]/.test(String(v)) ? `"${String(v).replace(/"/g,'""')}"` : String(v);
+$('saved').onchange = () => {
+  flush();
+  const lib = readLib(), item = lib.items.find(i => i.id === $('saved').value);
+  if (!item) return;
+  lib.currentId = item.id; store.set(STORE_KEY, serializeLibrary(lib)); readLibCache = lib;
+  openState(item.state, item.id); setStatus('Saved'); say(`Opened "${item.name}".`);
+};
+$('newrub').onclick = () => {
+  flush();
+  const wasEmpty = isEmptyState({S});
+  const fresh = defaultState();
+  openState(fresh, wasEmpty ? cur.id : 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6));
+  setStatus(''); say('Started a new rubric. The previous one is still saved.');
+  if ($('askstart').checked) $('start').hidden = false;
+  document.querySelector('#criteria [data-f="name"]')?.focus();
+};
+$('delrub').onclick = () => {
+  const lib = readLib(), item = lib.items.find(i => i.id === cur.id); if (!item) return;
+  if (!confirm(`Delete "${item.name}" from your saved rubrics?`)) return;
+  const next = removeRubric(lib, cur.id);
+  store.set(STORE_KEY, serializeLibrary(next)); readLibCache = next; dirty = false; clearTimeout(saveTimer);
+  const n = next.items.find(i => i.id === next.currentId);
+  openState(n ? n.state : defaultState(), n ? n.id : 'r' + Date.now().toString(36));
+  say('Rubric deleted.');
+};
+
+// ---- exports ----
+function download(blob, name) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+const needCriterion = () => { say('Add at least one criterion title first.', true); $('criteria').querySelector('[data-f="name"]')?.focus(); };
 $('csv').onclick = () => {
-  const v = compute(); if (!v.rows.length) return alert('Add at least one criterion title first.');
-  const lines = [['Criterion Name','Description','Level Title','Description','Points']];
-  v.rows.forEach(r => S.levels.forEach((l,j) => lines.push([r.c.name, r.c.desc, title(l), r.c.ld[j]||'', r.pts[j]])));
-  download(new Blob([lines.map(l => l.map(csvCell).join(',')).join('\r\n')], {type:'text/csv;charset=utf-8'}), 'rubric.csv');
+  const v = compute(S); if (!v.rows.length) return needCriterion();
+  try { download(new Blob([buildCsv(v, S.levels)], {type:'text/csv;charset=utf-8'}), 'rubric.csv'); say('Exported rubric.csv.'); }
+  catch (err) { say('Could not export the CSV. Try "Copy & paste into a Sheet" instead.', true); }
 };
 // The XLSX library (~900 KB) loads on first export instead of at startup.
 let xlsxLoading = null;
@@ -331,80 +539,78 @@ function loadXlsx() {
     const s = document.createElement('script');
     s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
     s.onload = resolve;
-    s.onerror = () => { xlsxLoading = null; s.remove(); reject(); };
+    s.onerror = () => { xlsxLoading = null; s.remove(); reject(new Error('load')); };
     document.head.appendChild(s);
   });
 }
 async function exportXlsx(separate) {
-  try { await loadXlsx(); } catch { return alert('XLSX library failed to load (needs internet).'); }
-  const v = compute(); if (!v.rows.length) return alert('Add at least one criterion title first.');
-  const col = j => XLSX.utils.encode_col(j+1); // B, C, ...
-  const maxCol = col(S.levels.length);
-  const val = {}, tpl = {};
-  val.A1 = {t:'s', v:'Total Points'}; val.B1 = {t:'n', v:v.total};
-  val.A6 = {t:'s', v:'Level percentages (exact)'};
-  val[maxCol+'4'] = {t:'s', v:'Criterion Max'};
-  S.levels.forEach((l,j) => { val[col(j)+'4'] = {t:'s', v:title(l)}; val[col(j)+'6'] = {t:'n', v:v.weights[j], z:'0.##%'}; });
-  v.rows.forEach(r => {
-    val['A'+r.row] = {t:'s', v:r.c.name}; val[maxCol+r.row] = {t:'n', v:r.max};
-    S.levels.forEach((_,j) => val[col(j)+r.row] = {t:'n', v:r.pts[j], f:`INT($${maxCol}${r.row}*${col(j)}$6)+LOOKUP($${maxCol}${r.row}*${col(j)}$6-INT($${maxCol}${r.row}*${col(j)}$6),{0,0.05,0.15,0.25,0.315,0.365,0.45,0.55,0.635,0.685,0.75,0.85,0.95},{0,0.1,0.2,0.3,0.33,0.4,0.5,0.6,0.67,0.7,0.8,0.9,1})`});
-  });
-  tpl.A1 = {t:'s', v:'It is recommended that you do not edit rubrics in spreadsheet format'}; tpl.A2 = {t:'s', v:'v1.0-s'};
-  v.rows.forEach((r,i) => {
-    const b = 3 + 5*i;
-    tpl['A'+b] = {t:'s', v:r.c.name}; tpl['A'+(b+1)] = {t:'s', v:r.c.desc};
-    S.levels.forEach((l,j) => {
-      tpl[col(j)+(b+2)] = {t:'n', v:r.pts[j], f: separate ? `Values!${col(j)}${r.row}`
-        : `INT($J${b+2}*${XLSX.utils.encode_col(10+j)}$4)+LOOKUP($J${b+2}*${XLSX.utils.encode_col(10+j)}$4-INT($J${b+2}*${XLSX.utils.encode_col(10+j)}$4),{0,0.05,0.15,0.25,0.315,0.365,0.45,0.55,0.635,0.685,0.75,0.85,0.95},{0,0.1,0.2,0.3,0.33,0.4,0.5,0.6,0.67,0.7,0.8,0.9,1})`};
-      tpl[col(j)+(b+3)] = {t:'s', v:title(l)};
-      tpl[col(j)+(b+4)] = {t:'s', v:r.c.ld[j] || ''};
+  const v = compute(S); if (!v.rows.length) return needCriterion();
+  say('Preparing the spreadsheet…');
+  try { await loadXlsx(); } catch { return say('The XLSX library could not load (it needs an internet connection). Use the CSV or "Copy & paste into a Sheet" instead.', true); }
+  try {
+    const col = j => XLSX.utils.encode_col(j+1); // B, C, ...
+    const maxCol = col(S.levels.length);
+    const val = {}, tpl = {};
+    val.A1 = {t:'s', v:'Total Points'}; val.B1 = {t:'n', v:roundPts(v.total)};
+    val.A6 = {t:'s', v:'Level percentages (exact)'};
+    val[maxCol+'4'] = {t:'s', v:'Criterion Max'};
+    S.levels.forEach((l,j) => { val[col(j)+'4'] = {t:'s', v:title(l)}; val[col(j)+'6'] = {t:'n', v:v.weights[j], z:'0.##%'}; });
+    v.rows.forEach(r => {
+      val['A'+r.row] = {t:'s', v:r.c.name}; val[maxCol+r.row] = {t:'n', v:roundPts(r.max)};
+      S.levels.forEach((_,j) => val[col(j)+r.row] = {t:'n', v:roundPts(r.pts[j]), f:xlsxPointFormula(`$${maxCol}${r.row}`, `${col(j)}$6`)});
     });
-  });
-  const finish = (ws, lastRow, lastCol) => { ws['!ref'] = `A1:${XLSX.utils.encode_col(lastCol)}${lastRow}`;
-    ws['!cols'] = [{wch:36}, ...S.levels.map(() => ({wch:24})), {wch:14}]; return ws; };
-  const wb = XLSX.utils.book_new();
-  if (separate) {
-    XLSX.utils.book_append_sheet(wb, finish(tpl, 3 + 5*v.rows.length, S.levels.length), 'Rubric Template');
-    XLSX.utils.book_append_sheet(wb, finish(val, 5*v.rows.length + 1, S.levels.length + 1), 'Values');
-    return XLSX.writeFile(wb, 'rubric.xlsx');
-  }
-  // One sheet: values block starts at column J (col I left blank).
-  const n = S.levels.length;
-  tpl.J1 = {t:'s', v:'VALUES (used by the point formulas)'};
-  tpl.J2 = {t:'s', v:'Total Points'}; tpl.K2 = {t:'n', v:v.total};
-  tpl.J4 = {t:'s', v:'Level percentages (exact)'};
-  S.levels.forEach((l,j) => {
-    const c = XLSX.utils.encode_col(10+j);
-    tpl[c+'3'] = {t:'s', v:title(l)}; tpl[c+'4'] = {t:'n', v:v.weights[j], z:'0.##%'};
-  });
-  v.rows.forEach((r,i) => {
-    const b = 3 + 5*i;
-    tpl['J'+(b+1)] = {t:'s', v:'Criterion Max'}; tpl['J'+(b+2)] = {t:'n', v:r.max};
-  });
-  const ws = finish(tpl, 3 + 5*v.rows.length, 10 + n);
-  ws['!cols'] = [{wch:36}, ...S.levels.map(() => ({wch:24})), {wch:4}, {wch:24}, ...S.levels.map(() => ({wch:22}))];
-  XLSX.utils.book_append_sheet(wb, ws, 'Rubric Template');
-  XLSX.writeFile(wb, 'rubric.xlsx');
-}
-// Tab-separated grid in the Classroom template layout (values only, no formulas).
-function buildGrid() {
-  const v = compute(), g = [['It is recommended that you do not edit rubrics in spreadsheet format'], ['v1.0-s']];
-  v.rows.forEach(r => {
-    g.push([r.c.name], [r.c.desc], ['', ...r.pts], ['', ...S.levels.map(title)], ['', ...S.levels.map((_,j) => r.c.ld[j] || '')]);
-  });
-  const q = x => /[\t\n"]/.test(String(x)) ? `"${String(x).replace(/"/g,'""')}"` : String(x);
-  return g.map(row => row.map(q).join('\t')).join('\n');
+    tpl.A1 = {t:'s', v:'It is recommended that you do not edit rubrics in spreadsheet format'}; tpl.A2 = {t:'s', v:'v1.0-s'};
+    v.rows.forEach((r,i) => {
+      const b = 3 + 5*i;
+      tpl['A'+b] = {t:'s', v:r.c.name}; tpl['A'+(b+1)] = {t:'s', v:r.c.desc};
+      S.levels.forEach((l,j) => {
+        tpl[col(j)+(b+2)] = {t:'n', v:roundPts(r.pts[j]), f: separate ? `Values!${col(j)}${r.row}`
+          : xlsxPointFormula(`$J${b+2}`, `${XLSX.utils.encode_col(10+j)}$4`)};
+        tpl[col(j)+(b+3)] = {t:'s', v:title(l)};
+        tpl[col(j)+(b+4)] = {t:'s', v:r.c.ld[j] || ''};
+      });
+    });
+    const finish = (ws, lastRow, lastCol) => { ws['!ref'] = `A1:${XLSX.utils.encode_col(lastCol)}${lastRow}`;
+      ws['!cols'] = [{wch:36}, ...S.levels.map(() => ({wch:24})), {wch:14}]; return ws; };
+    const wb = XLSX.utils.book_new();
+    if (separate) {
+      XLSX.utils.book_append_sheet(wb, finish(tpl, 3 + 5*v.rows.length, S.levels.length), 'Rubric Template');
+      XLSX.utils.book_append_sheet(wb, finish(val, 5*v.rows.length + 1, S.levels.length + 1), 'Values');
+    } else {
+      // One sheet: values block starts at column J (col I left blank).
+      const n = S.levels.length;
+      tpl.J1 = {t:'s', v:'VALUES (used by the point formulas)'};
+      tpl.J2 = {t:'s', v:'Total Points'}; tpl.K2 = {t:'n', v:roundPts(v.total)};
+      tpl.J4 = {t:'s', v:'Level percentages (exact)'};
+      S.levels.forEach((l,j) => {
+        const c = XLSX.utils.encode_col(10+j);
+        tpl[c+'3'] = {t:'s', v:title(l)}; tpl[c+'4'] = {t:'n', v:v.weights[j], z:'0.##%'};
+      });
+      v.rows.forEach((r,i) => {
+        const b = 3 + 5*i;
+        tpl['J'+(b+1)] = {t:'s', v:'Criterion Max'}; tpl['J'+(b+2)] = {t:'n', v:roundPts(r.max)};
+      });
+      const ws = finish(tpl, 3 + 5*v.rows.length, 10 + n);
+      ws['!cols'] = [{wch:36}, ...S.levels.map(() => ({wch:24})), {wch:4}, {wch:24}, ...S.levels.map(() => ({wch:22}))];
+      XLSX.utils.book_append_sheet(wb, ws, 'Rubric Template');
+    }
+    XLSX.writeFile(wb, 'rubric.xlsx');
+    say('Exported rubric.xlsx.');
+  } catch (err) { say('Could not create the spreadsheet. Try the CSV export instead.', true); }
 }
 $('paste').onclick = () => {
-  if (!compute().rows.length) return alert('Add at least one criterion title first.');
-  $('paste-text').value = buildGrid(); $('copied').hidden = true; $('modal').hidden = false;
+  const v = compute(S); if (!v.rows.length) return needCriterion();
+  $('paste-text').value = buildGrid(v, S.levels); $('copied').textContent = ''; $('modal').hidden = false;
 };
 $('close').onclick = () => $('modal').hidden = true;
 $('modal').onclick = e => { if (e.target.id === 'modal') $('modal').hidden = true; };
 $('copy').onclick = async () => {
   const t = $('paste-text'); t.select();
-  try { await navigator.clipboard.writeText(t.value); } catch { document.execCommand('copy'); }
-  $('copied').hidden = false;
+  let ok = false;
+  try { await navigator.clipboard.writeText(t.value); ok = true; } catch { try { ok = document.execCommand('copy'); } catch {} }
+  $('copied').style.color = ok ? '' : 'var(--danger)';
+  $('copied').textContent = ok ? 'Copied!' : 'Copy was blocked. The text is selected: press Ctrl/Cmd+C.';
+  if (!ok) t.select();
 };
 $('xlsx-sep').onclick = () => exportXlsx(true);
 $('xlsx-one').onclick = () => exportXlsx(false);
@@ -412,8 +618,8 @@ $('xlsx-one').onclick = () => exportXlsx(false);
 $('start').onclick = e => {
   const b = e.target.closest('[data-type]'); if (!b) return;
   $('atype').value = b.dataset.type;
-  if (TYPES[b.dataset.type]) { S.total = TYPES[b.dataset.type]; $('total').value = S.total; }
-  $('start').hidden = true; update();
+  S.total = typeTotal(b.dataset.type, S.total); $('total').value = S.total;
+  $('start').hidden = true; update(); saveSession();
 };
 // Settings + theme (System by default)
 const mq = matchMedia('(prefers-color-scheme: dark)');
@@ -451,8 +657,16 @@ addEventListener('storage', e => {
 $('ver').textContent = 'v' + VERSION;
 $('about').textContent = 'Version ' + VERSION;
 $('askstart').checked = store.get('rbl-ask') !== '0';
-const restored = restoreSession();
-if (!$('askstart').checked || restored) $('start').hidden = true;
+// Restore: this tab's session (Bohrified remount) wins, otherwise the last saved rubric.
+{
+  readLibCache = readLib();
+  const sess = readSession();
+  const item = readLibCache.items.find(i => i.id === readLibCache.currentId);
+  let restored = false;
+  if (sess) { loadInto(sess.st); if (sess.id) cur.id = sess.id; restored = true; }
+  else if (item) { loadInto(item.state); cur.id = item.id; restored = !isEmptyState(item.state); }
+  if (!$('askstart').checked || restored) $('start').hidden = true;
+}
 applyTheme(theme());
 renderLevels(); renderCriteria();
 </script>
