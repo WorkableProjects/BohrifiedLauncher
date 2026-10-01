@@ -12,7 +12,9 @@ export type Op =
   | { kind: 'elements'; pageId: string; removed: Placed[]; added: Placed[] }
   | { kind: 'page'; action: 'insert' | 'delete'; index: number; page: Page }
   | { kind: 'pageProps'; pageId: string; before: PageProps; after: PageProps }
-  | { kind: 'title'; before: string; after: string };
+  | { kind: 'title'; before: string; after: string }
+  /** Reordering pages is history like any other edit, so it undoes and syncs. */
+  | { kind: 'pageMove'; pageId: string; from: number; to: number };
 
 type PageProps = Partial<Pick<Page, 'name' | 'background'>>;
 
@@ -34,6 +36,37 @@ export function invert(op: Op): Op {
       return { ...op, before: op.after, after: op.before };
     case 'title':
       return { ...op, before: op.after, after: op.before };
+    case 'pageMove':
+      return { ...op, from: op.to, to: op.from };
+  }
+}
+
+/** A short past-tense description for undo / redo feedback, e.g. "Moved 3 items". */
+export function describeOp(op: Op): string {
+  const items = (n: number) => `${n} ${n === 1 ? 'item' : 'items'}`;
+  switch (op.kind) {
+    case 'elements': {
+      const { added, removed } = op;
+      if (!added.length && !removed.length) return 'Edit';
+      if (!removed.length) {
+        if (added.length === 1) {
+          const t = added[0].el.type;
+          return t === 'stroke' ? 'Stroke' : t === 'shape' ? 'Shape' : t === 'text' ? 'Text' : t === 'image' ? 'Image' : t === 'equation' ? 'Equation' : 'Dot';
+        }
+        return `Added ${items(added.length)}`;
+      }
+      if (!added.length) return `Deleted ${items(removed.length)}`;
+      // Same elements put back in a new state: a move, resize, restyle or reorder.
+      return `Changed ${items(Math.max(added.length, removed.length))}`;
+    }
+    case 'page':
+      return op.action === 'insert' ? 'New page' : 'Deleted page';
+    case 'pageProps':
+      return 'name' in op.after ? 'Renamed page' : 'Changed paper';
+    case 'title':
+      return 'Renamed lesson';
+    case 'pageMove':
+      return 'Moved page';
   }
 }
 
@@ -62,6 +95,8 @@ export function isFlowDocument(v: unknown): v is FlowDocument {
 // ─── Store ────────────────────────────────────────────────────────────
 
 const HISTORY_LIMIT = 200;
+/** Nudges closer together than this are one undo step. */
+const MERGE_MS = 800;
 
 export class BoardStore {
   doc: FlowDocument;
@@ -69,6 +104,7 @@ export class BoardStore {
   version = 0;
   private undoStack: Op[] = [];
   private redoStack: Op[] = [];
+  private lastMerge: { key: string; at: number } | null = null;
   private listeners = new Set<Listener>();
 
   constructor(doc: FlowDocument = createDocument()) {
@@ -104,6 +140,26 @@ export class BoardStore {
 
   get canRedo() {
     return this.redoStack.length > 0;
+  }
+
+  /** What Undo / Redo would do next, for tooltips and feedback. */
+  get undoLabel(): string | null {
+    const op = this.undoStack.at(-1);
+    return op ? describeOp(op) : null;
+  }
+
+  get redoLabel(): string | null {
+    const op = this.redoStack.at(-1);
+    return op ? describeOp(op) : null;
+  }
+
+  /** How many steps can be undone / redone. */
+  get undoDepth() {
+    return this.undoStack.length;
+  }
+
+  get redoDepth() {
+    return this.redoStack.length;
   }
 
   // Core op application ---------------------------------------------
@@ -150,6 +206,15 @@ export class BoardStore {
       case 'title':
         this.doc.title = op.after;
         return true;
+      case 'pageMove': {
+        const from = this.doc.pages.findIndex((p) => p.id === op.pageId);
+        if (from < 0) return false;
+        const pages = this.doc.pages.slice();
+        const [p] = pages.splice(from, 1);
+        pages.splice(Math.max(0, Math.min(op.to, pages.length)), 0, p);
+        this.doc.pages = pages;
+        return true;
+      }
     }
   }
 
@@ -160,10 +225,21 @@ export class BoardStore {
     );
   }
 
-  /** Apply an op, record it for undo, and notify listeners. */
-  commit(op: Op) {
+  /**
+   * Apply an op, record it for undo, and notify listeners. Ops committed
+   * with the same `mergeKey` in quick succession on the same elements (arrow
+   * key nudges) collapse into one undo step; peers still receive each one.
+   */
+  commit(op: Op, mergeKey?: string) {
     if (!this.applyOp(op)) return;
-    this.undoStack.push(op);
+    const top = this.undoStack.at(-1);
+    const now = Date.now();
+    const chained =
+      !!mergeKey && this.lastMerge?.key === mergeKey && now - this.lastMerge.at < MERGE_MS && top?.kind === 'elements' && op.kind === 'elements' &&
+      top.pageId === op.pageId && top.added.length === op.removed.length && top.added.every((a) => op.removed.some((r) => r.el.id === a.el.id));
+    if (chained && top?.kind === 'elements' && op.kind === 'elements') this.undoStack[this.undoStack.length - 1] = { ...top, added: op.added };
+    else this.undoStack.push(op);
+    this.lastMerge = mergeKey ? { key: mergeKey, at: now } : null;
     if (this.undoStack.length > HISTORY_LIMIT) this.undoStack.shift();
     this.redoStack = [];
     const page = op.kind === 'elements' ? this.pageById(op.pageId) : undefined;
@@ -225,7 +301,7 @@ export class BoardStore {
   }
 
   /** Replace elements in place (same z-order), e.g. after move/resize/edit. */
-  replaceElements(next: BoardElement[], pageId = this.page.id) {
+  replaceElements(next: BoardElement[], pageId = this.page.id, mergeKey?: string) {
     const page = this.pageById(pageId);
     if (!page || !next.length) return;
     const byId = new Map(next.map((e) => [e.id, e]));
@@ -238,7 +314,7 @@ export class BoardStore {
         added.push({ index, el: n });
       }
     });
-    if (removed.length) this.commit({ kind: 'elements', pageId, removed, added });
+    if (removed.length) this.commit({ kind: 'elements', pageId, removed, added }, mergeKey);
   }
 
   // Page helpers --------------------------------------------------------
@@ -277,15 +353,17 @@ export class BoardStore {
     this.commit({ kind: 'page', action: 'delete', index, page: this.doc.pages[index] });
   }
 
+  /** Move a page to a position (0-based). */
+  movePageTo(id: string, to: number) {
+    const from = this.doc.pages.findIndex((p) => p.id === id);
+    const target = Math.max(0, Math.min(to, this.doc.pages.length - 1));
+    if (from < 0 || from === target) return;
+    this.commit({ kind: 'pageMove', pageId: id, from, to: target });
+  }
+
   movePage(id: string, delta: number) {
     const from = this.doc.pages.findIndex((p) => p.id === id);
-    const to = from + delta;
-    if (from < 0 || to < 0 || to >= this.doc.pages.length) return;
-    const pages = this.doc.pages.slice();
-    const [p] = pages.splice(from, 1);
-    pages.splice(to, 0, p);
-    this.doc.pages = pages;
-    this.emit({ type: 'replace' });
+    if (from >= 0) this.movePageTo(id, from + delta);
   }
 
   setPageProps(props: PageProps, pageId = this.page.id) {
