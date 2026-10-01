@@ -14,6 +14,17 @@
   to = "/index.html"
   status = 200
 
+# Join Whiteboard: /join and /join/<CODE> are client-side routes too.
+[[redirects]]
+  from = "/join"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/join/*"
+  to = "/index.html"
+  status = 200
+
 # Hashed build output never changes: cache it for a year. Everything else keeps
 # Netlify's default (max-age=0, must-revalidate), so new deploys show up at once.
 [[headers]]
