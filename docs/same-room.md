@@ -25,6 +25,21 @@ Use this when everyone is in the same room (or on the same Wi-Fi or hotspot) and
 4. Flow shows the **address**, **port** and **code**, and a link. Tell people those three things, or share the link.
 5. To stop, use **Pause** or **End session** in Student view. Stop the server with Ctrl+C.
 
+## Different networks: `npm run tunnel`
+
+If the other device is on a different network (e.g. your Mac is on a phone hotspot and the iPad is on home Wi-Fi), the host's address can't be reached directly. Run:
+
+```
+npm run tunnel
+```
+
+It builds if needed, serves Bohrified on this computer, and opens a free Cloudflare tunnel (no account). When connected it prints a public link such as `https://something.trycloudflare.com`. Then:
+
+1. On the host, open Flow at **that link**, choose **Student view → Start live session**, and share the link Flow shows (`…/join/<CODE>`).
+2. Joiners open the same link from any network. The home screen also shows the live-session bubble.
+
+Sessions run through your own computer, so this uses no Netlify credits. Notes: the link is temporary (a new one each run, until you press Ctrl+C), anyone with it can open the app, the first run downloads Cloudflare's small tunnel program (the `cloudflared` package), and the host needs internet. Everyone in the same room on the same network can keep using `npm run serve` instead.
+
 ## Join
 
 On any device on the same network, the easiest way is to **open just the host's address** (`http://192.168.1.20:8787/`). The Bohrified home screen shows a green **“A live whiteboard is being shared here”** bubble while a session is running; tap it to join, no code needed. (The bubble only appears on the host's own copy, never on the hosted site.) Or either:

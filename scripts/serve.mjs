@@ -6,39 +6,17 @@
  *   npm run serve            # rebuilds if dist/ is missing or older than the code, then serves it + live sessions
  *   npm run serve -- --build # force a rebuild
  *   PORT=9000 npm run serve  # another port (default 8787)
+ *   npm run tunnel           # same, plus a public https link for people on other networks
  *
  * One port serves the app, the Join Whiteboard page and the live-session
  * relay, so a student opens  http://<this computer's IP>:8787/join/<CODE>.
  * Open Flow at that same address (not localhost) so the links it copies work
  * on other devices. For hot reload while developing, use `npm run dev:host`.
  */
-import { execSync } from 'node:child_process';
-import { existsSync, readdirSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { ensureBuild } from './ensure-build.mjs';
 import { lanAddresses, startRelay } from './session-relay.mjs';
 
-/** Newest modification time under the folders the build reads from (skipping dependencies and output). */
-function newestSource() {
-  let newest = 0;
-  const walk = (dir) => {
-    for (const e of readdirSync(dir, { withFileTypes: true })) {
-      if (e.name === 'node_modules' || e.name === 'dist' || e.name.startsWith('.')) continue;
-      const path = join(dir, e.name);
-      if (e.isDirectory()) walk(path);
-      else newest = Math.max(newest, statSync(path).mtimeMs);
-    }
-  };
-  for (const dir of ['launcher', 'apps', 'packages', 'scripts']) walk(dir);
-  for (const f of ['package.json', 'package-lock.json']) newest = Math.max(newest, statSync(f).mtimeMs);
-  return newest;
-}
-
-// A leftover dist/ from an older version must never be served: rebuild when it is missing or older than the code.
-const built = existsSync('dist/index.html') ? statSync('dist/index.html').mtimeMs : 0;
-if (process.argv.includes('--build') || built < newestSource()) {
-  console.log(built ? 'Source changed since the last build: rebuilding…\n' : 'Building Bohrified…\n');
-  execSync('npm run build', { stdio: 'inherit' });
-}
+ensureBuild(process.argv.includes('--build'));
 
 process.on('uncaughtException', (err) => console.error('serve: unexpected error (still running):', err));
 process.on('unhandledRejection', (err) => console.error('serve: unexpected error (still running):', err));
