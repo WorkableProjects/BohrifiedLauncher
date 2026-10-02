@@ -17,7 +17,7 @@
  *  • The first tutor to connect creates the room and its key; a later tutor
  *    connection must present the same key (so a student who learns a code can't take over).
  *  • Students may only join a room that exists (close code 4404 otherwise).
- *  • Tutor → every student: any message.  Student → tutors: hello / viewer / bye only.
+ *  • Tutor → every student: any message.  Student → tutors: hello / viewer / bye / edit only.
  *  • After every join or leave, everyone in the room gets {t:'peers', tutors, students}.
  *
  * Environment (all optional; none are secrets that belong in the frontend)
@@ -28,18 +28,63 @@
  *   MAX_STUDENTS      per room, default 64
  *   MAX_MESSAGE_MB    default 16
  *   ROOM_TTL_MIN      default 10
+ *   STATIC_DIR        also serve this built site (e.g. dist) on the same port: see scripts/serve.mjs
  *
- * Netlify serves the site statically and cannot host WebSockets: run this
- * (or any server speaking the same protocol) on a WebSocket-capable host and
- * give its wss:// address to the site build as VITE_LIVE_SESSION_URL.
+ * Netlify cannot host WebSockets, so on Netlify live sessions run over HTTP
+ * through the Netlify Function in netlify/functions/live.mjs (no setup). This
+ * relay also answers that same HTTP protocol under /api/live, so a self-hosted
+ * deployment can point VITE_LIVE_SESSION_URL at either ws(s):// or http(s)://.
  */
 import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
+import { createReadStream, statSync } from 'node:fs';
+import { networkInterfaces } from 'node:os';
+import { extname, join, normalize, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { handleLive, listSessions, memoryStore } from '../netlify/lib/live-core.mjs';
 
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 const CODE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/;
-const STUDENT_MAY_SEND = new Set(['hello', 'viewer', 'bye', 'ping']);
+// `edit` is forwarded to tutors only; the tutor's app decides whether that device may draw.
+const STUDENT_MAY_SEND = new Set(['hello', 'viewer', 'bye', 'ping', 'edit']);
+
+const MIME = {
+  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp',
+  '.ico': 'image/x-icon', '.woff': 'font/woff', '.woff2': 'font/woff2', '.webmanifest': 'application/manifest+json', '.wasm': 'application/wasm', '.map': 'application/json',
+};
+
+/** This computer's LAN addresses (IPv4, non-internal), e.g. ['192.168.1.20']. */
+export function lanAddresses() {
+  return Object.values(networkInterfaces()).flat().filter((i) => i && i.family === 'IPv4' && !i.internal).map((i) => i.address);
+}
+
+/**
+ * Serve a built site (dist/) the way netlify.toml does: real files as-is,
+ * /app/*, /join and /join/* fall back to the shell. Returns true when handled.
+ */
+function serveStatic(root, req, res) {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return false;
+  let path;
+  try {
+    path = decodeURIComponent((req.url ?? '/').split('?')[0]);
+  } catch {
+    return false; // a malformed URL is just "not found", never a crash
+  }
+  let file = normalize(join(root, path));
+  if (file !== root && !file.startsWith(root + sep)) return false;
+  const isFile = (f) => { try { return statSync(f).isFile(); } catch { return false; } };
+  if (!isFile(file) && path.endsWith('/') && isFile(join(file, 'index.html'))) file = join(file, 'index.html');
+  if (!isFile(file)) {
+    if (!/^\/(app\/|join(\/|$))/.test(path)) return false;
+    file = join(root, 'index.html');
+  }
+  const hashed = /\/assets\//.test(path);
+  res.writeHead(200, { 'content-type': MIME[extname(file)] ?? 'application/octet-stream', 'cache-control': hashed ? 'public, max-age=31536000, immutable' : 'no-cache', 'x-content-type-options': 'nosniff' });
+  if (req.method === 'HEAD') res.end();
+  else createReadStream(file).on('error', () => res.destroy()).pipe(res);
+  return true;
+}
 
 export const CLOSE = { BAD_REQUEST: 4400, FORBIDDEN: 4403, NOT_FOUND: 4404, FULL: 4429 };
 
@@ -130,6 +175,7 @@ export function startRelay(options = {}) {
     maxStudents: Number(options.maxStudents ?? env.MAX_STUDENTS ?? 64),
     maxBytes: Number(options.maxMessageMB ?? env.MAX_MESSAGE_MB ?? 16) * 1024 * 1024,
     ttlMs: Number(options.roomTtlMin ?? env.ROOM_TTL_MIN ?? 10) * 60_000,
+    staticDir: options.staticDir ?? env.STATIC_DIR ? resolve(options.staticDir ?? env.STATIC_DIR) : '',
   };
   /** @type {Map<string, {key: string, tutors: Set<any>, students: Set<any>, timer: any}>} */
   const rooms = new Map();
@@ -146,7 +192,36 @@ export function startRelay(options = {}) {
     room.timer.unref?.();
   };
 
-  const server = createServer((req, res) => {
+  // The HTTP flavour of the protocol (what Netlify serves): same rules, in memory, for local use and tests.
+  const httpStore = memoryStore();
+  const allowOrigin = (req) => (!cfg.origins.length || cfg.origins.includes(req.headers.origin ?? '') ? (req.headers.origin ?? '*') : null);
+
+  const handle = async (req, res) => {
+    if (req.url === '/api/info' || req.url === '/api/sessions' || req.url?.startsWith('/api/live/')) {
+      const origin = allowOrigin(req);
+      const cors = origin ? { 'access-control-allow-origin': origin, 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET, POST, OPTIONS', vary: 'origin' } : {};
+      if (!origin) return void res.writeHead(403, cors).end();
+      if (req.method === 'OPTIONS') return void res.writeHead(204, cors).end();
+      if (req.url === '/api/info') {
+        // Where other devices on this network can reach this computer (for the "same network" share option).
+        const port = cfg.staticDir ? server.address().port : Number(env.APP_PORT ?? 5173);
+        res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store', ...cors });
+        return void res.end(JSON.stringify({ addresses: lanAddresses(), port }));
+      }
+      if (req.url === '/api/sessions') {
+        // Sessions a tutor is running here (WebSocket rooms and HTTP rooms), for the home-page "join" bubble.
+        const found = new Map((await listSessions(httpStore)).map((s) => [s.code, s]));
+        for (const [code, room] of rooms) if (room.tutors.size && !found.has(code)) found.set(code, { code, students: room.students.size });
+        res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store', ...cors });
+        return void res.end(JSON.stringify({ sessions: [...found.values()] }));
+      }
+      const chunks = [];
+      for await (const c of req) chunks.push(c);
+      const response = await handleLive(new Request(`http://relay${req.url}`, { method: req.method, body: req.method === 'POST' ? Buffer.concat(chunks) : undefined }), httpStore);
+      res.writeHead(response.status, { ...Object.fromEntries(response.headers), ...cors });
+      return void res.end(Buffer.from(await response.arrayBuffer()));
+    }
+    if (cfg.staticDir && req.url !== '/health' && serveStatic(cfg.staticDir, req, res)) return;
     if (req.url === '/health') {
       res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
       res.end(JSON.stringify({ ok: true, rooms: rooms.size }));
@@ -154,7 +229,16 @@ export function startRelay(options = {}) {
     }
     res.writeHead(426, { 'content-type': 'text/plain' });
     res.end('Bohrified live-session relay: connect with a WebSocket.\n');
+  };
+  // One bad request must never take the relay down: answer 500 and carry on.
+  const server = createServer((req, res) => {
+    handle(req, res).catch(() => {
+      if (!res.headersSent) res.writeHead(500, { 'content-type': 'text/plain' });
+      res.end('Internal error\n');
+    });
   });
+  // Garbage on the port (e.g. a browser trying HTTPS first) gets a 400 and is dropped.
+  server.on('clientError', (_err, socket) => socket.writable && socket.end('HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n'));
 
   const reject = (socket, status, text) => {
     socket.write(`HTTP/1.1 ${status} ${text}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);
@@ -162,7 +246,12 @@ export function startRelay(options = {}) {
   };
 
   server.on('upgrade', (req, socket) => {
-    const url = new URL(req.url ?? '/', 'http://relay');
+    let url;
+    try {
+      url = new URL(req.url ?? '/', 'http://relay');
+    } catch {
+      return reject(socket, 400, 'Bad Request');
+    }
     const m = /^\/session\/([A-Z0-9]+)$/.exec(url.pathname);
     const key = req.headers['sec-websocket-key'];
     if (!m || !key || req.headers.upgrade?.toLowerCase() !== 'websocket') return reject(socket, 400, 'Bad Request');
@@ -291,6 +380,8 @@ export function startRelay(options = {}) {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  process.on('uncaughtException', (err) => console.error('relay: unexpected error (still running):', err));
+  process.on('unhandledRejection', (err) => console.error('relay: unexpected error (still running):', err));
   const relay = await startRelay();
   console.log(`Bohrified live-session relay listening on :${relay.port}`);
   for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => relay.close().then(() => process.exit(0)));

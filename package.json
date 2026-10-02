@@ -12,6 +12,9 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "node scripts/build.mjs",
+    "dev:host": "node scripts/dev.mjs --host",
+    "serve": "node scripts/serve.mjs",
+    "tunnel": "node scripts/tunnel.mjs",
     "preview": "vite preview --config launcher/vite.config.ts launcher --port 4173",
     "typecheck": "tsc -p packages/app-sdk && tsc -p packages/persistence && tsc -p packages/ui && tsc -p packages/utilities && npm run typecheck -w launcher && npm run typecheck -w apps/flow",
     "dev:flow": "npm run dev -w apps/flow",
@@ -21,7 +24,7 @@
     "test:launcher": "vitest run --root launcher",
     "test:launcher:e2e": "node tests/launcher.e2e.mjs",
     "relay": "node scripts/session-relay.mjs",
-    "test:relay": "node --test tests/relay.test.mjs",
+    "test:relay": "node --test tests/relay.test.mjs tests/live-http.test.mjs",
     "test:packages": "vitest run --root packages/app-sdk && vitest run --root packages/ui",
     "test": "npm run test:flow && npm run test:launcher && npm run test:packages && npm run test:rubricable && npm run test:relay"
   },
@@ -30,5 +33,12 @@
   },
   "engines": {
     "node": ">=20.19"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^11.1.3"
+  },
+  "optionalDependencies": {
+    "cloudflared": "^0.7.3",
+    "qrcode-terminal": "^0.12.0"
   }
 }

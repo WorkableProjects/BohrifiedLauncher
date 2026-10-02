@@ -8,6 +8,10 @@ export {
   SESSION_CODE_LENGTH,
   isJoinMessage,
   joinPath,
+  liveBackend,
+  localJoinUrl,
+  isLocalHost,
+  DEFAULT_ONLINE_SITE,
   newSessionCode,
   normalizeSessionCode,
   parseJoinInput,
@@ -15,6 +19,9 @@ export {
   sessionSocketUrl,
   type JoinMessage,
   type JoinState,
+  type LiveBackend,
+  type LiveEnv,
+  type LiveMode,
   type SessionRole,
 } from './live';
 export { BUDGETS, checkBudgets, percentile, type Budget, type BudgetName, type BudgetResult } from './budgets';

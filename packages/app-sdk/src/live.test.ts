@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SESSION_ALPHABET, isJoinMessage, joinPath, newSessionCode, normalizeSessionCode, parseJoinInput, relayUrl, sessionSocketUrl } from './live';
+import { SESSION_ALPHABET, isJoinMessage, isLocalHost, joinPath, liveBackend, localJoinUrl, newSessionCode, normalizeSessionCode, parseJoinInput, relayUrl, sessionSocketUrl } from './live';
 
 describe('session codes', () => {
   it('generates six unambiguous characters', () => {
@@ -71,5 +71,55 @@ describe('join messages', () => {
     expect(isJoinMessage({ bohr: 1, type: 'ready' })).toBe(false);
     expect(isJoinMessage(null)).toBe(false);
     expect(isJoinMessage({ bohrJoin: 1 })).toBe(false);
+  });
+});
+
+describe('liveBackend', () => {
+  const site = 'https://bohrified.netlify.app';
+  const hosted = { dev: false, origin: site, protocol: 'https:', hostname: 'bohrified.netlify.app', onlineSite: site };
+  const laptop = { dev: true, origin: 'http://localhost:5173', protocol: 'http:', hostname: 'localhost', onlineSite: site };
+
+  it('uses the hosted site by default, from anywhere', () => {
+    expect(liveBackend('', hosted)).toEqual({ kind: 'http', url: `${site}/api/live` });
+    expect(liveBackend(undefined, laptop)).toEqual({ kind: 'http', url: `${site}/api/live` });
+    expect(liveBackend(undefined, { ...laptop, hostname: '192.168.1.20' })).toEqual({ kind: 'http', url: `${site}/api/live` });
+  });
+  it('local mode uses this computer: the dev relay on the page host, or the page own /api/live', () => {
+    expect(liveBackend(undefined, { ...laptop, mode: 'local' })).toEqual({ kind: 'ws', url: 'ws://localhost:8787' });
+    expect(liveBackend(undefined, { ...laptop, mode: 'local', hostname: '192.168.1.20' })).toEqual({ kind: 'ws', url: 'ws://192.168.1.20:8787' });
+    expect(liveBackend(undefined, { dev: false, origin: 'http://192.168.1.20:8787', protocol: 'http:', hostname: '192.168.1.20', mode: 'local', onlineSite: site })).toEqual({ kind: 'http', url: 'http://192.168.1.20:8787/api/live' });
+  });
+  it('honours an explicit relay or endpoint', () => {
+    expect(liveBackend('wss://live.example/', hosted)).toEqual({ kind: 'ws', url: 'wss://live.example' });
+    expect(liveBackend('https://live.example/api/live/', hosted)).toEqual({ kind: 'http', url: 'https://live.example/api/live' });
+    expect(liveBackend('http://localhost:8787', hosted)).toEqual({ kind: 'http', url: 'http://localhost:8787' });
+  });
+  it('rejects unusable addresses', () => {
+    expect(liveBackend('ws://live.example', hosted)).toBeNull();
+    expect(liveBackend('http://live.example', hosted)).toBeNull();
+    expect(liveBackend('ftp://x', hosted)).toBeNull();
+    expect(liveBackend('nonsense', hosted)).toBeNull();
+  });
+});
+
+describe('isLocalHost', () => {
+  it('recognises own-computer and private-network hosts', () => {
+    for (const h of ['localhost', '127.0.0.1', '[::1]', '192.168.0.5', '10.1.2.3', '172.20.0.1', '172.31.255.1', '169.254.1.1', 'laptop.local']) expect(isLocalHost(h)).toBe(true);
+    for (const h of ['bohrified.netlify.app', '8.8.8.8', '172.32.0.1', '', undefined]) expect(isLocalHost(h)).toBe(false);
+  });
+});
+
+describe('localJoinUrl', () => {
+  it('builds the address a joiner opens', () => {
+    expect(localJoinUrl('192.168.1.20', '8787', 'k7q-x2m')).toBe('http://192.168.1.20:8787/join/K7QX2M?via=local');
+    expect(localJoinUrl('http://192.168.1.20:5173/', '', 'K7QX2M')).toBe('http://192.168.1.20/join/K7QX2M?via=local');
+    expect(localJoinUrl('laptop.local', '80', 'K7QX2M')).toBe('http://laptop.local/join/K7QX2M?via=local');
+  });
+  it('rejects bad input', () => {
+    expect(localJoinUrl('', '8787', 'K7QX2M')).toBeNull();
+    expect(localJoinUrl('192.168.1.20', '99999', 'K7QX2M')).toBeNull();
+    expect(localJoinUrl('192.168.1.20', 'abc', 'K7QX2M')).toBeNull();
+    expect(localJoinUrl('192.168.1.20', '8787', 'nope')).toBeNull();
+    expect(localJoinUrl('bad host!', '8787', 'K7QX2M')).toBeNull();
   });
 });

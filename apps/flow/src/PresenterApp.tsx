@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { normalizeSessionCode, sessionSocketUrl, type JoinMessage, type JoinState } from '@bohrified/app-sdk';
+import { isLocalHost, normalizeSessionCode, type JoinMessage, type JoinState } from '@bohrified/app-sdk';
 import { BoardCanvas } from './canvas/BoardCanvas';
 import { getController } from './canvas/instance';
 import { followCamera, LOCAL_CHANNEL, ViewerSync, type SyncMessage } from './engine/sync';
-import { CLOSE_NOT_FOUND, channelTransport, socketTransport, type Transport } from './engine/transport';
+import { TextEditor, type EditRequest } from './canvas/TextEditor';
+import { flushSync } from 'react-dom';
+import { GuestTools } from './ui/GuestTools';
+import { CLOSE_NOT_FOUND, channelTransport, type Transport } from './engine/transport';
 import { useAppearance } from './hooks/useAppearance';
-import { liveRelay } from './state/live';
+import { liveRelay, openLiveTransport } from './state/live';
 import { board, useBoard } from './state/board';
 import { Glass } from './ui/Glass';
 import { GlassProvider } from './ui/GlassProvider';
@@ -41,6 +44,11 @@ export function PresenterApp() {
   const title = useBoard((b) => b.doc.title);
   const pageName = useBoard((b) => b.page.name);
   const [tutor, setTutor] = useState<string | undefined>();
+  // The tutor can let this device draw. Then the board is editable here and its changes go to the tutor.
+  const [editable, setEditable] = useState(false);
+  const [editing, setEditing] = useState<EditRequest | null>(null);
+  const editableRef = useRef(false);
+  const viewer = useRef<ViewerSync | null>(null);
   const last = useRef<{ cam: { x: number; y: number; z: number }; w: number; h: number } | null>(null);
   const params = useMemo(() => new URLSearchParams(location.search), []);
   const joining = params.get('view') === 'join';
@@ -57,13 +65,18 @@ export function PresenterApp() {
     document.title = joining ? 'Flow — Join Whiteboard' : 'Flow — Student View';
     let transport: Transport<SyncMessage>;
     if (joining) {
-      const relay = liveRelay();
       if (!code) return report('not-found');
-      if (!relay) return report('unavailable');
-      transport = socketTransport<SyncMessage>({ url: sessionSocketUrl(relay, code, 'student') });
+      // A page served from a computer on this network (an address like 192.168.x.x) means the tutor shares from that
+      // computer, even if the link was typed without ?via=local. Links to the hosted site are always online.
+      const via = params.get('via') === 'online' ? 'online' : params.get('via') === 'local' || isLocalHost(location.hostname) ? 'local' : 'online';
+      const live = liveRelay(via) && openLiveTransport(code, 'student', undefined, via);
+      if (!live) return report('unavailable');
+      transport = live;
     } else transport = channelTransport<SyncMessage>(LOCAL_CHANNEL);
 
     const apply = () => {
+      // A device that can draw keeps its own view; everyone else follows the tutor.
+      if (editableRef.current) return;
       const c = getController();
       const l = last.current;
       if (!c || !l) return;
@@ -79,6 +92,11 @@ export function PresenterApp() {
         },
         onPresence: (p) => getController()?.setRemotePresence(p),
         onConnected: () => {},
+        onEditable: (on) => {
+          editableRef.current = on;
+          setEditable(on);
+          if (!on) setEditing(null);
+        },
         onStatus: (s) => {
           setTutor(s.tutor);
           const extra = { title: s.title, tutor: s.tutor, page: board.page.name };
@@ -90,8 +108,15 @@ export function PresenterApp() {
       },
       transport,
     );
+    viewer.current = sync;
+    // Everything this device changes (including undo and redo) goes to the tutor, who applies it only if allowed.
+    const offEdits = board.subscribe((c) => {
+      if (c.type === 'op' && c.source !== 'remote') sync.sendEdit(c.op);
+    });
     window.addEventListener('resize', apply);
     return () => {
+      offEdits();
+      viewer.current = null;
       sync.destroy();
       window.removeEventListener('resize', apply);
     };
@@ -105,7 +130,9 @@ export function PresenterApp() {
   return (
     <GlassProvider root={stage} enabled={liquid}>
       <main ref={stage} className="fixed inset-0 overflow-hidden select-none" data-liquid="off">
-        <BoardCanvas appearance={appearance} readOnly />
+        <BoardCanvas appearance={appearance} readOnly={!editable} events={editable ? { onEditText: (r) => flushSync(() => setEditing(r)) } : undefined} />
+        {editable && editing && <TextEditor key={editing.element.id} request={editing} appearance={appearance} onDone={() => setEditing(null)} />}
+        {editable && <GuestTools appearance={appearance} />}
         <Glass radius={20} className="absolute top-4 left-4 z-20">
           <div className="flex h-10 items-center gap-2 px-4" role="status" aria-live="polite">
             <span className={`h-2 w-2 rounded-full ${dot}`} />

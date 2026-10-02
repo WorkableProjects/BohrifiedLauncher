@@ -7,6 +7,10 @@
 [build.environment]
   NODE_VERSION = "22"
 
+# Live sessions over HTTP (Netlify cannot host WebSockets): netlify/functions/live.mjs serves /api/live/*.
+[functions]
+  directory = "netlify/functions"
+
 # Launcher routes (/app/<id>) are client-side: serve the shell for them.
 # App pages under /apps/* are real files and are served as-is.
 [[redirects]]

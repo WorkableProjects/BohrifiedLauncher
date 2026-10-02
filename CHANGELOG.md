@@ -1,5 +1,16 @@
 # Changelog
 
+## Flow 1.3.0 (October 2026)
+
+### Flow
+- **Join Whiteboard works on Netlify and locally.** Netlify can't host WebSocket servers, so live sessions now also run over HTTP: a Netlify Function (`netlify/functions/live.mjs`, state in Netlify Blobs) serves `/api/live`, and Flow's viewer and tutor poll it. Nothing to deploy or configure. `npm run dev` still uses the local WebSocket relay, and `VITE_LIVE_SESSION_URL` can point at a `ws(s)://` relay or an `http(s)://` endpoint (the relay serves `/api/live` too).
+- **Two ways to share, chosen in Student view:** **Online** (default, any network, joiners just visit the Bohrified site and enter the code, even when Flow runs on your own computer or hotspot) and **Same network** (in-person; joiners enter your address, port and code on the Join page). The Netlify function now allows cross-origin requests so a local copy can use it.
+- **Let a device draw:** in Student view, **Devices watching → Can draw** lets one joined device (e.g. an iPad) write on the board; its changes appear on the host and for everyone. The host checks each device's secret and applies edits only from allowed devices.
+- **`npm run tunnel`:** prints a QR code for the link; opens a public Cloudflare link to Bohrified on your own computer, so people on other networks can join without the hosted site (no Netlify usage). Sessions run through your computer.
+- **Join without a code in the same room:** open the host computer's address and the home screen shows a live-session bubble; tap to join. (Served by `/api/sessions` on the local relay only, never by the hosted function.)
+- **Host it from your own computer:** `npm run serve` (built app + Join page + live sessions on one port) and `npm run dev:host` listen on the computer's network address and print the URLs, so other devices open `http://<IP>:8787/join/<CODE>` instead of a localhost-only address. In development the client now follows the page's own host instead of hard-coding `localhost`.
+- Same rules both ways: the first tutor owns the code and key, students can only watch, sessions expire when idle, pause / end / resync behave as before.
+
 ## 1.2.0 (October 2026)
 
 **Bohrified 1.2** is the desktop-like shell; **Flow 1.2** the tutoring whiteboard with a chemistry toolkit; **Rubricable 1.2** the grading app with dependable decimals and exports; **App SDK 1.2** the shared foundations.

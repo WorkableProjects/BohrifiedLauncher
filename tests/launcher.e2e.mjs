@@ -68,7 +68,7 @@ try {
   await page.goto(`${base}/`);
   await page.locator('a.card[data-app="flow"]').waitFor();
   check('no Continue before anything was used', await page.locator('#continue').isHidden());
-  check('cards show name, version and description', (await page.locator('a.card[data-app="flow"]').innerText()).includes('Flow') && (await page.locator('a.card[data-app="flow"] .ver').innerText()) === 'v1.2.0' && (await page.locator('a.card[data-app="flow"] p').innerText()).length > 10);
+  check('cards show name, version and description', (await page.locator('a.card[data-app="flow"]').innerText()).includes('Flow') && (await page.locator('a.card[data-app="flow"] .ver').innerText()) === 'v1.3.0' && (await page.locator('a.card[data-app="flow"] p').innerText()).length > 10);
   check('first visit shows no New / Updated noise', (await page.locator('.fresh:visible').count()) === 0);
 
   await page.locator('a.card[data-app="flow"]').click();
@@ -132,7 +132,7 @@ try {
   check('arrow keys move between cards', await page.evaluate(() => document.activeElement?.dataset.app === 'rubricable'));
 
   // "Updated" indicator: pretend the user last saw an older Flow.
-  await page.evaluate(() => localStorage.setItem('bohr:seen', JSON.stringify({ flow: '1.1.0', rubricable: '1.2.0' })));
+  await page.evaluate(() => localStorage.setItem('bohr:seen', JSON.stringify({ flow: '1.2.0', rubricable: '1.2.0' })));
   await page.reload();
   await page.locator('a.card[data-app="flow"]').waitFor();
   check('a version change shows Updated', (await page.locator('a.card[data-app="flow"] .fresh').innerText()) === 'Updated');
@@ -142,7 +142,7 @@ try {
   await page.locator('a.card[data-app="flow"]').click();
   await waitState('flow', 'active');
   await settle();
-  check('opening clears the Updated indicator', (await page.evaluate(() => JSON.parse(localStorage.getItem('bohr:seen')).flow)) === '1.2.0');
+  check('opening clears the Updated indicator', (await page.evaluate(() => JSON.parse(localStorage.getItem('bohr:seen')).flow)) === '1.3.0');
   const stage = await stageBox();
   let b = await box('flow');
   check('apps open in a window inside Bohrified', b.width < stage.width && b.height < stage.height && (await win('flow').locator('.win-body iframe').count()) === 1, `${Math.round(b.width)}×${Math.round(b.height)} in ${stage.width}×${Math.round(stage.height)}`);

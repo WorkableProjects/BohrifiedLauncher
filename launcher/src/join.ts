@@ -1,4 +1,4 @@
-import { isJoinMessage, parseJoinInput, relayUrl, type JoinState } from '@bohrified/app-sdk';
+import { isJoinMessage, localJoinUrl, parseJoinInput, type JoinState } from '@bohrified/app-sdk';
 import { el } from '@bohrified/utilities';
 import { joinPagePath, navigate, navigateJoin } from './router';
 
@@ -34,8 +34,12 @@ export function createJoinPage(root: HTMLElement, opts: { base: string; configur
   let frame: HTMLIFrameElement | null = null;
   let onMessage: ((e: MessageEvent) => void) | null = null;
   let session: { code: string; state: JoinState; title?: string; tutor?: string } | null = null;
+  // A link from a tutor sharing over the local network carries ?via=local; keep it for the whole visit.
+  let via = '';
+  let slow: ReturnType<typeof setTimeout> | undefined;
 
   function stop() {
+    clearTimeout(slow);
     if (onMessage) removeEventListener('message', onMessage);
     onMessage = null;
     // Navigate away first so the viewer's socket closes before the frame is detached.
@@ -92,10 +96,44 @@ export function createJoinPage(root: HTMLElement, opts: { base: string; configur
         el('button', { type: 'button', className: 'primary join-go', textContent: 'Join', disabled: !opts.configured, onclick: submit }),
         ...(opts.configured ? [] : [el('p', { className: 'join-note', textContent: 'Live sessions aren’t set up for this copy of Bohrified yet. Ask whoever runs it to add a session service.' })]),
         el('p', { className: 'join-note', textContent: 'You’ll watch your tutor’s whiteboard live. You can’t change it.' }),
+        inPerson(),
         el('a', { href: opts.base, className: 'join-back', textContent: 'Back to Bohrified', onclick: (e: Event) => (e.preventDefault(), navigate(null)) }),
       ),
     );
     queueMicrotask(() => input.focus());
+  }
+
+  /** "In the same room?": go to the tutor's own computer by address, which works without internet. */
+  function inPerson() {
+    const field = (label: string, props: Record<string, unknown>) => {
+      const input = el('input', { className: 'field', autocomplete: 'off', spellcheck: false, ariaLabel: label, ...props });
+      return { input, wrap: el('label', { className: 'join-label' }, label, input) };
+    };
+    const host = field('Address', { type: 'text', placeholder: '192.168.1.20', inputMode: 'decimal', maxLength: 100 });
+    const port = field('Port', { type: 'text', placeholder: '8787', inputMode: 'numeric', maxLength: 5 });
+    const code = field('Code', { type: 'text', placeholder: 'K7Q X2M', autocapitalize: 'characters', maxLength: 12 });
+    const msg = el('p', { className: 'join-error', role: 'alert' });
+    const go = () => {
+      const url = localJoinUrl(host.input.value, port.input.value, code.input.value);
+      if (!url) {
+        msg.textContent = 'Check the address, port and code your tutor shows in Flow (Student view).';
+        return;
+      }
+      // A full page load: the tutor's computer serves its own copy of Bohrified, so no internet is needed.
+      location.assign(url);
+    };
+    for (const f of [host, port, code]) f.input.addEventListener('keydown', (e) => (e as KeyboardEvent).key === 'Enter' && go());
+    return el(
+      'details',
+      { className: 'join-inperson' },
+      el('summary', { textContent: 'In the same room? Join with an address' }),
+      el('p', { className: 'join-note', textContent: 'Use this when your tutor is sharing over the local network. Their Flow shows the address, port and code.' }),
+      host.wrap,
+      port.wrap,
+      code.wrap,
+      msg,
+      el('button', { type: 'button', className: 'primary join-go', textContent: 'Join this address', onclick: go }),
+    );
   }
 
   function renderSession(code: string) {
@@ -114,6 +152,12 @@ export function createJoinPage(root: HTMLElement, opts: { base: string; configur
       pill.textContent = s.label;
       pill.dataset.tone = s.tone;
       help.textContent = s.help;
+      clearTimeout(slow);
+      if (session.state === 'connecting') {
+        slow = setTimeout(() => {
+          if (session?.state === 'connecting') help.textContent = 'Still connecting. Check the code, that you and the tutor are on the same network if you joined by address, and that the tutor chose “Same network” in Student view (or “Online” for the Bohrified site).';
+        }, 12000);
+      }
       identity.textContent = [`Session ${spaced(session.code)}`, session.tutor && `Tutor ${session.tutor}`, session.title].filter(Boolean).join(' · ');
       // Rejoin is for sessions that are over or stuck, not for ones working fine.
       rejoin.hidden = !(['ended', 'error', 'not-found', 'reconnecting', 'unavailable'] as JoinState[]).includes(session.state);
@@ -129,7 +173,7 @@ export function createJoinPage(root: HTMLElement, opts: { base: string; configur
       if (!opts.configured) return;
       const f = el('iframe', {
         title: `Tutor whiteboard, session ${session.code}`,
-        src: `${opts.base}apps/flow/?view=join&code=${session.code}`,
+        src: `${opts.base}apps/flow/?view=join&code=${session.code}${via ? `&via=${via}` : ''}`,
         className: 'join-frame',
       });
       frame = f;
@@ -155,6 +199,7 @@ export function createJoinPage(root: HTMLElement, opts: { base: string; configur
   return {
     show(code) {
       root.hidden = false;
+      via = new URLSearchParams(location.search).get('via') === 'local' ? 'local' : via;
       document.title = 'Join Whiteboard · Bohrified';
       if (!code) return renderForm();
       const normalized = parseJoinInput(code);
@@ -170,5 +215,6 @@ export function createJoinPage(root: HTMLElement, opts: { base: string; configur
   };
 }
 
-export const joinConfigured = (raw: string | undefined) => !!relayUrl(raw ?? (import.meta.env.DEV ? 'ws://localhost:8787' : undefined), location.protocol);
+/** The join page itself is always usable: by default it joins through the hosted site (or this page's own host). */
+export const joinConfigured = (_raw?: string) => true;
 export { joinPagePath };

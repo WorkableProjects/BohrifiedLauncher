@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { joinPath } from '@bohrified/app-sdk';
 import { usePresence } from '../hooks/usePresence';
-import { endLiveSession, setSharing, startLiveSession, useLive } from '../state/live';
+import { endLiveSession, localAddress, setDeviceGrant, setLiveMode, setSharing, shareLink, startLiveSession, useLive } from '../state/live';
 import { openPresenter } from '../state/actions';
 import { toast, ui, useUI } from '../state/ui';
 import { ToolButton, Toggle } from './controls';
@@ -32,6 +31,18 @@ export function SharingSheet() {
   const live = useLive((s) => s);
   const sheet = useRef<HTMLElement>(null);
   const [copied, setCopied] = useState(false);
+  const [local, setLocal] = useState<{ host: string; port: string; hint?: boolean } | null>(null);
+  const localMode = live.mode === 'local';
+
+  // "Same network" needs this computer's address; ask for it when that choice is showing.
+  useEffect(() => {
+    if (!open || !localMode) return;
+    let alive = true;
+    localAddress().then((a) => alive && setLocal(a));
+    return () => {
+      alive = false;
+    };
+  }, [open, localMode]);
 
   useEffect(() => {
     if (open) requestAnimationFrame(() => sheet.current?.focus());
@@ -39,7 +50,7 @@ export function SharingSheet() {
 
   if (!mounted) return null;
   const close = () => ui.set({ sharingOpen: false });
-  const link = live.code ? new URL(joinPath(import.meta.env.BASE_URL.startsWith('/apps/') ? '/' : import.meta.env.BASE_URL, live.code), location.origin).toString() : '';
+  const link = live.code ? shareLink(live.code, live.mode, local) : '';
 
   const copy = async (text: string, what: string) => {
     try {
@@ -96,7 +107,18 @@ export function SharingSheet() {
           <p className="mt-1 text-footnote text-label-2">Live sessions aren’t set up for this copy of Bohrified. An administrator can add a session service; see docs/live-sessions.md.</p>
         ) : !live.code ? (
           <>
-            <p className="text-footnote text-label-2">Students enter a code on Bohrified’s Join Whiteboard page. They can watch, not edit.</p>
+            <div role="radiogroup" aria-label="Where to share" className="mt-2 grid grid-cols-2 gap-1 rounded-full bg-fill-2 p-1">
+              {([['online', 'Online'], ['local', 'Same network']] as const).map(([m, label]) => (
+                <button key={m} type="button" role="radio" aria-checked={live.mode === m} onClick={() => setLiveMode(m)} className={`spring h-9 rounded-full text-subhead font-semibold ${live.mode === m ? 'bg-tint text-on-tint' : 'text-label'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-footnote text-label-2">
+              {localMode
+                ? 'For people in the same room or on the same Wi-Fi or hotspot. They enter your address, port and code on the Join Whiteboard page, or open the link. Needs Flow running on this computer (npm run serve).'
+                : 'For video calls and other networks. Anyone with the code can join at the Bohrified site. They can watch, not edit.'}
+            </p>
             <button type="button" onClick={startLiveSession} className="spring mt-2 h-10 rounded-full bg-tint px-4 text-subhead font-semibold text-on-tint hover:brightness-105 active:scale-[0.97]">
               Start live session
             </button>
@@ -105,16 +127,42 @@ export function SharingSheet() {
           <>
             <p className="mt-1 text-caption text-label-2">Session code</p>
             <p className="text-largeTitle font-bold tracking-[0.12em] text-label tabular-nums" aria-label={`Session code ${live.code.split('').join(' ')}`} style={{ fontSize: 34 }}>{spaced(live.code)}</p>
-            <p className="mt-1 truncate text-footnote text-label-2" title={link}>{link}</p>
+            {live.mode === 'local' && (
+              local ? (
+                <p className="mt-1 text-footnote text-label-2">Address <b className="text-label">{local.host}</b> · Port <b className="text-label">{local.port}</b>{local.hint ? ' · open Flow at this address so the link below works for others' : ''}</p>
+              ) : (
+                <p className="mt-1 text-footnote text-label-2">Couldn’t find this computer’s network address. Start Flow with npm run serve, which prints it.</p>
+              )
+            )}
+            {link && <p className="mt-1 truncate text-footnote text-label-2" title={link}>{link}</p>}
             <p className="mt-1 text-footnote text-label-2" role="status">
               {LINK_LABEL[live.link]}
               {live.link === 'open' && live.sharing === 'paused' ? ' · paused' : ''}
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
               <button type="button" onClick={() => copy(live.code!, 'code')} className="spring h-10 rounded-full bg-fill-2 px-4 text-subhead font-semibold text-label hover:brightness-95 active:scale-[0.97]">{copied ? 'Copied' : 'Copy code'}</button>
-              <button type="button" onClick={() => copy(link, 'link')} className="spring h-10 rounded-full bg-fill-2 px-4 text-subhead font-semibold text-label hover:brightness-95 active:scale-[0.97]">Copy link</button>
+              <button type="button" disabled={!link} onClick={() => copy(link, 'link')} className="spring h-10 rounded-full bg-fill-2 px-4 text-subhead font-semibold text-label hover:brightness-95 active:scale-[0.97]">Copy link</button>
               <button type="button" onClick={endLiveSession} className="spring h-10 rounded-full px-4 text-subhead font-semibold text-danger hover:bg-fill-2 active:scale-[0.97]">End session</button>
             </div>
+            {live.devices.length > 0 && (
+              <div className="mt-3 border-t border-fill-2 pt-2">
+                <p className="text-subhead font-semibold text-label">Devices watching</p>
+                <p className="text-footnote text-label-2">Turn on “Can draw” for a device you want to write from, such as your iPad. Everyone else stays view-only.</p>
+                <ul className="mt-1">
+                  {live.devices.map((d) => (
+                    <li key={d.id} className="flex min-h-11 items-center justify-between gap-3">
+                      <span className="text-subhead text-label">
+                        {d.label} <span className="text-footnote text-label-3 tabular-nums">· {d.id.slice(0, 4)}</span>
+                      </span>
+                      <span className="flex items-center gap-2 text-footnote text-label-2">
+                        {d.granted ? 'Can draw' : 'View only'}
+                        <Toggle checked={d.granted} onChange={(on) => setDeviceGrant(d.id, on)} label={`${d.label} can draw`} />
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <p className="mt-2 text-caption text-label-3">Students see your first name and the lesson title. Ending the session tells everyone it’s over.</p>
           </>
         )}
