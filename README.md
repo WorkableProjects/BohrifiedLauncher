@@ -19,6 +19,8 @@ One launcher for peer tutoring apps.
   `Cmd/Ctrl + Alt + ←/→` snaps, `↑` maximizes or restores, `↓` minimizes. "Tile windows" is in the quick launcher.
 - Only the focused window runs. Other windows show **Paused** and keep their place; click one to resume it.
 
+**Live whiteboards (Flow 1.3):** share online through the hosted site (default, any network), in the same room with `npm run serve`, or across networks from your own computer with `npm run tunnel`; you can also let one device, such as an iPad, draw on the board. See [docs/live-sessions.md](docs/live-sessions.md) and [docs/same-room.md](docs/same-room.md).
+
 **Also in 1.2:** Flow's **Chemistry Tools** (periodic table and linked models), tutoring tools (alignment, snapping, spotlight, page reordering, undo labels), **live sessions** with a Join Whiteboard page ([docs/live-sessions.md](docs/live-sessions.md)), Rubricable's saved rubrics and decimal-safe exports, Bohrified's design tokens, and diagnostics with performance budgets ([docs/performance/budgets.md](docs/performance/budgets.md)). See [CHANGELOG.md](CHANGELOG.md).
 
 ## Getting started
@@ -38,6 +40,9 @@ Open http://localhost:5173.
 
 ```bash
 npm run dev             # Start Bohrified and Flow
+npm run dev -- --host   # Same, reachable from other devices on your network (also: npm run dev:host)
+npm run serve           # Host the built app on your network (rebuilds if stale); same-room joining
+npm run tunnel          # Host + open a public Cloudflare link so people on other networks can join (no Netlify)
 npm run build           # Build all apps
 npm run preview         # Preview the production build
 npm run typecheck       # Type-check all packages and apps

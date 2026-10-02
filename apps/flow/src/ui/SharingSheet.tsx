@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { usePresence } from '../hooks/usePresence';
-import { endLiveSession, localAddress, setLiveMode, setSharing, shareLink, startLiveSession, useLive } from '../state/live';
+import { endLiveSession, localAddress, setDeviceGrant, setLiveMode, setSharing, shareLink, startLiveSession, useLive } from '../state/live';
 import { openPresenter } from '../state/actions';
 import { toast, ui, useUI } from '../state/ui';
 import { ToolButton, Toggle } from './controls';
@@ -144,6 +144,25 @@ export function SharingSheet() {
               <button type="button" disabled={!link} onClick={() => copy(link, 'link')} className="spring h-10 rounded-full bg-fill-2 px-4 text-subhead font-semibold text-label hover:brightness-95 active:scale-[0.97]">Copy link</button>
               <button type="button" onClick={endLiveSession} className="spring h-10 rounded-full px-4 text-subhead font-semibold text-danger hover:bg-fill-2 active:scale-[0.97]">End session</button>
             </div>
+            {live.devices.length > 0 && (
+              <div className="mt-3 border-t border-fill-2 pt-2">
+                <p className="text-subhead font-semibold text-label">Devices watching</p>
+                <p className="text-footnote text-label-2">Turn on “Can draw” for a device you want to write from, such as your iPad. Everyone else stays view-only.</p>
+                <ul className="mt-1">
+                  {live.devices.map((d) => (
+                    <li key={d.id} className="flex min-h-11 items-center justify-between gap-3">
+                      <span className="text-subhead text-label">
+                        {d.label} <span className="text-footnote text-label-3 tabular-nums">· {d.id.slice(0, 4)}</span>
+                      </span>
+                      <span className="flex items-center gap-2 text-footnote text-label-2">
+                        {d.granted ? 'Can draw' : 'View only'}
+                        <Toggle checked={d.granted} onChange={(on) => setDeviceGrant(d.id, on)} label={`${d.label} can draw`} />
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <p className="mt-2 text-caption text-label-3">Students see your first name and the lesson title. Ending the session tells everyone it’s over.</p>
           </>
         )}

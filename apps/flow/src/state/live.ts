@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { DEFAULT_ONLINE_SITE, isLocalHost, joinPath, liveBackend, newSessionCode, sessionSocketUrl, type LiveBackend, type LiveMode } from '@bohrified/app-sdk';
 import { pollTransport, socketTransport, type LinkStatus, type Transport } from '../engine/transport';
-import type { SharingState, SyncMessage, TutorSync } from '../engine/sync';
+import type { Device, SharingState, SyncMessage, TutorSync } from '../engine/sync';
 import { ui } from './ui';
 
 /**
@@ -71,12 +71,14 @@ export interface LiveState {
   link: LinkStatus | 'off';
   /** Students watching, local windows included. */
   viewers: number;
+  /** The devices watching, and which of them the tutor let draw. */
+  devices: Device[];
   sharing: SharingState;
 }
 
 const SESSION_KEY = 'flow:live:v1';
 
-let state: LiveState = { mode: savedMode(), configured: false, code: null, link: 'off', viewers: 0, sharing: 'live' };
+let state: LiveState = { mode: savedMode(), configured: false, code: null, link: 'off', viewers: 0, devices: [], sharing: 'live' };
 const listeners = new Set<() => void>();
 const set = (patch: Partial<LiveState>) => {
   state = { ...state, ...patch };
@@ -92,6 +94,7 @@ let tutor: TutorSync | null = null;
 let socket: Transport<SyncMessage> | null = null;
 let offStatus: (() => void) | null = null;
 let offViewers: (() => void) | null = null;
+let offDevices: (() => void) | null = null;
 
 const read = (): { code: string; key: string; mode?: LiveMode } | null => {
   try {
@@ -153,6 +156,11 @@ export function endLiveSession() {
   set({ code: null, link: 'off', sharing: 'live' });
 }
 
+/** Let one watching device draw on the board (or stop it). */
+export function setDeviceGrant(id: string, allow: boolean) {
+  tutor?.setGrant(id, allow);
+}
+
 export function setSharing(next: SharingState) {
   set({ sharing: next });
   tutor?.setSharing(next);
@@ -162,10 +170,13 @@ export function setSharing(next: SharingState) {
 export function attachTutor(sync: TutorSync | null) {
   offViewers?.();
   offViewers = null;
+  offDevices?.();
+  offDevices = null;
   tutor = sync;
   set({ configured: !!liveRelay() });
   if (!sync) return;
   offViewers = sync.onViewers((viewers) => set({ viewers }));
+  offDevices = sync.onDevices((devices) => set({ devices }));
   if (!socket) {
     const saved = read();
     if (saved) {

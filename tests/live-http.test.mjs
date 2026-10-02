@@ -68,14 +68,14 @@ describe('live sessions over HTTP', () => {
     assert.deepEqual(joined.body.messages, []);
   });
 
-  it('students may only send hello / viewer / bye, and only the tutor hears them', async () => {
+  it('students may only send hello / viewer / bye / edit, and only the tutor hears them', async () => {
     const s = setup();
     const t0 = await s.poll('K7QX2M', 'tutor', 'tutor001', null, KEY);
     await s.poll('K7QX2M', 'student', 'stud0001');
     s.clock.tick(5);
-    await s.send('K7QX2M', 'student', 'stud0001', [{ t: 'hello' }, { t: 'op', evil: 1 }, { t: 'viewer', x: 1 }]);
+    await s.send('K7QX2M', 'student', 'stud0001', [{ t: 'hello' }, { t: 'op', evil: 1 }, { t: 'viewer', x: 1 }, { t: 'edit', id: 'abc' }]);
     const got = await s.poll('K7QX2M', 'tutor', 'tutor001', t0.body.cursor, KEY);
-    assert.deepEqual(got.body.messages.map((m) => m.t), ['hello', 'viewer']);
+    assert.deepEqual(got.body.messages.map((m) => m.t), ['hello', 'viewer', 'edit']);
     const other = await s.poll('K7QX2M', 'student', 'stud0001', t0.body.cursor);
     assert.deepEqual(other.body.messages, []);
   });

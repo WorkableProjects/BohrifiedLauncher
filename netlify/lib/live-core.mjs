@@ -18,7 +18,8 @@
  */
 
 export const CODE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/;
-const STUDENT_MAY_SEND = new Set(['hello', 'viewer', 'bye']);
+// `edit` reaches tutors only; the tutor's app decides whether that device may draw.
+const STUDENT_MAY_SEND = new Set(['hello', 'viewer', 'bye', 'edit']);
 export const LIMITS = {
   /** Netlify Functions accept request bodies up to 6 MB. */
   maxBodyBytes: 4 * 1024 * 1024,

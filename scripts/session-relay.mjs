@@ -17,7 +17,7 @@
  *  • The first tutor to connect creates the room and its key; a later tutor
  *    connection must present the same key (so a student who learns a code can't take over).
  *  • Students may only join a room that exists (close code 4404 otherwise).
- *  • Tutor → every student: any message.  Student → tutors: hello / viewer / bye only.
+ *  • Tutor → every student: any message.  Student → tutors: hello / viewer / bye / edit only.
  *  • After every join or leave, everyone in the room gets {t:'peers', tutors, students}.
  *
  * Environment (all optional; none are secrets that belong in the frontend)
@@ -45,7 +45,8 @@ import { handleLive, listSessions, memoryStore } from '../netlify/lib/live-core.
 
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 const CODE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/;
-const STUDENT_MAY_SEND = new Set(['hello', 'viewer', 'bye', 'ping']);
+// `edit` is forwarded to tutors only; the tutor's app decides whether that device may draw.
+const STUDENT_MAY_SEND = new Set(['hello', 'viewer', 'bye', 'ping', 'edit']);
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',

@@ -49,6 +49,17 @@ On any device on the same network, the easiest way is to **open just the host's 
 
 Joiners can watch and pan or zoom, but can't edit. If the board doesn't appear straight away it shows "Waiting for tutor" until the host starts sharing.
 
+## Drawing from a second device (e.g. your iPad)
+
+Joiners can only watch, until the host allows them to draw:
+
+1. Join from the iPad the usual way (home-screen bubble, link, or QR code).
+2. On the host computer, open Flow's **Student view**. Under **Devices watching** you'll see "iPad".
+3. Switch **Can draw** on. The iPad shows the drawing tools right away, and what you write appears on the host board and for everyone watching.
+4. Switch it off to make the iPad view-only again.
+
+It works with `npm run serve`, `npm run tunnel` and Online. A device that can draw keeps its own pan and zoom. If the host reloads Flow, switch the device on again.
+
 ## Projecting to a school screen
 
 Open the link in the screen's browser, or use the address form on its Join page. The screen has to be on the same network as the host computer.

@@ -20,7 +20,9 @@ class FakeTransport implements Transport<SyncMessage> {
   private st = new Set<(s: LinkStatus, d?: string) => void>();
   send(m: SyncMessage) {
     this.sent.push(m);
-    queueMicrotask(() => this.peer?.msg.forEach((fn) => fn(m)));
+    // Real transports copy messages; handing over the same object would make both boards share one document.
+    const copy = structuredClone(m);
+    queueMicrotask(() => this.peer?.msg.forEach((fn) => fn(structuredClone(copy))));
   }
   onMessage(fn: (m: SyncMessage) => void) {
     this.msg.add(fn);
