@@ -8,6 +8,7 @@ import { ShortcutsDialog } from './ShortcutsDialog';
 const TemplatesDialog = lazy(() => import('./TemplatesDialog'));
 const TransitionDialog = lazy(() => import('./TransitionDialog'));
 const BrandDialog = lazy(() => import('./BrandDialog'));
+const OutlineDialog = lazy(() => import('./OutlineDialog'));
 
 /** Routes the single open dialog. Heavier ones load on first use. */
 export function Dialogs() {
@@ -21,6 +22,7 @@ export function Dialogs() {
       {d === 'templates' && <TemplatesDialog onClose={close} />}
       {d === 'transition' && <TransitionDialog onClose={close} />}
       {d === 'brand' && <BrandDialog onClose={close} />}
+      {d === 'import' && <OutlineDialog onClose={close} />}
     </Suspense>
   );
 }

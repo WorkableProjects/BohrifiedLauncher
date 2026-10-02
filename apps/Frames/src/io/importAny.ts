@@ -6,10 +6,11 @@ import { putAsset, saveDeck } from './library';
 import { isProjectFile, unpackProject } from './project';
 import type { ImportResult } from './importPptx';
 
-export type ImportKind = 'project' | 'pptx' | 'pdf' | 'image' | 'unknown';
+export type ImportKind = 'project' | 'outline' | 'pptx' | 'pdf' | 'image' | 'unknown';
 
 export function kindOfFile(f: File): ImportKind {
   if (isProjectFile(f.name, f.type)) return 'project';
+  if (/\.(json|txt|md)$/i.test(f.name) || f.type === 'application/json') return 'outline';
   if (/\.pptx$/i.test(f.name) || f.type.includes('presentationml')) return 'pptx';
   if (/\.pdf$/i.test(f.name) || f.type === 'application/pdf') return 'pdf';
   if (f.type.startsWith('image/') || /\.(svg|png|jpe?g|gif|webp|avif)$/i.test(f.name)) return 'image';
@@ -44,6 +45,11 @@ export async function importDeckFile(file: File, onProgress?: (done: number, tot
     return { deck, warnings: [] };
   }
 
+  if (kind === 'outline') {
+    const { extractOutlineJson, importOutline } = await import('./importOutline');
+    return importOutline(extractOutlineJson(await file.text()));
+  }
+
   if (kind === 'pptx') {
     const { importPptx } = await import('./importPptx');
     const deck0 = newDeck(file.name.replace(/\.pptx$/i, ''), { size });
@@ -70,7 +76,7 @@ export async function importDeckFile(file: File, onProgress?: (done: number, tot
     await saveDeck(deck);
     return { deck, warnings: [] };
   }
-  throw new Error("Frames can't open that kind of file. Try a .frames, .pptx, .pdf or an image.");
+  throw new Error("Frames can't open that kind of file. Try a .frames, .pptx, .pdf, a Frames outline (.json) or an image.");
 }
 
 async function finish(res: ImportResult, base: (t: string, s: Slide[], th?: Deck['theme'], sz?: { w: number; h: number }) => Deck, title: string, size: { w: number; h: number }): Promise<ImportOutcome> {

@@ -61,8 +61,9 @@ export function Home() {
         <div className="home-actions">
           <Btn icon="plus" label="Blank presentation" variant="tint" onClick={() => void newPresentation()} />
           <Btn icon="template" label="Templates" className="ghost" variant="ghost" onClick={() => ui.set({ dialog: 'templates' })} />
+          <Btn icon="sparkles" label="Create from AI" variant="ghost" onClick={() => ui.set({ dialog: 'import' })} />
           <Btn icon="upload" label="Import…" variant="ghost" onClick={() => fileRef.current?.click()} />
-          <input ref={fileRef} type="file" hidden accept=".frames,.pptx,.pdf,image/*,.svg" onChange={(e) => { const f = [...(e.target.files ?? [])]; e.target.value = ''; if (f.length) void doImport(f); }} />
+          <input ref={fileRef} type="file" hidden accept=".frames,.pptx,.pdf,.json,image/*,.svg" onChange={(e) => { const f = [...(e.target.files ?? [])]; e.target.value = ''; if (f.length) void doImport(f); }} />
           <Btn icon="settings" label="Preferences" variant="ghost" onClick={() => ui.set({ dialog: 'prefs' })} />
         </div>
 
