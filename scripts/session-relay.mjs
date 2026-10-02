@@ -28,6 +28,7 @@
  *   MAX_STUDENTS      per room, default 64
  *   MAX_MESSAGE_MB    default 16
  *   ROOM_TTL_MIN      default 10
+ *   STATIC_DIR        also serve this built site (e.g. dist) on the same port: see scripts/serve.mjs
  *
  * Netlify cannot host WebSockets, so on Netlify live sessions run over HTTP
  * through the Netlify Function in netlify/functions/live.mjs (no setup). This
@@ -36,12 +37,48 @@
  */
 import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
+import { createReadStream, statSync } from 'node:fs';
+import { networkInterfaces } from 'node:os';
+import { extname, join, normalize, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { handleLive, memoryStore } from '../netlify/lib/live-core.mjs';
 
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 const CODE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/;
 const STUDENT_MAY_SEND = new Set(['hello', 'viewer', 'bye', 'ping']);
+
+const MIME = {
+  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp',
+  '.ico': 'image/x-icon', '.woff': 'font/woff', '.woff2': 'font/woff2', '.webmanifest': 'application/manifest+json', '.wasm': 'application/wasm', '.map': 'application/json',
+};
+
+/** This computer's LAN addresses (IPv4, non-internal), e.g. ['192.168.1.20']. */
+export function lanAddresses() {
+  return Object.values(networkInterfaces()).flat().filter((i) => i && i.family === 'IPv4' && !i.internal).map((i) => i.address);
+}
+
+/**
+ * Serve a built site (dist/) the way netlify.toml does: real files as-is,
+ * /app/*, /join and /join/* fall back to the shell. Returns true when handled.
+ */
+function serveStatic(root, req, res) {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return false;
+  const path = decodeURIComponent((req.url ?? '/').split('?')[0]);
+  let file = normalize(join(root, path));
+  if (file !== root && !file.startsWith(root + sep)) return false;
+  const isFile = (f) => { try { return statSync(f).isFile(); } catch { return false; } };
+  if (!isFile(file) && path.endsWith('/') && isFile(join(file, 'index.html'))) file = join(file, 'index.html');
+  if (!isFile(file)) {
+    if (!/^\/(app\/|join(\/|$))/.test(path)) return false;
+    file = join(root, 'index.html');
+  }
+  const hashed = /\/assets\//.test(path);
+  res.writeHead(200, { 'content-type': MIME[extname(file)] ?? 'application/octet-stream', 'cache-control': hashed ? 'public, max-age=31536000, immutable' : 'no-cache', 'x-content-type-options': 'nosniff' });
+  if (req.method === 'HEAD') res.end();
+  else createReadStream(file).pipe(res);
+  return true;
+}
 
 export const CLOSE = { BAD_REQUEST: 4400, FORBIDDEN: 4403, NOT_FOUND: 4404, FULL: 4429 };
 
@@ -132,6 +169,7 @@ export function startRelay(options = {}) {
     maxStudents: Number(options.maxStudents ?? env.MAX_STUDENTS ?? 64),
     maxBytes: Number(options.maxMessageMB ?? env.MAX_MESSAGE_MB ?? 16) * 1024 * 1024,
     ttlMs: Number(options.roomTtlMin ?? env.ROOM_TTL_MIN ?? 10) * 60_000,
+    staticDir: options.staticDir ?? env.STATIC_DIR ? resolve(options.staticDir ?? env.STATIC_DIR) : '',
   };
   /** @type {Map<string, {key: string, tutors: Set<any>, students: Set<any>, timer: any}>} */
   const rooms = new Map();
@@ -164,6 +202,7 @@ export function startRelay(options = {}) {
       res.writeHead(response.status, { ...Object.fromEntries(response.headers), ...cors });
       return void res.end(Buffer.from(await response.arrayBuffer()));
     }
+    if (cfg.staticDir && req.url !== '/health' && serveStatic(cfg.staticDir, req, res)) return;
     if (req.url === '/health') {
       res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
       res.end(JSON.stringify({ ok: true, rooms: rooms.size }));

@@ -18,7 +18,7 @@ import { ui } from './ui';
  */
 export function liveRelay(): LiveBackend | null {
   const here = typeof location === 'undefined' ? undefined : location;
-  return liveBackend(import.meta.env.VITE_LIVE_SESSION_URL, { dev: import.meta.env.DEV, origin: here?.origin, protocol: here?.protocol });
+  return liveBackend(import.meta.env.VITE_LIVE_SESSION_URL, { dev: import.meta.env.DEV, origin: here?.origin, protocol: here?.protocol, hostname: here?.hostname });
 }
 
 /** One transport to a live session, whichever way this deployment carries it. */

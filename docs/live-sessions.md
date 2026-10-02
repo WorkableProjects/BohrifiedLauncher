@@ -43,6 +43,15 @@ There are no secrets in the frontend. Session codes and tutor keys are generated
 
 `npm run dev` starts the relay on `ws://localhost:8787` along with the launcher and Flow; no configuration needed. Open `http://localhost:5173`, start a session in Flow, then open `/join` in a second window. Run the relay alone with `npm run relay`. To try the Netlify path locally, run `netlify dev` (serves the function) or set `VITE_LIVE_SESSION_URL=http://localhost:8787` (the relay also answers `/api/live`).
 
+### Hosting from your own computer (school screens, other devices)
+
+`localhost` only works on the computer running the app. To let other devices reach it, serve it at the computer's network (IP) address:
+
+- **`npm run serve`**: builds if needed and serves the app, the Join page and live sessions from one port (default 8787, or `PORT=9000 npm run serve`). It prints the addresses, e.g. `http://192.168.1.20:8787/`.
+- **`npm run dev:host`**: the dev setup (hot reload) listening on the network, at `http://<IP>:5173/`.
+
+Open Flow **at that IP address** on the host computer (not `localhost`) so the link it copies works elsewhere, then students or the school screen open `http://<IP>:8787/join/<CODE>`. If a device can't connect, allow Node through the firewall and check both are on the same network (a guest or school Wi-Fi that isolates devices will block it). The address only works for devices that can reach this computer's network; for devices on other networks, use the Netlify site instead.
+
 ### Production on Netlify
 
 Nothing extra: `netlify.toml` routes `/join` and `/join/*` to the app shell and registers the `netlify/functions` directory; the function stores sessions in Netlify Blobs (included with every site). Deploy and open `/join`. Check `https://your-site.netlify.app/api/live/health` returns `{"ok":true,…}`.

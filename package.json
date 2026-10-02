@@ -12,6 +12,8 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "node scripts/build.mjs",
+    "dev:host": "node scripts/dev.mjs --host",
+    "serve": "node scripts/serve.mjs",
     "preview": "vite preview --config launcher/vite.config.ts launcher --port 4173",
     "typecheck": "tsc -p packages/app-sdk && tsc -p packages/persistence && tsc -p packages/ui && tsc -p packages/utilities && npm run typecheck -w launcher && npm run typecheck -w apps/flow",
     "dev:flow": "npm run dev -w apps/flow",

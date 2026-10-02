@@ -80,11 +80,12 @@ const LOCAL_HOST = /^(localhost|127\.0\.0\.1|\[::1\])$/;
 /**
  * Pick the live-session backend.
  *  • `VITE_LIVE_SESSION_URL` set: ws(s):// → WebSocket relay; http(s):// → HTTP endpoint.
- *  • Unset in development: the local relay, ws://localhost:8787.
+ *  • Unset in development: the local relay on this page's own host, ws://<host>:8787
+ *    (the host is what makes `npm run dev:host` work for other devices on the network).
  *  • Unset in production: the site's own Netlify Function at `<origin>/api/live`.
  * Returns null when the configured address is unusable.
  */
-export function liveBackend(raw: string | undefined | null, env: { dev: boolean; origin?: string; protocol?: string }): LiveBackend | null {
+export function liveBackend(raw: string | undefined | null, env: { dev: boolean; origin?: string; protocol?: string; hostname?: string }): LiveBackend | null {
   const protocol = env.protocol ?? 'https:';
   if (raw?.trim()) {
     const ws = relayUrl(raw, protocol);
@@ -100,7 +101,7 @@ export function liveBackend(raw: string | undefined | null, env: { dev: boolean;
       return null;
     }
   }
-  if (env.dev) return { kind: 'ws', url: 'ws://localhost:8787' };
+  if (env.dev) return { kind: 'ws', url: `ws://${env.hostname && /^[\w.-]+$/.test(env.hostname) ? env.hostname : 'localhost'}:8787` };
   return env.origin ? { kind: 'http', url: `${env.origin.replace(/\/$/, '')}/api/live` } : null;
 }
 

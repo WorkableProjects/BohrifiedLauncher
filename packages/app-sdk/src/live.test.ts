@@ -80,6 +80,9 @@ describe('liveBackend', () => {
     expect(liveBackend(undefined, { dev: true, origin: 'http://localhost:5173', protocol: 'http:' })).toEqual({ kind: 'ws', url: 'ws://localhost:8787' });
     expect(liveBackend('', prod)).toEqual({ kind: 'http', url: 'https://bohrified.netlify.app/api/live' });
   });
+  it('in development follows the page host so other devices on the network reach the relay', () => {
+    expect(liveBackend(undefined, { dev: true, protocol: 'http:', hostname: '192.168.1.20' })).toEqual({ kind: 'ws', url: 'ws://192.168.1.20:8787' });
+  });
   it('honours an explicit relay or endpoint', () => {
     expect(liveBackend('wss://live.example/', prod)).toEqual({ kind: 'ws', url: 'wss://live.example' });
     expect(liveBackend('https://live.example/api/live/', prod)).toEqual({ kind: 'http', url: 'https://live.example/api/live' });

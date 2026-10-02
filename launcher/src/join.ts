@@ -170,5 +170,5 @@ export function createJoinPage(root: HTMLElement, opts: { base: string; configur
   };
 }
 
-export const joinConfigured = (raw: string | undefined) => !!liveBackend(raw, { dev: import.meta.env.DEV, origin: location.origin, protocol: location.protocol });
+export const joinConfigured = (raw: string | undefined) => !!liveBackend(raw, { dev: import.meta.env.DEV, origin: location.origin, protocol: location.protocol, hostname: location.hostname });
 export { joinPagePath };

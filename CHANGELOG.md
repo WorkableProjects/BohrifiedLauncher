@@ -4,6 +4,7 @@
 
 ### Flow
 - **Join Whiteboard works on Netlify and locally.** Netlify can't host WebSocket servers, so live sessions now also run over HTTP: a Netlify Function (`netlify/functions/live.mjs`, state in Netlify Blobs) serves `/api/live`, and Flow's viewer and tutor poll it. Nothing to deploy or configure. `npm run dev` still uses the local WebSocket relay, and `VITE_LIVE_SESSION_URL` can point at a `ws(s)://` relay or an `http(s)://` endpoint (the relay serves `/api/live` too).
+- **Host it from your own computer:** `npm run serve` (built app + Join page + live sessions on one port) and `npm run dev:host` listen on the computer's network address and print the URLs, so other devices open `http://<IP>:8787/join/<CODE>` instead of a localhost-only address. In development the client now follows the page's own host instead of hard-coding `localhost`.
 - Same rules both ways: the first tutor owns the code and key, students can only watch, sessions expire when idle, pause / end / resync behave as before.
 
 ## 1.2.0 (October 2026)
