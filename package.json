@@ -21,7 +21,7 @@
     "test:launcher": "vitest run --root launcher",
     "test:launcher:e2e": "node tests/launcher.e2e.mjs",
     "relay": "node scripts/session-relay.mjs",
-    "test:relay": "node --test tests/relay.test.mjs",
+    "test:relay": "node --test tests/relay.test.mjs tests/live-http.test.mjs",
     "test:packages": "vitest run --root packages/app-sdk && vitest run --root packages/ui",
     "test": "npm run test:flow && npm run test:launcher && npm run test:packages && npm run test:rubricable && npm run test:relay"
   },
@@ -30,5 +30,8 @@
   },
   "engines": {
     "node": ">=20.19"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^11.1.3"
   }
 }

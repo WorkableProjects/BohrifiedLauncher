@@ -1,4 +1,4 @@
-import { isJoinMessage, parseJoinInput, relayUrl, type JoinState } from '@bohrified/app-sdk';
+import { isJoinMessage, liveBackend, parseJoinInput, type JoinState } from '@bohrified/app-sdk';
 import { el } from '@bohrified/utilities';
 import { joinPagePath, navigate, navigateJoin } from './router';
 
@@ -170,5 +170,5 @@ export function createJoinPage(root: HTMLElement, opts: { base: string; configur
   };
 }
 
-export const joinConfigured = (raw: string | undefined) => !!relayUrl(raw ?? (import.meta.env.DEV ? 'ws://localhost:8787' : undefined), location.protocol);
+export const joinConfigured = (raw: string | undefined) => !!liveBackend(raw, { dev: import.meta.env.DEV, origin: location.origin, protocol: location.protocol });
 export { joinPagePath };

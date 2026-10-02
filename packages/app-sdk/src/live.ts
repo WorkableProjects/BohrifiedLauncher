@@ -72,6 +72,38 @@ export function relayUrl(raw: string | undefined | null, pageProtocol = 'https:'
   }
 }
 
+/** How this deployment carries live sessions: a WebSocket relay, or HTTP polling (Netlify Functions, or a relay's /api/live). */
+export type LiveBackend = { kind: 'ws' | 'http'; url: string };
+
+const LOCAL_HOST = /^(localhost|127\.0\.0\.1|\[::1\])$/;
+
+/**
+ * Pick the live-session backend.
+ *  • `VITE_LIVE_SESSION_URL` set: ws(s):// → WebSocket relay; http(s):// → HTTP endpoint.
+ *  • Unset in development: the local relay, ws://localhost:8787.
+ *  • Unset in production: the site's own Netlify Function at `<origin>/api/live`.
+ * Returns null when the configured address is unusable.
+ */
+export function liveBackend(raw: string | undefined | null, env: { dev: boolean; origin?: string; protocol?: string }): LiveBackend | null {
+  const protocol = env.protocol ?? 'https:';
+  if (raw?.trim()) {
+    const ws = relayUrl(raw, protocol);
+    if (ws) return { kind: 'ws', url: ws };
+    try {
+      const u = new URL(raw.trim());
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+      if (protocol === 'https:' && u.protocol === 'http:' && !LOCAL_HOST.test(u.hostname)) return null;
+      u.hash = '';
+      u.search = '';
+      return { kind: 'http', url: u.toString().replace(/\/$/, '') };
+    } catch {
+      return null;
+    }
+  }
+  if (env.dev) return { kind: 'ws', url: 'ws://localhost:8787' };
+  return env.origin ? { kind: 'http', url: `${env.origin.replace(/\/$/, '')}/api/live` } : null;
+}
+
 /** The WebSocket address for one connection to a session. */
 export function sessionSocketUrl(relay: string, code: string, role: SessionRole, key?: string): string {
   const u = new URL(`${relay}/session/${code}`);

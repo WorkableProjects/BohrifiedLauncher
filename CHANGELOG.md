@@ -1,5 +1,11 @@
 # Changelog
 
+## Flow 1.3.0 (October 2026)
+
+### Flow
+- **Join Whiteboard works on Netlify and locally.** Netlify can't host WebSocket servers, so live sessions now also run over HTTP: a Netlify Function (`netlify/functions/live.mjs`, state in Netlify Blobs) serves `/api/live`, and Flow's viewer and tutor poll it. Nothing to deploy or configure. `npm run dev` still uses the local WebSocket relay, and `VITE_LIVE_SESSION_URL` can point at a `ws(s)://` relay or an `http(s)://` endpoint (the relay serves `/api/live` too).
+- Same rules both ways: the first tutor owns the code and key, students can only watch, sessions expire when idle, pause / end / resync behave as before.
+
 ## 1.2.0 (October 2026)
 
 **Bohrified 1.2** is the desktop-like shell; **Flow 1.2** the tutoring whiteboard with a chemistry toolkit; **Rubricable 1.2** the grading app with dependable decimals and exports; **App SDK 1.2** the shared foundations.

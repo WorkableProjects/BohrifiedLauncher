@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { normalizeSessionCode, sessionSocketUrl, type JoinMessage, type JoinState } from '@bohrified/app-sdk';
+import { normalizeSessionCode, type JoinMessage, type JoinState } from '@bohrified/app-sdk';
 import { BoardCanvas } from './canvas/BoardCanvas';
 import { getController } from './canvas/instance';
 import { followCamera, LOCAL_CHANNEL, ViewerSync, type SyncMessage } from './engine/sync';
-import { CLOSE_NOT_FOUND, channelTransport, socketTransport, type Transport } from './engine/transport';
+import { CLOSE_NOT_FOUND, channelTransport, type Transport } from './engine/transport';
 import { useAppearance } from './hooks/useAppearance';
-import { liveRelay } from './state/live';
+import { liveRelay, openLiveTransport } from './state/live';
 import { board, useBoard } from './state/board';
 import { Glass } from './ui/Glass';
 import { GlassProvider } from './ui/GlassProvider';
@@ -57,10 +57,10 @@ export function PresenterApp() {
     document.title = joining ? 'Flow — Join Whiteboard' : 'Flow — Student View';
     let transport: Transport<SyncMessage>;
     if (joining) {
-      const relay = liveRelay();
       if (!code) return report('not-found');
-      if (!relay) return report('unavailable');
-      transport = socketTransport<SyncMessage>({ url: sessionSocketUrl(relay, code, 'student') });
+      const live = liveRelay() && openLiveTransport(code, 'student');
+      if (!live) return report('unavailable');
+      transport = live;
     } else transport = channelTransport<SyncMessage>(LOCAL_CHANNEL);
 
     const apply = () => {

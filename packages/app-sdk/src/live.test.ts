@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SESSION_ALPHABET, isJoinMessage, joinPath, newSessionCode, normalizeSessionCode, parseJoinInput, relayUrl, sessionSocketUrl } from './live';
+import { SESSION_ALPHABET, isJoinMessage, joinPath, liveBackend, newSessionCode, normalizeSessionCode, parseJoinInput, relayUrl, sessionSocketUrl } from './live';
 
 describe('session codes', () => {
   it('generates six unambiguous characters', () => {
@@ -71,5 +71,24 @@ describe('join messages', () => {
     expect(isJoinMessage({ bohr: 1, type: 'ready' })).toBe(false);
     expect(isJoinMessage(null)).toBe(false);
     expect(isJoinMessage({ bohrJoin: 1 })).toBe(false);
+  });
+});
+
+describe('liveBackend', () => {
+  const prod = { dev: false, origin: 'https://bohrified.netlify.app', protocol: 'https:' };
+  it('uses the local relay in development and the site function in production', () => {
+    expect(liveBackend(undefined, { dev: true, origin: 'http://localhost:5173', protocol: 'http:' })).toEqual({ kind: 'ws', url: 'ws://localhost:8787' });
+    expect(liveBackend('', prod)).toEqual({ kind: 'http', url: 'https://bohrified.netlify.app/api/live' });
+  });
+  it('honours an explicit relay or endpoint', () => {
+    expect(liveBackend('wss://live.example/', prod)).toEqual({ kind: 'ws', url: 'wss://live.example' });
+    expect(liveBackend('https://live.example/api/live/', prod)).toEqual({ kind: 'http', url: 'https://live.example/api/live' });
+    expect(liveBackend('http://localhost:8787', { ...prod, protocol: 'https:' })).toEqual({ kind: 'http', url: 'http://localhost:8787' });
+  });
+  it('rejects unusable addresses', () => {
+    expect(liveBackend('ws://live.example', prod)).toBeNull();
+    expect(liveBackend('http://live.example', prod)).toBeNull();
+    expect(liveBackend('ftp://x', prod)).toBeNull();
+    expect(liveBackend('nonsense', prod)).toBeNull();
   });
 });

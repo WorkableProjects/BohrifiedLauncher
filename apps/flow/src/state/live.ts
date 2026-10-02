@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
-import { newSessionCode, relayUrl, sessionSocketUrl } from '@bohrified/app-sdk';
-import { socketTransport, type LinkStatus, type Transport } from '../engine/transport';
+import { liveBackend, newSessionCode, sessionSocketUrl, type LiveBackend } from '@bohrified/app-sdk';
+import { pollTransport, socketTransport, type LinkStatus, type Transport } from '../engine/transport';
 import type { SharingState, SyncMessage, TutorSync } from '../engine/sync';
 import { ui } from './ui';
 
@@ -11,10 +11,23 @@ import { ui } from './ui';
  * is remembered per tab so a reload resumes the same code.
  */
 
-/** The relay address for this deployment, or null when live sessions aren't configured. */
-export function liveRelay(): string | null {
-  const raw = import.meta.env.VITE_LIVE_SESSION_URL ?? (import.meta.env.DEV ? 'ws://localhost:8787' : undefined);
-  return relayUrl(raw, typeof location === 'undefined' ? 'https:' : location.protocol);
+/**
+ * How live sessions travel on this deployment, or null when they aren't available:
+ * the local relay in development, the site's Netlify Function (`/api/live`) in
+ * production, or whatever `VITE_LIVE_SESSION_URL` points at.
+ */
+export function liveRelay(): LiveBackend | null {
+  const here = typeof location === 'undefined' ? undefined : location;
+  return liveBackend(import.meta.env.VITE_LIVE_SESSION_URL, { dev: import.meta.env.DEV, origin: here?.origin, protocol: here?.protocol });
+}
+
+/** One transport to a live session, whichever way this deployment carries it. */
+export function openLiveTransport(code: string, role: 'tutor' | 'student', key?: string): Transport<SyncMessage> | null {
+  const backend = liveRelay();
+  if (!backend) return null;
+  return backend.kind === 'ws'
+    ? socketTransport<SyncMessage>({ url: sessionSocketUrl(backend.url, code, role, key) })
+    : pollTransport<SyncMessage>({ url: backend.url, code, role, key });
 }
 
 export interface LiveState {
@@ -58,11 +71,11 @@ const read = (): { code: string; key: string } | null => {
 const randomKey = () => [...crypto.getRandomValues(new Uint8Array(12))].map((b) => b.toString(16).padStart(2, '0')).join('');
 
 function connect(code: string, key: string) {
-  const relay = liveRelay();
-  if (!relay) return;
+  const next = openLiveTransport(code, 'tutor', key);
+  if (!next) return;
   socket?.close();
   offStatus?.();
-  socket = socketTransport<SyncMessage>({ url: sessionSocketUrl(relay, code, 'tutor', key) });
+  socket = next;
   offStatus = socket.onStatus((link) => set({ link }));
   set({ code, link: socket.status });
   tutor?.addTransport(socket);

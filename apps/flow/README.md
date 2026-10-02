@@ -53,7 +53,10 @@ npm run perf       # canvas benchmark in Chromium (after build)
 
 ## Version
 
-Current release: **1.2.0** (shown at the bottom of Home).
+Current release: **1.3.0** (shown at the bottom of Home).
+
+**1.3**
+- **Join Whiteboard now works on Netlify as well as locally.** Netlify can't hold a WebSocket open, so on the hosted site live sessions run over HTTP through a Netlify Function (`/api/live`, no setup); `npm run dev` keeps using the local relay. Same code, same codes, same read-only student view.
 
 **1.2**
 - **Chemistry Tools** replaces Elements: a searchable periodic table (California Chemistry Reference Sheet data) plus linked Bohr model, orbital diagram, Lewis dot and configuration tools, including ions and blank worksheets

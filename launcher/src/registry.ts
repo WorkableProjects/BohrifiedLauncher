@@ -14,7 +14,7 @@ export const registry: readonly AppManifest[] = [
   {
     id: 'flow',
     name: 'Flow',
-    version: '1.2.0',
+    version: '1.3.0',
     keywords: ['whiteboard', 'tutoring', 'draw', 'ink', 'lesson', 'chemistry'],
     description: 'A fluid whiteboard for online tutoring: ink, shapes, pages, equations and a live student view.',
     icon: 'apps/flow/logo-192.png',

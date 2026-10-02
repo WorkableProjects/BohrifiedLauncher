@@ -29,13 +29,15 @@
  *   MAX_MESSAGE_MB    default 16
  *   ROOM_TTL_MIN      default 10
  *
- * Netlify serves the site statically and cannot host WebSockets: run this
- * (or any server speaking the same protocol) on a WebSocket-capable host and
- * give its wss:// address to the site build as VITE_LIVE_SESSION_URL.
+ * Netlify cannot host WebSockets, so on Netlify live sessions run over HTTP
+ * through the Netlify Function in netlify/functions/live.mjs (no setup). This
+ * relay also answers that same HTTP protocol under /api/live, so a self-hosted
+ * deployment can point VITE_LIVE_SESSION_URL at either ws(s):// or http(s)://.
  */
 import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 import { pathToFileURL } from 'node:url';
+import { handleLive, memoryStore } from '../netlify/lib/live-core.mjs';
 
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 const CODE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/;
@@ -146,7 +148,22 @@ export function startRelay(options = {}) {
     room.timer.unref?.();
   };
 
-  const server = createServer((req, res) => {
+  // The HTTP flavour of the protocol (what Netlify serves): same rules, in memory, for local use and tests.
+  const httpStore = memoryStore();
+  const allowOrigin = (req) => (!cfg.origins.length || cfg.origins.includes(req.headers.origin ?? '') ? (req.headers.origin ?? '*') : null);
+
+  const server = createServer(async (req, res) => {
+    if (req.url?.startsWith('/api/live/')) {
+      const origin = allowOrigin(req);
+      const cors = origin ? { 'access-control-allow-origin': origin, 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET, POST, OPTIONS', vary: 'origin' } : {};
+      if (!origin) return void res.writeHead(403, cors).end();
+      if (req.method === 'OPTIONS') return void res.writeHead(204, cors).end();
+      const chunks = [];
+      for await (const c of req) chunks.push(c);
+      const response = await handleLive(new Request(`http://relay${req.url}`, { method: req.method, body: req.method === 'POST' ? Buffer.concat(chunks) : undefined }), httpStore);
+      res.writeHead(response.status, { ...Object.fromEntries(response.headers), ...cors });
+      return void res.end(Buffer.from(await response.arrayBuffer()));
+    }
     if (req.url === '/health') {
       res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
       res.end(JSON.stringify({ ok: true, rooms: rooms.size }));

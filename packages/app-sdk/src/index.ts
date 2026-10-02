@@ -8,6 +8,7 @@ export {
   SESSION_CODE_LENGTH,
   isJoinMessage,
   joinPath,
+  liveBackend,
   newSessionCode,
   normalizeSessionCode,
   parseJoinInput,
@@ -15,6 +16,7 @@ export {
   sessionSocketUrl,
   type JoinMessage,
   type JoinState,
+  type LiveBackend,
   type SessionRole,
 } from './live';
 export { BUDGETS, checkBudgets, percentile, type Budget, type BudgetName, type BudgetResult } from './budgets';
