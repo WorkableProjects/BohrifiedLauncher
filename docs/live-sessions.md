@@ -43,6 +43,19 @@ There are no secrets in the frontend. Session codes and tutor keys are generated
 
 `npm run dev` starts the relay on `ws://localhost:8787` along with the launcher and Flow; no configuration needed. Open `http://localhost:5173`, start a session in Flow, then open `/join` in a second window. Run the relay alone with `npm run relay`. To try the Netlify path locally, run `netlify dev` (serves the function) or set `VITE_LIVE_SESSION_URL=http://localhost:8787` (the relay also answers `/api/live`).
 
+### Two ways to share, chosen in Flow's Student view
+
+| | **Online** (default) | **Same network** |
+|---|---|---|
+| For | video calls, people on other networks | people in the same room / on the same Wi-Fi or hotspot |
+| Joiners go to | the Bohrified site, `/join/<CODE>` (nothing to type but the code) | `/join` → *In the same room?* → address, port, code (or open the link Flow shows) |
+| Runs through | the hosted site's function, even when Flow runs on your own computer | your computer (`npm run serve`) |
+| Needs internet | yes | no |
+
+Why two: a page on the hosted `https://` site can't talk to a computer's `http://` address (browsers block it), and a hotspot's address isn't reachable from other networks at all. So **Online** works from anywhere precisely because everyone meets at the hosted site, and **Same network** works by joiners opening your computer's own copy of Bohrified. Flow remembers the choice; a link carries `?via=local` so the joiner's viewer uses the same route as the tutor.
+
+If your hosted site isn't `https://bohrified.netlify.app`, set `VITE_ONLINE_SITE_URL=https://your-site.netlify.app` when building a copy that runs on your own computer, so its **Online** option points at your site.
+
 ### Hosting from your own computer (school screens, other devices)
 
 `localhost` only works on the computer running the app. To let other devices reach it, serve it at the computer's network (IP) address:

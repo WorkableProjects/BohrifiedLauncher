@@ -75,17 +75,50 @@ export function relayUrl(raw: string | undefined | null, pageProtocol = 'https:'
 /** How this deployment carries live sessions: a WebSocket relay, or HTTP polling (Netlify Functions, or a relay's /api/live). */
 export type LiveBackend = { kind: 'ws' | 'http'; url: string };
 
+/**
+ * Where a live session runs.
+ *  • `online` (default): through the hosted Bohrified site, so anyone on any network can join at its /join page.
+ *  • `local`: through this computer, for people on the same network (classroom, projector). Joiners enter its address.
+ */
+export type LiveMode = 'online' | 'local';
+
+/** The hosted site, used by copies running on a local computer. Override with VITE_ONLINE_SITE_URL. */
+export const DEFAULT_ONLINE_SITE = 'https://bohrified.netlify.app';
+
 const LOCAL_HOST = /^(localhost|127\.0\.0\.1|\[::1\])$/;
+
+/** localhost, loopback, or a private-network (LAN) address: a copy running on someone's own computer. */
+export function isLocalHost(hostname: string | undefined | null): boolean {
+  if (!hostname) return false;
+  const h = hostname.toLowerCase();
+  if (LOCAL_HOST.test(h) || h.endsWith('.local')) return true;
+  const m = /^(\d+)\.(\d+)\.\d+\.\d+$/.exec(h);
+  if (!m) return false;
+  const [a, b] = [Number(m[1]), Number(m[2])];
+  return a === 10 || a === 127 || (a === 192 && b === 168) || (a === 172 && b >= 16 && b <= 31) || (a === 169 && b === 254) || (a === 100 && b >= 64 && b <= 127);
+}
+
+export interface LiveEnv {
+  dev: boolean;
+  origin?: string;
+  protocol?: string;
+  hostname?: string;
+  /** Default 'online'. */
+  mode?: LiveMode;
+  /** The hosted site for `online` mode from a local copy. */
+  onlineSite?: string;
+}
 
 /**
  * Pick the live-session backend.
  *  • `VITE_LIVE_SESSION_URL` set: ws(s):// → WebSocket relay; http(s):// → HTTP endpoint.
- *  • Unset in development: the local relay on this page's own host, ws://<host>:8787
- *    (the host is what makes `npm run dev:host` work for other devices on the network).
- *  • Unset in production: the site's own Netlify Function at `<origin>/api/live`.
+ *  • Otherwise, in `online` mode from a local computer: the hosted site's function, `<onlineSite>/api/live`.
+ *  • Otherwise (`local` mode, or the page is itself the hosted site): this page's own host. In
+ *    development that is the relay on ws://<host>:8787; in production, `<origin>/api/live`
+ *    (the Netlify Function, or `npm run serve`).
  * Returns null when the configured address is unusable.
  */
-export function liveBackend(raw: string | undefined | null, env: { dev: boolean; origin?: string; protocol?: string; hostname?: string }): LiveBackend | null {
+export function liveBackend(raw: string | undefined | null, env: LiveEnv): LiveBackend | null {
   const protocol = env.protocol ?? 'https:';
   if (raw?.trim()) {
     const ws = relayUrl(raw, protocol);
@@ -101,8 +134,19 @@ export function liveBackend(raw: string | undefined | null, env: { dev: boolean;
       return null;
     }
   }
+  const mode = env.mode ?? 'online';
+  if (mode === 'online' && env.onlineSite && isLocalHost(env.hostname)) return { kind: 'http', url: `${env.onlineSite.replace(/\/$/, '')}/api/live` };
   if (env.dev) return { kind: 'ws', url: `ws://${env.hostname && /^[\w.-]+$/.test(env.hostname) ? env.hostname : 'localhost'}:8787` };
   return env.origin ? { kind: 'http', url: `${env.origin.replace(/\/$/, '')}/api/live` } : null;
+}
+
+/** "192.168.1.20", "8787", "k7q-x2m" → the address a joiner opens, or null when something is off. */
+export function localJoinUrl(host: string, port: string, code: string): string | null {
+  const h = host.trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/:\d+$/, '');
+  const p = Number(port.trim() || 80);
+  const c = normalizeSessionCode(code);
+  if (!/^[A-Za-z0-9.-]+$/.test(h) || !c || !Number.isInteger(p) || p < 1 || p > 65535) return null;
+  return `http://${h}${p === 80 ? '' : `:${p}`}/join/${c}?via=local`;
 }
 
 /** The WebSocket address for one connection to a session. */

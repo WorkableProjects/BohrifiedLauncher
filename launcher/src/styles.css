@@ -403,3 +403,9 @@ body[data-immersive] .win[data-mode='maximized'] { border-radius: 0; }
 .split-choices { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-3); margin-bottom: var(--space-3); }
 .split-choice { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); min-width: 120px; padding: var(--space-4); border: 1px solid var(--hairline); border-radius: var(--radius-card); background: var(--card); box-shadow: var(--shadow); font-weight: var(--fw-semibold); transition: transform var(--dur-2) var(--spring), border-color var(--dur-2); }
 .split-choice:hover, .split-choice:focus-visible { border-color: var(--tint); transform: translateY(-2px); outline: none; }
+
+/* Join Whiteboard: "In the same room?" address form */
+.join-inperson { border-top: 1px solid var(--separator, rgba(128, 128, 128, 0.25)); padding-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.join-inperson summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 600; }
+.join-inperson[open] summary { margin-bottom: 4px; }
+.join-inperson .join-label { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }

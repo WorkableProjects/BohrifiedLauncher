@@ -191,11 +191,17 @@ export function startRelay(options = {}) {
   const allowOrigin = (req) => (!cfg.origins.length || cfg.origins.includes(req.headers.origin ?? '') ? (req.headers.origin ?? '*') : null);
 
   const server = createServer(async (req, res) => {
-    if (req.url?.startsWith('/api/live/')) {
+    if (req.url === '/api/info' || req.url?.startsWith('/api/live/')) {
       const origin = allowOrigin(req);
       const cors = origin ? { 'access-control-allow-origin': origin, 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET, POST, OPTIONS', vary: 'origin' } : {};
       if (!origin) return void res.writeHead(403, cors).end();
       if (req.method === 'OPTIONS') return void res.writeHead(204, cors).end();
+      if (req.url === '/api/info') {
+        // Where other devices on this network can reach this computer (for the "same network" share option).
+        const port = cfg.staticDir ? server.address().port : Number(env.APP_PORT ?? 5173);
+        res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store', ...cors });
+        return void res.end(JSON.stringify({ addresses: lanAddresses(), port }));
+      }
       const chunks = [];
       for await (const c of req) chunks.push(c);
       const response = await handleLive(new Request(`http://relay${req.url}`, { method: req.method, body: req.method === 'POST' ? Buffer.concat(chunks) : undefined }), httpStore);

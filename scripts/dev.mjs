@@ -16,7 +16,7 @@ const lan = process.argv.includes('--host');
 const procs = [
   spawn('npm', ['run', 'dev', '-w', 'apps/flow', '--', '--base', '/apps/flow/', '--port', '5174', '--strictPort'], { stdio: 'inherit' }),
   spawn('npm', ['run', 'dev', '-w', 'launcher', ...(lan ? ['--', '--host', '0.0.0.0'] : [])], { stdio: 'inherit' }),
-  spawn(process.execPath, ['scripts/session-relay.mjs'], { stdio: 'inherit' }),
+  spawn(process.execPath, ['scripts/session-relay.mjs'], { stdio: 'inherit', env: { ...process.env, APP_PORT: '5173' } }),
 ];
 if (lan) {
   const ips = lanAddresses();

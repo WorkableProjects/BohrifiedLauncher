@@ -58,7 +58,8 @@ export function PresenterApp() {
     let transport: Transport<SyncMessage>;
     if (joining) {
       if (!code) return report('not-found');
-      const live = liveRelay() && openLiveTransport(code, 'student');
+      const via = params.get('via') === 'local' ? 'local' : 'online';
+      const live = liveRelay(via) && openLiveTransport(code, 'student', undefined, via);
       if (!live) return report('unavailable');
       transport = live;
     } else transport = channelTransport<SyncMessage>(LOCAL_CHANNEL);
