@@ -66,5 +66,12 @@ if (!connected) {
   console.log('1. On this computer, open Flow at that link (not localhost).');
   console.log('2. Student view → Start live session (choose Online).');
   console.log(`3. Share the link Flow shows, e.g. ${url}/join/<CODE>. It works from any network.\n`);
+  // A QR code to scan with a phone or iPad camera: nothing to type. It opens the home screen, which shows the
+  // live-session bubble once you start sharing.
+  try {
+    const qr = (await import('qrcode-terminal')).default;
+    console.log('Or scan this to open it:\n');
+    qr.generate(url, { small: true }, (code) => console.log(code.replace(/^/gm, '  ')));
+  } catch { /* the QR code is a convenience; the link above still works */ }
   console.log('Anyone with the link can open the app, so only share it with the people joining. Press Ctrl+C to close it.');
 }
