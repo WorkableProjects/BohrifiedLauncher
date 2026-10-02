@@ -20,9 +20,10 @@ const make = (store: unknown, code: string, role: 'tutor' | 'student', key?: str
   const got: Msg[] = [];
   const statuses: LinkStatus[] = [];
   tr.onMessage((m) => got.push(m));
-  tr.onStatus((s) => statuses.push(s));
+  const details: string[] = [];
+  tr.onStatus((s, d) => (statuses.push(s), d && details.push(d)));
   open.push(tr);
-  return { tr, got, statuses };
+  return { tr, got, statuses, details };
 };
 
 beforeEach(() => {
@@ -66,9 +67,7 @@ describe('pollTransport', () => {
     const student = make(memoryStore(), 'K7QX2M', 'student');
     await wait(() => student.tr.status === 'refused');
     expect(student.statuses.at(-1)).toBe('refused');
-    let detail = '';
-    student.tr.onStatus((_s, d) => d && (detail = d));
-    expect(detail).toBe(String(CLOSE_NOT_FOUND));
+    expect(student.details).toEqual([String(CLOSE_NOT_FOUND)]);
   });
 
   it('recovers after a failed request and reports reconnecting then open', async () => {

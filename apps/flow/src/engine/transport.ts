@@ -211,6 +211,7 @@ export function pollTransport<M>(opts: PollOptions): Transport<M> {
     flushTimer = 0;
     queue = [];
   };
+  const isRefused = () => status === 'refused';
   const noteHttp = (res: Response) => {
     if (res.status === 404) refuse(CLOSE_NOT_FOUND);
     else if (res.status === 403) refuse(CLOSE_FORBIDDEN);
@@ -239,7 +240,7 @@ export function pollTransport<M>(opts: PollOptions): Transport<M> {
       if (closed) return;
       if (!res.ok) {
         noteHttp(res);
-        if (status !== 'refused') retry(poll);
+        if (!isRefused()) retry(poll);
         return;
       }
       const body = (await res.json()) as { cursor: string; messages: M[]; peers?: { tutors: number; students: number } };
