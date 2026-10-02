@@ -58,6 +58,8 @@ If your hosted site isn't `https://bohrified.netlify.app`, set `VITE_ONLINE_SITE
 
 ### Hosting from your own computer (school screens, other devices)
 
+Step-by-step: [same-room.md](same-room.md).
+
 `localhost` only works on the computer running the app. To let other devices reach it, serve it at the computer's network (IP) address:
 
 - **`npm run serve`**: builds if needed and serves the app, the Join page and live sessions from one port (default 8787, or `PORT=9000 npm run serve`). It prints the addresses, e.g. `http://192.168.1.20:8787/`.
