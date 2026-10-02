@@ -14,7 +14,7 @@ Use this when everyone is in the same room (or on the same Wi-Fi or hotspot) and
    ```
    npm run serve
    ```
-   It builds Bohrified the first time, then prints the addresses, for example:
+   It builds Bohrified the first time and again whenever the code is newer than the last build (`npm run serve -- --build` forces it), then prints the addresses, for example:
    ```
    http://192.168.1.20:8787/
    Students join at http://192.168.1.20:8787/join/<CODE>
