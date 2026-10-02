@@ -151,7 +151,7 @@ export class TransitionRun {
             const mix = <K extends 'x' | 'y' | 'w' | 'h' | 'rot' | 'opacity'>(key: K) => lerp(a[key], b[key], lp);
             const geo = { x: mix('x'), y: mix('y'), w: mix('w'), h: mix('h'), rot: mix('rot'), opacity: mix('opacity') };
             c.save();
-            c.setTransform(this.k, 0, 0, this.k, 0, 0);
+            c.scale(this.k, this.k);
             const same = JSON.stringify(a) === JSON.stringify({ ...b, id: a.id, ...{ x: a.x, y: a.y, w: a.w, h: a.h, rot: a.rot, opacity: a.opacity } });
             const env = this.env;
             paintLoose(c, env, { ...a, ...geo, opacity: geo.opacity * (same ? 1 : 1 - lp) } as El);
@@ -161,8 +161,11 @@ export class TransitionRun {
         },
       };
     }
+    // Draw in the caller's space (the player translates to the letterbox) and stay inside the slide.
     ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.beginPath();
+    ctx.rect(0, 0, w, h);
+    ctx.clip();
     ctx.globalAlpha = 1;
     ctx.fillStyle = g.bg;
     ctx.fillRect(0, 0, w, h);

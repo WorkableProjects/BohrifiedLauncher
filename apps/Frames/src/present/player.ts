@@ -185,7 +185,8 @@ export class Player {
     const tr = reverse ? { ...t, dir: dirMap[t.dir ?? 'left'] } : t;
     const run = new TransitionRun({
       deck: this.opts.deck, assets: this.opts.assets, from, to, transition: tr,
-      w: this.opts.canvas.width, h: this.opts.canvas.height, simple: this.opts.simpleTransitions,
+      // Rasterise at the letterboxed slide size; frame() offsets it into the bars.
+      w: Math.round(this.opts.deck.size.w * this.k), h: Math.round(this.opts.deck.size.h * this.k), simple: this.opts.simpleTransitions,
     });
     this.stopMedia();
     await run.prepare();
