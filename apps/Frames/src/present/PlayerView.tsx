@@ -52,7 +52,9 @@ export const PlayerView = forwardRef<PlayerHandle, Props>(function PlayerView({ 
       const r = c.getBoundingClientRect();
       p.resize(r.width, r.height);
     };
-    const ro = new ResizeObserver(fit);
+    let fr = 0;
+    // Resize on the next frame: changing the canvas inside the observer callback trips "ResizeObserver loop" errors.
+    const ro = new ResizeObserver(() => { cancelAnimationFrame(fr); fr = requestAnimationFrame(fit); });
     ro.observe(c);
     fit();
     p.start(from);
@@ -70,6 +72,7 @@ export const PlayerView = forwardRef<PlayerHandle, Props>(function PlayerView({ 
       off?.();
       ch?.close();
       ro.disconnect();
+      cancelAnimationFrame(fr);
       p.dispose();
       player.current = null;
     };

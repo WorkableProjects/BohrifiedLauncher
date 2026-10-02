@@ -201,10 +201,12 @@ export function Stage() {
   // Size observer
   useEffect(() => {
     const el = host.current!;
-    const ro = new ResizeObserver(() => setSize({ w: el.clientWidth, h: el.clientHeight }));
+    let fr = 0;
+    const measure = () => setSize((s) => (s.w === el.clientWidth && s.h === el.clientHeight ? s : { w: el.clientWidth, h: el.clientHeight }));
+    const ro = new ResizeObserver(() => { cancelAnimationFrame(fr); fr = requestAnimationFrame(measure); });
     ro.observe(el);
-    setSize({ w: el.clientWidth, h: el.clientHeight });
-    return () => ro.disconnect();
+    measure();
+    return () => { ro.disconnect(); cancelAnimationFrame(fr); };
   }, []);
 
   // ── Interaction ──

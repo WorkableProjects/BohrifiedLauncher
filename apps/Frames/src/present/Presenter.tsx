@@ -42,8 +42,6 @@ export function Presenter({ from, onExit }: { from: number; onExit: () => void }
   useEffect(() => {
     wake();
     const tick = window.setInterval(() => setElapsed(performance.now() - t0.current), 500);
-    // Try real fullscreen; if the host disallows it, the overlay still fills the window.
-    void root.current?.requestFullscreen?.().catch(() => {});
     return () => {
       clearInterval(tick);
       clearTimeout(hideTimer.current);
@@ -55,6 +53,7 @@ export function Presenter({ from, onExit }: { from: number; onExit: () => void }
   useEffect(() => {
     const on = () => { if (!document.fullscreenElement && t0.current && performance.now() - t0.current > 600 && fsEntered.current) onExit(); };
     const entered = () => { if (document.fullscreenElement) fsEntered.current = true; };
+    entered();
     document.addEventListener('fullscreenchange', entered);
     document.addEventListener('fullscreenchange', on);
     return () => { document.removeEventListener('fullscreenchange', entered); document.removeEventListener('fullscreenchange', on); };

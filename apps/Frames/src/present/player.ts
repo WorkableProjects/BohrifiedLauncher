@@ -58,6 +58,7 @@ export class Player {
   private autoTimer: number | null = null;
   private playing = new Set<HTMLMediaElement>();
   private disposed = false;
+  private ended = false;
   private frameTimes: number[] = [];
   frames = 0;
 
@@ -138,11 +139,22 @@ export class Player {
       return this.invalidate();
     }
     if (this.index < this.slides.length - 1) return void this.goto(this.index + 1);
+    // Past the last slide: an end card first, then the next click ends the show.
+    if (!this.ended) {
+      this.ended = true;
+      this.emit();
+      return this.invalidate();
+    }
     this.opts.onEnd?.();
   }
 
   /** Go back: undo the last build step, or return to the previous slide. */
   prev() {
+    if (this.ended) {
+      this.ended = false;
+      this.emit();
+      return this.invalidate();
+    }
     if (this.run) return this.finishTransition();
     if (this.blank !== 'none') return this.setBlank('none');
     let last = -1;
@@ -157,6 +169,7 @@ export class Player {
 
   /** Jump to a slide, with its transition (or none when `instant`). */
   async goto(i: number, reverse = false, instant = false): Promise<void> {
+    this.ended = false;
     i = Math.max(0, Math.min(i, this.slides.length - 1));
     if (i === this.index && !this.run) return;
     if (this.run) this.finishTransition();
@@ -275,7 +288,7 @@ export class Player {
 
   /** A click/tap at CSS coordinates in the canvas: follow a link, toggle a video, or advance. */
   click(cssX: number, cssY: number) {
-    if (this.run || this.blank !== 'none') return this.next();
+    if (this.run || this.blank !== 'none' || this.ended) return this.next();
     const x = (cssX * this.dpr - this.ox) / this.k, y = (cssY * this.dpr - this.oy) / this.k;
     const s = this.slides[this.index];
     if (s) {
@@ -303,7 +316,15 @@ export class Player {
     const ctx = this.ctx;
     let again = false;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    if (this.blank !== 'none') {
+    if (this.ended) {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, c.width, c.height);
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.font = `500 ${Math.round(22 * this.dpr)}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText('End of presentation. Click to exit.', c.width / 2, c.height / 2);
+      ctx.textAlign = 'left';
+    } else if (this.blank !== 'none') {
       ctx.fillStyle = this.blank === 'black' ? '#000' : '#fff';
       ctx.fillRect(0, 0, c.width, c.height);
     } else if (this.run) {

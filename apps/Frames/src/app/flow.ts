@@ -20,6 +20,10 @@ export async function saveAndToast() {
 export function startPresenting(here: boolean) {
   const i = here ? Math.max(0, doc.deck.slides.findIndex((s) => s.id === ui.get().slideId)) : 0;
   void saveNow();
+  // Fullscreen must be requested inside the click/keypress that starts the show.
+  try {
+    void document.documentElement.requestFullscreen?.().catch(() => {});
+  } catch { /* not allowed here: the overlay still fills the window */ }
   ui.set({ editing: null, presenting: { from: i }, preview: null, playhead: null });
 }
 
