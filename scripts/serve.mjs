@@ -40,6 +40,8 @@ if (process.argv.includes('--build') || built < newestSource()) {
   execSync('npm run build', { stdio: 'inherit' });
 }
 
+process.on('uncaughtException', (err) => console.error('serve: unexpected error (still running):', err));
+process.on('unhandledRejection', (err) => console.error('serve: unexpected error (still running):', err));
 const relay = await startRelay({ port: Number(process.env.PORT ?? 8787), host: process.env.HOST ?? '0.0.0.0', staticDir: 'dist' });
 const ips = lanAddresses();
 console.log(`\nBohrified is running. Open Flow on this computer at one of:\n`);

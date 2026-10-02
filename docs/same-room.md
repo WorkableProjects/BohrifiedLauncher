@@ -40,6 +40,8 @@ Open the link in the screen's browser, or use the address form on its Join page.
 
 ## Troubleshooting
 
+**Tip:** type the address with `http://` in front (`http://192.168.4.76:8787/`). Safari on iPad may otherwise try `https://` first, which this server doesn't speak, and wait before falling back.
+
 **Start here:** on the joining device, open `http://<address>:<port>/health` (for example `http://192.168.4.76:8787/health`). If it shows `{"ok":true,…}`, the network is fine and the problem is the session (code, or Online vs Same network). If it just spins or times out, the device can't reach the host: see the first two rows.
 
 | Problem | What to try |

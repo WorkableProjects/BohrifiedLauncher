@@ -64,7 +64,12 @@ export function lanAddresses() {
  */
 function serveStatic(root, req, res) {
   if (req.method !== 'GET' && req.method !== 'HEAD') return false;
-  const path = decodeURIComponent((req.url ?? '/').split('?')[0]);
+  let path;
+  try {
+    path = decodeURIComponent((req.url ?? '/').split('?')[0]);
+  } catch {
+    return false; // a malformed URL is just "not found", never a crash
+  }
   let file = normalize(join(root, path));
   if (file !== root && !file.startsWith(root + sep)) return false;
   const isFile = (f) => { try { return statSync(f).isFile(); } catch { return false; } };
@@ -76,7 +81,7 @@ function serveStatic(root, req, res) {
   const hashed = /\/assets\//.test(path);
   res.writeHead(200, { 'content-type': MIME[extname(file)] ?? 'application/octet-stream', 'cache-control': hashed ? 'public, max-age=31536000, immutable' : 'no-cache', 'x-content-type-options': 'nosniff' });
   if (req.method === 'HEAD') res.end();
-  else createReadStream(file).pipe(res);
+  else createReadStream(file).on('error', () => res.destroy()).pipe(res);
   return true;
 }
 
@@ -190,7 +195,7 @@ export function startRelay(options = {}) {
   const httpStore = memoryStore();
   const allowOrigin = (req) => (!cfg.origins.length || cfg.origins.includes(req.headers.origin ?? '') ? (req.headers.origin ?? '*') : null);
 
-  const server = createServer(async (req, res) => {
+  const handle = async (req, res) => {
     if (req.url === '/api/info' || req.url === '/api/sessions' || req.url?.startsWith('/api/live/')) {
       const origin = allowOrigin(req);
       const cors = origin ? { 'access-control-allow-origin': origin, 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET, POST, OPTIONS', vary: 'origin' } : {};
@@ -223,7 +228,16 @@ export function startRelay(options = {}) {
     }
     res.writeHead(426, { 'content-type': 'text/plain' });
     res.end('Bohrified live-session relay: connect with a WebSocket.\n');
+  };
+  // One bad request must never take the relay down: answer 500 and carry on.
+  const server = createServer((req, res) => {
+    handle(req, res).catch(() => {
+      if (!res.headersSent) res.writeHead(500, { 'content-type': 'text/plain' });
+      res.end('Internal error\n');
+    });
   });
+  // Garbage on the port (e.g. a browser trying HTTPS first) gets a 400 and is dropped.
+  server.on('clientError', (_err, socket) => socket.writable && socket.end('HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n'));
 
   const reject = (socket, status, text) => {
     socket.write(`HTTP/1.1 ${status} ${text}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);
@@ -231,7 +245,12 @@ export function startRelay(options = {}) {
   };
 
   server.on('upgrade', (req, socket) => {
-    const url = new URL(req.url ?? '/', 'http://relay');
+    let url;
+    try {
+      url = new URL(req.url ?? '/', 'http://relay');
+    } catch {
+      return reject(socket, 400, 'Bad Request');
+    }
     const m = /^\/session\/([A-Z0-9]+)$/.exec(url.pathname);
     const key = req.headers['sec-websocket-key'];
     if (!m || !key || req.headers.upgrade?.toLowerCase() !== 'websocket') return reject(socket, 400, 'Bad Request');
@@ -360,6 +379,8 @@ export function startRelay(options = {}) {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  process.on('uncaughtException', (err) => console.error('relay: unexpected error (still running):', err));
+  process.on('unhandledRejection', (err) => console.error('relay: unexpected error (still running):', err));
   const relay = await startRelay();
   console.log(`Bohrified live-session relay listening on :${relay.port}`);
   for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => relay.close().then(() => process.exit(0)));
