@@ -505,3 +505,13 @@ export function paintSlide(ctx: CanvasRenderingContext2D, env: RenderEnv, slide:
   if (camera) ctx.restore();
   ctx.restore();
 }
+
+/** Paint one element on its own (Magic Move draws matched objects this way). */
+export function paintLoose(ctx: CanvasRenderingContext2D, env: RenderEnv, el: El, pose: Pose | null = null) {
+  paintElement(ctx, el, pose, { env, prompts: new Map() });
+}
+
+/** Paint only the background of a slide. */
+export function paintSlideBackground(ctx: CanvasRenderingContext2D, env: RenderEnv, slide: Slide) {
+  paintBackground(ctx, { env, prompts: new Map() }, backgroundOf(env.deck, slide), env.deck.size.w, env.deck.size.h);
+}

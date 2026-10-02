@@ -1,3 +1,4 @@
+import { clone } from './clone';
 import { cloneEl, cloneSlide, slideFromLayout } from './defaults';
 import { bounds, unionRects, type Rect } from './geometry';
 import { uid } from './ids';
@@ -116,7 +117,7 @@ export function addSlideFromLayout(d: Deck, layoutId: ID | undefined, afterId?: 
 export function duplicateSlides(d: Deck, ids: ID[]): Slide[] {
   const picks = d.slides.filter((s) => ids.includes(s.id));
   if (!picks.length) return [];
-  const copies = picks.map((s) => cloneSlide(structuredClone(s)));
+  const copies = picks.map((s) => cloneSlide(clone(s)));
   const last = Math.max(...picks.map((s) => slideIndex(d, s.id)));
   d.slides.splice(last + 1, 0, ...copies);
   return copies;
@@ -239,7 +240,7 @@ export function groupElements(d: Deck, slideId: ID, ids: ID[]): GroupEl | null {
   if (members.length < 2) return null;
   const r = unionRects(members.map((e) => bounds(e)))!;
   const first = box.findIndex((e) => e.id === members[0]!.id);
-  const children = members.map((e) => ({ ...structuredClone(e), x: e.x - r.x, y: e.y - r.y }) as El);
+  const children = members.map((e) => ({ ...clone(e), x: e.x - r.x, y: e.y - r.y }) as El);
   const group: GroupEl = { id: uid('e'), type: 'group', x: r.x, y: r.y, w: r.w, h: r.h, rot: 0, opacity: 1, children, name: 'Group' };
   const set = new Set(members.map((m) => m.id));
   const rest = box.filter((e) => !set.has(e.id));
@@ -259,7 +260,7 @@ export function ungroupElements(d: Deck, slideId: ID, ids: ID[]): ID[] {
     const i = box.indexOf(g);
     const cx = g.x + g.w / 2, cy = g.y + g.h / 2;
     const released = g.children.map((c) => {
-      const kid = structuredClone(c) as El;
+      const kid = clone(c) as El;
       // Bake the group's rotation into the children's centres.
       const ccx = g.x + c.x + c.w / 2, ccy = g.y + c.y + c.h / 2;
       if (g.rot) {
@@ -406,7 +407,7 @@ export function applyLayout(d: Deck, slideId: ID, layoutId: ID) {
       match.y = spec.y;
       match.w = spec.w;
       match.h = spec.h;
-      if (match.type === 'text' && spec.type === 'text') match.base = structuredClone(spec.base);
+      if (match.type === 'text' && spec.type === 'text') match.base = clone(spec.base);
     } else {
       const c = cloneEl(spec);
       if (c.type === 'text') c.doc = [{ runs: [{ t: '' }] }];

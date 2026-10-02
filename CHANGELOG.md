@@ -1,5 +1,17 @@
 # Changelog
 
+## Frames 1.0.0 (October 2026)
+
+New Bohrified-exclusive presentation app (`apps/Frames`, opens at `/app/frames`).
+- **Editor:** toolbar (undo/redo, add slide by layout, text, image, shape, line, media, table, chart, arrange, animate, present, export), slide strip with drag-to-reorder, sections, notes/animation badges and lazy thumbnails, canvas with zoom, rulers, guides, grid, margins/safe area, smart guides, snapping and equal-spacing, multi-select, groups, crop, and a context-sensitive inspector (Design, Arrange with layers, Animate, Slide).
+- **Elements:** rich text (mixed fonts, weights, sizes, colour, highlight, letter spacing, line height, lists, super/subscript, links), 26 shapes, lines and arrows, icons, images and SVG (masks, rounded corners, filters, recolour, replace-in-place), video, audio, tables, charts, picture frames.
+- **Design system:** theme colours, fonts and type scale as tokens; layouts and master; reusable text/shape styles and copy/paste style; visual styles, brand kits, components and templates saved across presentations.
+- **Animation engine:** keyframe tracks for position, scale, rotation, 3D tilt, opacity, blur, colour, size, crop, reveal and draw-on; motion paths; camera moves; custom bezier, presets and spring physics; per-letter/word/line staggering; click/with/after sequencing; ~50 presets. **Timeline** for scrubbing, keyframes, easing, timing and animation groups.
+- **Transitions:** 29, including Morph and Magic Move, cube, flip, door, perspective, depth, blur, camera pan/zoom, wipes, shape reveals, mosaic, and the broadcast set: Replay → Live, Broadcast cut, Scoreboard, Camera rush and Signal.
+- **Present:** fullscreen with a control bar, notes, timer, black/white screen, overview, jump-to-slide, clicker/touch controls, and a two-window presenter view.
+- **Import/export:** import .frames, PowerPoint, PDF and images; export PDF, PNG/JPG, video, a self-contained animated web page, and .frames projects.
+- **Bohrified:** follows and sets the shared appearance; every Frames preference appears in Bohrified's settings sheet and stays in sync both ways; suspending releases its canvases and decoded media.
+
 ## Flow 1.3.0 (October 2026)
 
 ### Flow

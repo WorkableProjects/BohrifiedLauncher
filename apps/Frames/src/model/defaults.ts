@@ -1,3 +1,4 @@
+import { clone } from './clone';
 import { uid } from './ids';
 import { THEME_FRAMES } from './theme';
 import type {
@@ -145,7 +146,7 @@ export function newSlide(over: Partial<Slide> = {}): Slide {
 
 /** Clone elements with fresh ids (animations must be remapped by the caller via the returned map). */
 export function cloneEl<T extends El>(el: T, ids?: Map<string, string>): T {
-  const copy = structuredClone(el) as T;
+  const copy = clone(el) as T;
   const walk = (e: El) => {
     const old = e.id;
     e.id = uid('e');
@@ -158,7 +159,7 @@ export function cloneEl<T extends El>(el: T, ids?: Map<string, string>): T {
 
 export function cloneSlide(slide: Slide): Slide {
   const ids = new Map<string, string>();
-  const copy = structuredClone(slide);
+  const copy = clone(slide);
   copy.id = uid('s');
   const walk = (e: El) => {
     const old = e.id;
@@ -220,7 +221,7 @@ export function builtinLayouts(theme: DesignSystem, size = { w: 1920, h: 1080 })
 }
 
 export function newDeck(title = 'Untitled presentation', opts: { theme?: DesignSystem; size?: { w: number; h: number } } = {}): Deck {
-  const theme = opts.theme ?? structuredClone(THEME_FRAMES);
+  const theme = opts.theme ?? clone(THEME_FRAMES);
   const size = opts.size ?? SLIDE_SIZES['16:9'];
   const layouts = builtinLayouts(theme, size);
   const now = Date.now();

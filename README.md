@@ -7,6 +7,7 @@ One launcher for peer tutoring apps.
 - **Bohrified** (launcher, "Bf") — 1.2.0
 - **Flow** (whiteboard "Fl") — 1.3.0
 - **Rubricable** (GC Rubric Maker, "Rb") — 1.2.0
+- **Frames** (presentations, "Fr") — 1.0.0
 - **App SDK / shared packages** — 1.2.0
 
 ## Using Bohrified 1.2
@@ -52,5 +53,8 @@ npm run test:launcher:e2e  # Launcher + window-manager browser test (needs a bui
 npm run test            # All unit tests (Flow, launcher, packages, Rubricable, relay)
 npm run relay           # Live-session relay for Join Whiteboard (also started by npm run dev)
 npm run dev:flow        # Run Flow independently
+npm run dev:frames      # Run Frames independently
+npm run test:frames     # Frames unit tests
+npm run test:frames:e2e # Frames through the launcher (needs a build)
 npm run test:flow       # Test Flow
 ```
