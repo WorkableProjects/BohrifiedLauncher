@@ -46,6 +46,7 @@ Open the link in the screen's browser, or use the address form on its Join page.
 
 | Problem | What to try |
 |---|---|
+| `/health` spins forever, and the devices are on **different** networks (e.g. the Mac on a phone hotspot, the iPad on home Wi-Fi) | Same network mode can't cross networks: the host's address only exists on its own network. Put both devices on the same Wi-Fi or hotspot, or use **Online** mode instead. |
 | `/health` spins forever on the other device | The network is blocking it. On a Mac, open System Settings → Network → Firewall: turn it off for the session, or allow incoming connections for Node. Some hotspots (many Android phones, some carriers) isolate devices from each other: turn that off in the hotspot settings, or use a different network or your iPhone's hotspot. Also confirm the address is the Mac's current one (`npm run serve` prints it; VPNs add extra addresses, use the one on the hotspot's range). |
 | The page won't load on another device | Check both are on the same network, the address and port match what `npm run serve` printed, and the host's firewall allows Node (allow it when your OS asks, or add it in the firewall settings). |
 | Flow shows "Couldn't find this computer's network address" | Open Flow at the IP address instead of `localhost`; make sure the host is on Wi-Fi or Ethernet. |
