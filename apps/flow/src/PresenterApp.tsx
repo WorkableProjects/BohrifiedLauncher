@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { normalizeSessionCode, type JoinMessage, type JoinState } from '@bohrified/app-sdk';
+import { isLocalHost, normalizeSessionCode, type JoinMessage, type JoinState } from '@bohrified/app-sdk';
 import { BoardCanvas } from './canvas/BoardCanvas';
 import { getController } from './canvas/instance';
 import { followCamera, LOCAL_CHANNEL, ViewerSync, type SyncMessage } from './engine/sync';
@@ -58,7 +58,9 @@ export function PresenterApp() {
     let transport: Transport<SyncMessage>;
     if (joining) {
       if (!code) return report('not-found');
-      const via = params.get('via') === 'local' ? 'local' : 'online';
+      // A page served from a computer on this network (an address like 192.168.x.x) means the tutor shares from that
+      // computer, even if the link was typed without ?via=local. Links to the hosted site are always online.
+      const via = params.get('via') === 'online' ? 'online' : params.get('via') === 'local' || isLocalHost(location.hostname) ? 'local' : 'online';
       const live = liveRelay(via) && openLiveTransport(code, 'student', undefined, via);
       if (!live) return report('unavailable');
       transport = live;

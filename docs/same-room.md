@@ -27,7 +27,7 @@ Use this when everyone is in the same room (or on the same Wi-Fi or hotspot) and
 
 ## Join
 
-On any device on the same network, either:
+On any device on the same network, the easiest way is to **open just the host's address** (`http://192.168.1.20:8787/`). The Bohrified home screen shows a green **“A live whiteboard is being shared here”** bubble while a session is running; tap it to join, no code needed. (The bubble only appears on the host's own copy, never on the hosted site.) Or either:
 
 - **Open the link** Flow shows, such as `http://192.168.1.20:8787/join/K7QX2M?via=local`; or
 - Go to the Join Whiteboard page, open **In the same room? Join with an address**, enter the **Address**, **Port** and **Code**, and press **Join this address**. The Join page can be the Bohrified site or the host's own copy: the form opens the host's computer directly.
@@ -40,8 +40,11 @@ Open the link in the screen's browser, or use the address form on its Join page.
 
 ## Troubleshooting
 
+**Start here:** on the joining device, open `http://<address>:<port>/health` (for example `http://192.168.4.76:8787/health`). If it shows `{"ok":true,…}`, the network is fine and the problem is the session (code, or Online vs Same network). If it just spins or times out, the device can't reach the host: see the first two rows.
+
 | Problem | What to try |
 |---|---|
+| `/health` spins forever on the other device | The network is blocking it. On a Mac, open System Settings → Network → Firewall: turn it off for the session, or allow incoming connections for Node. Some hotspots (many Android phones, some carriers) isolate devices from each other: turn that off in the hotspot settings, or use a different network or your iPhone's hotspot. Also confirm the address is the Mac's current one (`npm run serve` prints it; VPNs add extra addresses, use the one on the hotspot's range). |
 | The page won't load on another device | Check both are on the same network, the address and port match what `npm run serve` printed, and the host's firewall allows Node (allow it when your OS asks, or add it in the firewall settings). |
 | Flow shows "Couldn't find this computer's network address" | Open Flow at the IP address instead of `localhost`; make sure the host is on Wi-Fi or Ethernet. |
 | The link opens but says "Session not found" | The code is wrong or the session ended. Start a new one and use the new code. |

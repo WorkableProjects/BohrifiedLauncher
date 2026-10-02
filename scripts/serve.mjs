@@ -46,5 +46,6 @@ console.log(`\nBohrified is running. Open Flow on this computer at one of:\n`);
 for (const ip of ips) console.log(`  http://${ip}:${relay.port}/`);
 if (!ips.length) console.log('  (no network address found: connect to Wi-Fi or Ethernet)');
 console.log(`\nStudents join at  http://${ips[0] ?? '<this computer\'s IP>'}:${relay.port}/join/<CODE>\n`);
+console.log(`First test from the other device: open http://${ips[0] ?? '<IP>'}:${relay.port}/health. It should show {"ok":true,...}. If that doesn't load, it's the network or firewall, not Bohrified.\n`);
 console.log('If other devices cannot connect, allow Node through this computer\'s firewall, and make sure both are on the same network.');
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => relay.close().then(() => process.exit(0)));

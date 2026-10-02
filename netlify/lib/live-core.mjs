@@ -183,3 +183,25 @@ async function sweep(store, room, t) {
 async function dropRoom(store, room) {
   for (const k of await store.list(`${room}/`)) await store.delete(k);
 }
+
+/**
+ * Sessions on this host that a tutor is currently running: [{ code, students }].
+ * Used by the local relay so someone who opens its home page sees a "join" bubble
+ * without typing a code. Deliberately not exposed by the hosted function.
+ */
+export async function listSessions(store, now = Date.now) {
+  const t = now();
+  const live = async (prefix) => {
+    let n = 0;
+    for (const k of await store.list(prefix)) if (t - Number(await store.get(k)) <= LIMITS.presenceTtlMs) n++;
+    return n;
+  };
+  const out = [];
+  for (const k of await store.list('r/')) {
+    const m = /^r\/([A-Z0-9]{6})\/meta$/.exec(k);
+    if (!m) continue;
+    if (!(await live(`r/${m[1]}/p/tutor/`))) continue;
+    out.push({ code: m[1], students: await live(`r/${m[1]}/p/student/`) });
+  }
+  return out;
+}

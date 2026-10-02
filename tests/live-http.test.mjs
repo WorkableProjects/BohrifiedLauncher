@@ -3,7 +3,7 @@
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { handleLive, memoryStore, LIMITS } from '../netlify/lib/live-core.mjs';
+import { handleLive, listSessions, memoryStore, LIMITS } from '../netlify/lib/live-core.mjs';
 
 const KEY = 'tutorkey123';
 function setup() {
@@ -108,5 +108,18 @@ describe('live sessions over HTTP', () => {
     assert.equal(big.status, 413);
     const res = await handleLive(new Request('https://x.test/api/live/K7QX2M', { method: 'DELETE' }), s.store);
     assert.equal(res.status, 405);
+  });
+
+  it('lists sessions a tutor is running, with student counts, and drops idle ones', async () => {
+    const s = setup();
+    await s.poll('K7QX2M', 'tutor', 'tutor001', null, KEY);
+    await s.poll('K7QX2M', 'student', 'stud0001');
+    await s.poll('ABCDEF', 'tutor', 'tutor002', null, 'anotherkey1');
+    const now = () => 1_700_000_000_000;
+    assert.deepEqual((await listSessions(s.store, now)).sort((a, b) => a.code.localeCompare(b.code)), [{ code: 'ABCDEF', students: 0 }, { code: 'K7QX2M', students: 1 }]);
+    s.clock.tick(LIMITS.presenceTtlMs + 1000);
+    await s.poll('K7QX2M', 'tutor', 'tutor001', null, KEY);
+    // Only the tutor who kept polling is still running a session, and its idle student is gone.
+    assert.deepEqual(await listSessions(s.store, () => 1_700_000_000_000 + LIMITS.presenceTtlMs + 1000), [{ code: 'K7QX2M', students: 0 }]);
   });
 });

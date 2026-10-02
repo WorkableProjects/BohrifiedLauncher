@@ -8,6 +8,7 @@ import { LifecycleManager, type AppRecord } from './lifecycle';
 import { createQuickLauncher, type QuickItem } from './quick';
 import { registry } from './registry';
 import { createJoinPage, joinConfigured } from './join';
+import { watchNearby } from './nearby';
 import { currentRoute, navigate, navigateJoin } from './router';
 import { WindowManager, type SnapZone } from './windows';
 
@@ -716,6 +717,32 @@ function route() {
   }
   void manager.open(id);
 }
+
+// "A live whiteboard is being shared here": shown when this page is served by the tutor's computer.
+const nearby = $('#nearby');
+watchNearby((sessions) => {
+  nearby.hidden = !sessions.length;
+  nearby.replaceChildren(
+    ...sessions.map((s) =>
+      el(
+        'a',
+        {
+          className: 'nearby-session',
+          href: `${base}join/${s.code}`,
+          title: `Join session ${s.code}`,
+          onclick: (e: Event) => {
+            if ((e as MouseEvent).metaKey || (e as MouseEvent).ctrlKey || (e as MouseEvent).shiftKey || (e as MouseEvent).button !== 0) return;
+            e.preventDefault();
+            navigateJoin(s.code);
+          },
+        },
+        el('span', { className: 'nearby-dot', ariaHidden: 'true' }),
+        el('span', { className: 'nearby-text' }, el('b', { textContent: 'A live whiteboard is being shared here' }), el('span', { textContent: `Tap to join · session ${s.code.slice(0, 3)} ${s.code.slice(3)}` })),
+        el('span', { className: 'nearby-go', textContent: 'Join' }),
+      ),
+    ),
+  );
+});
 
 $('#join-link').addEventListener('click', (e) => {
   if (e.metaKey || e.ctrlKey || e.shiftKey || (e as MouseEvent).button !== 0) return;

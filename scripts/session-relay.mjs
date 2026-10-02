@@ -41,7 +41,7 @@ import { createReadStream, statSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { handleLive, memoryStore } from '../netlify/lib/live-core.mjs';
+import { handleLive, listSessions, memoryStore } from '../netlify/lib/live-core.mjs';
 
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 const CODE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/;
@@ -191,7 +191,7 @@ export function startRelay(options = {}) {
   const allowOrigin = (req) => (!cfg.origins.length || cfg.origins.includes(req.headers.origin ?? '') ? (req.headers.origin ?? '*') : null);
 
   const server = createServer(async (req, res) => {
-    if (req.url === '/api/info' || req.url?.startsWith('/api/live/')) {
+    if (req.url === '/api/info' || req.url === '/api/sessions' || req.url?.startsWith('/api/live/')) {
       const origin = allowOrigin(req);
       const cors = origin ? { 'access-control-allow-origin': origin, 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET, POST, OPTIONS', vary: 'origin' } : {};
       if (!origin) return void res.writeHead(403, cors).end();
@@ -201,6 +201,13 @@ export function startRelay(options = {}) {
         const port = cfg.staticDir ? server.address().port : Number(env.APP_PORT ?? 5173);
         res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store', ...cors });
         return void res.end(JSON.stringify({ addresses: lanAddresses(), port }));
+      }
+      if (req.url === '/api/sessions') {
+        // Sessions a tutor is running here (WebSocket rooms and HTTP rooms), for the home-page "join" bubble.
+        const found = new Map((await listSessions(httpStore)).map((s) => [s.code, s]));
+        for (const [code, room] of rooms) if (room.tutors.size && !found.has(code)) found.set(code, { code, students: room.students.size });
+        res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store', ...cors });
+        return void res.end(JSON.stringify({ sessions: [...found.values()] }));
       }
       const chunks = [];
       for await (const c of req) chunks.push(c);

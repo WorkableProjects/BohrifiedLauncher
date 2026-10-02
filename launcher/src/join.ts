@@ -36,8 +36,10 @@ export function createJoinPage(root: HTMLElement, opts: { base: string; configur
   let session: { code: string; state: JoinState; title?: string; tutor?: string } | null = null;
   // A link from a tutor sharing over the local network carries ?via=local; keep it for the whole visit.
   let via = '';
+  let slow: ReturnType<typeof setTimeout> | undefined;
 
   function stop() {
+    clearTimeout(slow);
     if (onMessage) removeEventListener('message', onMessage);
     onMessage = null;
     // Navigate away first so the viewer's socket closes before the frame is detached.
@@ -150,6 +152,12 @@ export function createJoinPage(root: HTMLElement, opts: { base: string; configur
       pill.textContent = s.label;
       pill.dataset.tone = s.tone;
       help.textContent = s.help;
+      clearTimeout(slow);
+      if (session.state === 'connecting') {
+        slow = setTimeout(() => {
+          if (session?.state === 'connecting') help.textContent = 'Still connecting. Check the code, that you and the tutor are on the same network if you joined by address, and that the tutor chose “Same network” in Student view (or “Online” for the Bohrified site).';
+        }, 12000);
+      }
       identity.textContent = [`Session ${spaced(session.code)}`, session.tutor && `Tutor ${session.tutor}`, session.title].filter(Boolean).join(' · ');
       // Rejoin is for sessions that are over or stuck, not for ones working fine.
       rejoin.hidden = !(['ended', 'error', 'not-found', 'reconnecting', 'unavailable'] as JoinState[]).includes(session.state);
