@@ -26,7 +26,7 @@ export const registry: readonly AppManifest[] = [
   {
     id: 'rubricable',
     name: 'Rubricable',
-    version: '1.2.0',
+    version: '1.2.1',
     keywords: ['rubric', 'grading', 'google classroom', 'feedback', 'points'],
     description: 'Build graded rubrics with fair point splits and copy them into Google Classroom.',
     icon: 'icons/rubricable.svg',

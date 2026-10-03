@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rubricable 1.2.0</title>
+<title>Rubricable 1.2.1</title>
 <script>(function(){try{var t=localStorage.getItem("rbl-theme")||"system";document.documentElement.dataset.theme=t==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):t}catch(e){}})()</script>
 <style>
   :root { color-scheme:light; --bg:#f8fafc; --card:#fff; --line:#e2e8f0; --text:#0f172a; --mute:#64748b; --acc:#4f46e5; --accbg:#eef2ff; --accbd:#c7d2fe; --acctx:#3730a3;
@@ -92,6 +92,7 @@
   <h1><span class="logo">R</span>Rubricable <span class="ver" id="ver"></span></h1>
   <span id="status" class="small" role="status" aria-live="polite"></span>
   <label class="small">Type <select id="atype" title="Assignment type sets the total points"><option value="assignment">Practice Assignment (custom)</option><option value="quiz">Quiz (30 pts)</option><option value="test">Unit Test (75 pts)</option><option value="custom">Ignore — custom points</option></select></label>
+  <label class="small">Decimals <select id="decimals" title="Which decimals point values may use" style="max-width:190px"><option value="full">Full Decimals (.01–.99)</option><option value="short">Shorthand Decimals (.1–.9)</option><option value="logical">Logical Decimals (.25 .33 .5 .66 .75)</option><option value="logical-short">Shorthand Logical (.25 .5 .75)</option><option value="halves">Halves Only (.5)</option><option value="none">No Decimals</option></select></label>
   <label class="small">Total Points <input id="total" type="number" min="0" step="any" value="30" aria-describedby="totalmsg"></label>
   <div id="totalmsg" role="status" aria-live="polite"></div>
   <button class="gear" id="gear" title="Settings" aria-label="Settings">⚙</button>
@@ -113,7 +114,7 @@
     <div id="criteria"></div>
   </section>
   <section id="values" hidden>
-    <p class="small">Leave a criterion's Total points blank to split the remaining points evenly. Criteria sit at rows 5, 10, 15… Row 6 keeps the exact level weights. Points keep up to 2 decimals (0.5, 2.25…), adjusted so no two levels tie; the exact value is shown in gray.</p>
+    <p class="small">Leave a criterion's Total points blank to split the remaining points evenly. Criteria sit at rows 5, 10, 15… Row 6 keeps the exact level weights. Points follow the <b>Decimals</b> setting (Full: 2.25, Shorthand: 2.3, Logical: 2.25 / 2.33 / 2.66, Halves: 2.5, None: 2), adjusted so no two levels tie; the exact value is shown in gray.</p>
     <div class="wrap"><table id="vt"></table></div>
   </section>
 </main>
@@ -133,6 +134,8 @@
     <div class="seg" id="themeseg"><button data-theme-set="system">System</button><button data-theme-set="light">Light</button><button data-theme-set="dark">Dark</button></div></div>
   <div class="srow"><div><b>Ask assignment type on open</b><div class="small">Show the Assignment / Quiz / Unit Test prompt at startup</div></div>
     <input type="checkbox" id="askstart" checked></div>
+  <div class="srow"><div><b>Decimals</b><div class="small">Which decimals point values may use. Totals, splits and level points are rounded to match.</div></div>
+    <select id="decimals2" aria-label="Decimals"><option value="full">Full Decimals (.01–.99)</option><option value="short">Shorthand Decimals (.1–.9)</option><option value="logical">Logical Decimals (.25 .33 .5 .66 .75)</option><option value="logical-short">Shorthand Logical (.25 .5 .75)</option><option value="halves">Halves Only (.5)</option><option value="none">No Decimals</option></select></div>
   <div class="srow"><div><b>Rubricable</b><div class="small" id="about"></div></div></div>
   <div class="row" style="display:flex;margin-top:8px"><button class="primary" id="sclose" style="margin-left:auto">Done</button></div>
 </div></div>
@@ -167,7 +170,7 @@ const DEFAULT_LEVELS = [
    desc:'Most answers wrong\n\nActions: Study and get tutoring -- either from us or from Mrs. Ponce -- you are currently failing and will not perform well on the test if you do not fix it'},
   {name:'Unacceptable', grade:'F', range:'0%', pct:0, color:'#b91c1c',
    desc:'Unacceptable mistakes, left empty or none are correctly identified\n\nActions: Read questions more carefully, you automatically get a 0 if 20%+ answers in the section are left blank\n\nAND/OR\n\nStudy and get tutoring -- either from us or from Mrs. Ponce -- you are currently failing and will not perform well on the test if you do not fix it'}];
-const VERSION = '1.2.0';
+const VERSION = '1.2.1';
 const TYPES = {quiz:30, test:75};
 const ATYPES = ['assignment', 'quiz', 'test', 'custom'];
 const MAX_POINTS = 100000;      // upper clamp for any point value
@@ -184,19 +187,51 @@ function roundPts(x) {
 // Display / export text: at most 2 decimals, no trailing zeros, no float artifacts.
 function fmt(x) { return String(roundPts(x)); }
 
+// ---- decimal modes (1.2.1): which fractional parts a point value may have ----
+// `fr` lists the allowed parts in hundredths; points are snapped to that grid everywhere.
+const DECIMAL_MODES = {
+  full:            {label:'Full Decimals',              hint:'.01 to .99',              unit:'2 decimals',        fr:Array.from({length:100}, (_, i) => i)},
+  short:           {label:'Shorthand Decimals',         hint:'.1 to .9',                unit:'1 decimal',         fr:[0, 10, 20, 30, 40, 50, 60, 70, 80, 90]},
+  logical:         {label:'Logical Decimals',           hint:'.25, .33, .5, .66, .75',  unit:'a logical decimal', fr:[0, 25, 33, 50, 66, 75]},
+  'logical-short': {label:'Shorthand Logical Decimals', hint:'.25, .5, .75',            unit:'a quarter',         fr:[0, 25, 50, 75]},
+  halves:          {label:'Halves Only',                hint:'.5',                      unit:'the nearest half',  fr:[0, 50]},
+  none:            {label:'No Decimals',                hint:'whole points',            unit:'whole points',      fr:[0]},
+};
+const DECIMAL_KEY = 'rbl-decimals';
+const decimalMode = (m) => Object.prototype.hasOwnProperty.call(DECIMAL_MODES, m) ? m : 'full';
+const frOf = (mode) => DECIMAL_MODES[decimalMode(mode)].fr;
+const toUnits = (x) => Math.round(roundPts(x) * 100);
+// Grid points (in hundredths) around u: every allowed part of floor(u) and the next whole number.
+function gridAround(u, mode) {
+  const base = Math.floor(u / 100) * 100;
+  return [...frOf(mode).map(f => base + f), base + 100];
+}
+// Nearest allowed value (ties go up, like ordinary rounding).
+function snapUnits(u, mode) {
+  let best = 0, d = Infinity;
+  for (const g of gridAround(u, mode)) { const e = Math.abs(g - u); if (e < d || (e === d && g > best)) { best = g; d = e; } }
+  return Math.max(0, best);
+}
+// Largest allowed value <= u / < u.
+function floorUnits(u, mode) { let b = 0; for (const g of [...gridAround(u - 100, mode), ...gridAround(u, mode)]) if (g <= u && g > b) b = g; return b; }
+function belowUnits(u, mode) { return u <= 0 ? 0 : floorUnits(u - 1, mode); }
+function aboveUnits(u, mode) { for (const g of [...gridAround(u, mode), ...gridAround(u + 100, mode)]) if (g > u) return g; return u + 100; }
+const snapPts = (x, mode) => snapUnits(toUnits(x), mode) / 100;
+const smallestStep = (mode) => aboveUnits(0, mode) / 100;
+
 // Parse a user-entered points value. blank => auto. value is null when unusable.
-function parsePoints(raw) {
+function parsePoints(raw, mode = 'full') {
   const s = String(raw ?? '').trim();
   if (s === '') return {blank:true, value:null, issue:''};
   const n = Number(s);
   if (!Number.isFinite(n)) return {blank:false, value:null, issue:'Not a number, using auto.'};
   if (n < 0) return {blank:false, value:null, issue:'Points cannot be negative, using auto.'};
   if (n > MAX_POINTS) return {blank:false, value:MAX_POINTS, issue:'Capped at ' + MAX_POINTS + '.'};
-  const r = roundPts(n);
-  return {blank:false, value:r, issue: Math.abs(r - n) > 1e-9 ? 'Rounded to 2 decimals (' + r + ').' : ''};
+  const r = snapPts(n, mode);
+  return {blank:false, value:r, issue: Math.abs(r - n) > 1e-9 ? 'Rounded to ' + DECIMAL_MODES[decimalMode(mode)].unit + ' (' + r + ').' : ''};
 }
-function parseTotal(raw) {
-  const p = parsePoints(raw);
+function parseTotal(raw, mode = 'full') {
+  const p = parsePoints(raw, mode);
   if (p.blank) return {value:0, issue:'Enter the total points.'};
   if (p.value === null) return {value:0, issue: /negative/.test(p.issue) ? 'Total points cannot be negative.' : 'Total points must be a number.'};
   return {value:p.value, issue:p.issue};
@@ -215,37 +250,69 @@ function levelIssues(levels) {
 const typeTotal = (type, current) => TYPES[type] ?? current;
 const typeForTotal = (type, total) => (TYPES[type] !== undefined && roundPts(total) !== TYPES[type]) ? 'custom' : type;
 
-// Largest-remainder split in 0.01 units so criterion maxima sum to the total exactly.
-function distribute(total, count) {
+// Split `total` into `count` allowed values that are as even as possible and add up to the
+// total exactly. The larger shares come first. With uneven grids (Logical Decimals) an exact
+// split may not exist; then the shares add up to as much as possible without going over.
+function distribute(total, count, mode = 'full') {
   if (!count || !(total > 0)) return Array(count).fill(0);
-  const units = Math.round(roundPts(total) * 100), base = Math.floor(units / count);
-  let left = units - base * count;
-  return Array.from({length:count}, () => (base + (left-- > 0 ? 1 : 0)) / 100);
+  const T = toUnits(total), avg = T / count;
+  // Grid values near the average, then every two-value mix (k of the higher, the rest lower).
+  const near = new Set([floorUnits(Math.floor(avg), mode)]);
+  for (let i = 0, g = floorUnits(Math.floor(avg), mode); i < 3; i++) { g = belowUnits(g, mode); near.add(g); }
+  for (let i = 0, g = floorUnits(Math.floor(avg), mode); i < 4; i++) { g = aboveUnits(g, mode); near.add(g); }
+  const vals = [...near].filter(g => g >= 0).sort((a, b) => a - b);
+  let best = null;
+  for (let i = 0; i < vals.length; i++) for (let j = i; j < vals.length; j++) {
+    const lo = vals[i], hi = vals[j];
+    if (lo > avg || hi < avg) continue;
+    // k*hi + (count-k)*lo = T
+    const k = hi === lo ? (lo * count === T ? 0 : -1) : (T - lo * count) / (hi - lo);
+    if (!Number.isInteger(k) || k < 0 || k > count) continue;
+    if (!best || hi - lo < best.hi - best.lo) best = {lo, hi, k};
+  }
+  if (best) return Array.from({length:count}, (_, i) => (i < best.k ? best.hi : best.lo) / 100);
+  // No exact even split: start everyone at the grid value below the average and hand out
+  // what's left one step at a time, without going over the total.
+  const out = Array(count).fill(floorUnits(Math.floor(avg), mode));
+  let left = T - out.reduce((a, b) => a + b, 0), moved = true;
+  while (left > 0 && moved) {
+    moved = false;
+    for (let i = 0; i < count && left > 0; i++) {
+      const up = aboveUnits(out[i], mode) - out[i];
+      if (up <= left) { out[i] += up; left -= up; moved = true; }
+    }
+  }
+  return out.map(u => u / 100);
 }
-function uniquePts(max, weights) {
-  const out = [];
+// Points for each level: max x level %, snapped to the decimal mode, strictly descending.
+function uniquePts(max, weights, mode = 'full') {
+  const out = [], step = smallestStep(mode);
   weights.forEach((w, j) => {
-    let p = roundPts(max * w);
-    if (w > 0 && p < .01) p = .01;
-    if (j > 0 && p >= out[j-1]) p = roundPts(out[j-1] - .01);
+    let p = snapPts(max * w, mode);
+    if (w > 0 && p < step) p = step;
+    if (j > 0 && p >= out[j-1]) p = belowUnits(toUnits(out[j-1]), mode) / 100;
     out.push(Math.max(0, p));
   });
   return out;
 }
 const title = (l) => `${l.name} (${l.grade})`;
-function compute(S) {
-  const total = parseTotal(S.total).value;
+function compute(S, mode = 'full') {
+  mode = decimalMode(mode);
+  const total = parseTotal(S.total, mode).value;
   const act = S.criteria.filter(c => c.name.trim());
-  const parsed = act.map(c => parsePoints(c.pts));
+  const parsed = act.map(c => parsePoints(c.pts, mode));
   const fixed = parsed.map(p => p.value !== null);
   const fixedSum = roundPts(parsed.reduce((a, p) => a + (p.value ?? 0), 0));
   const autoCount = fixed.filter(f => !f).length;
-  const autoMaxes = distribute(Math.max(0, roundPts(total - fixedSum)), autoCount);
+  const autoTotal = Math.max(0, roundPts(total - fixedSum));
+  const autoMaxes = distribute(autoTotal, autoCount, mode);
+  // Set when the decimal mode can't split the remaining points exactly.
+  const uneven = autoCount > 0 && toUnits(autoMaxes.reduce((a, b) => a + b, 0)) !== toUnits(autoTotal);
   let k = 0;
   const maxes = act.map((c, i) => fixed[i] ? parsed[i].value : autoMaxes[k++]);
   const weights = S.levels.map(l => clampPct(l.pct) / 100);
-  return {total, weights, sum: roundPts(maxes.reduce((a, b) => a + b, 0)), rows: act.map((c, i) => ({c, row:5*(i+1), max:maxes[i], issue:parsed[i].issue,
-    exact: weights.map(w => maxes[i] * w), pts: uniquePts(maxes[i], weights)}))};
+  return {total, mode, uneven, weights, sum: roundPts(maxes.reduce((a, b) => a + b, 0)), rows: act.map((c, i) => ({c, row:5*(i+1), max:maxes[i], issue:parsed[i].issue,
+    exact: weights.map(w => maxes[i] * w), pts: uniquePts(maxes[i], weights, mode)}))};
 }
 
 // ---- exports (all numbers go through fmt so every format agrees with the screen) ----
@@ -262,8 +329,19 @@ function buildGrid(v, levels) {
   const q = x => /[\t\n"]/.test(String(x)) ? `"${String(x).replace(/"/g,'""')}"` : String(x);
   return g.map(row => row.map(q).join('\t')).join('\n');
 }
-// Spreadsheet formula for a level's points: max x percentage, to 2 decimals.
-const xlsxPointFormula = (maxRef, pctRef) => `ROUND(${maxRef}*${pctRef},2)`;
+// Spreadsheet formula for a level's points: max x percentage, rounded the same way as the decimal mode.
+function xlsxPointFormula(maxRef, pctRef, mode = 'full') {
+  const x = `${maxRef}*${pctRef}`;
+  switch (decimalMode(mode)) {
+    case 'short': return `ROUND(${x},1)`;
+    case 'logical-short': return `ROUND(${x}*4,0)/4`;
+    case 'halves': return `ROUND(${x}*2,0)/2`;
+    case 'none': return `ROUND(${x},0)`;
+    // Whole part + the nearest of .25 .33 .5 .66 .75 (thresholds are the midpoints).
+    case 'logical': return `INT(${x})+LOOKUP(${x}-INT(${x}),{0,0.125,0.29,0.415,0.58,0.705,0.875},{0,0.25,0.33,0.5,0.66,0.75,1})`;
+    default: return `ROUND(${x},2)`;
+  }
+}
 
 // ---- persistence: schema-versioned, tolerant of corrupt or old data ----
 const makeCriterion = (id) => ({id, name:'', desc:'', pts:'', ld: DEFAULT_LEVELS.map(l => l.desc)});
@@ -342,6 +420,15 @@ const cur = {id: 'r' + Date.now().toString(36) + Math.random().toString(36).slic
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const snapshot = () => ({S, nid, atype: $('atype').value});
+// The decimal mode is a Rubricable preference (shared with Bohrified's settings sheet).
+const decimals = () => decimalMode(store.get(DECIMAL_KEY));
+function showDecimals() { $('decimals').value = $('decimals2').value = decimals(); }
+function setDecimals(m) {
+  m = decimalMode(m);
+  store.set(DECIMAL_KEY, m); showDecimals(); update();
+  const r = compute(S, m);
+  say(`${DECIMAL_MODES[m].label}: points now use ${DECIMAL_MODES[m].hint}.` + (r.uneven ? ' The total can\'t be split evenly with these decimals; see the note above the criteria.' : ''));
+}
 
 // Inside Bohrified the page can be unmounted when you switch apps; keep the
 // rubric for this browser session so it comes back as you left it.
@@ -409,14 +496,14 @@ function renderCriteria() {
 }
 // Updates computed text in place so typing never loses focus.
 function update() {
-  const v = compute(S), tot = parseTotal(S.total);
+  const v = compute(S, decimals()), tot = parseTotal(S.total, v.mode);
   $('totalmsg').textContent = tot.issue;
   if (tot.issue) $('total').setAttribute('aria-invalid', 'true'); else $('total').removeAttribute('aria-invalid');
   document.querySelectorAll('#criteria .card').forEach(card => {
     const r = v.rows.find(r => r.c.id === +card.dataset.id);
     const ptsIn = card.querySelector('[data-f="pts"]');
     ptsIn.placeholder = r ? fmt(r.max) : 'auto';
-    const issue = r ? r.issue : parsePoints(ptsIn.value).issue;
+    const issue = r ? r.issue : parsePoints(ptsIn.value, v.mode).issue;
     card.querySelector('[data-m="pts"]').textContent = issue;
     if (issue) ptsIn.setAttribute('aria-invalid', 'true'); else ptsIn.removeAttribute('aria-invalid');
     S.levels.forEach((l,j) => {
@@ -427,7 +514,8 @@ function update() {
   $('empty').hidden = v.rows.length > 0;
   const tiny = v.rows.filter(r => new Set(r.pts).size < r.pts.length).map(r => r.c.name);
   $('warn').textContent = [
-    v.rows.length && Math.abs(v.sum - v.total) > 0.005 ? `Criterion points add up to ${fmt(v.sum)}, but the total is ${fmt(v.total)}.` : '',
+    v.rows.length && Math.abs(v.sum - v.total) > 0.005 ? `Criterion points add up to ${fmt(v.sum)}, but the total is ${fmt(v.total)}.` +
+      (v.uneven ? ` ${DECIMAL_MODES[v.mode].label} can't split the remaining points evenly; set a criterion's points or change Decimals.` : '') : '',
     tiny.length ? `Too few points for ${S.levels.length} distinct levels: ${tiny.join(', ')}.` : '',
     ...levelIssues(S.levels)].filter(Boolean).join(' ');
   $('vt').innerHTML = `<thead><tr><th>Row</th><th>Criterion</th><th>Max</th>${S.levels.map(l => `<th>${esc(title(l))}</th>`).join('')}</tr></thead><tbody>` +
@@ -442,10 +530,11 @@ let readLibCache = emptyLibrary();
 document.addEventListener('input', e => {
   const t = e.target;
   if (t.id === 'askstart') return store.set('rbl-ask', t.checked ? '1' : '0');
+  if (t.id === 'decimals' || t.id === 'decimals2') return setDecimals(t.value);
   if (t.id === 'atype') { S.total = typeTotal(t.value, S.total); $('total').value = S.total; update(); return touch(); }
   if (t.id === 'total') {
     S.total = t.value;
-    $('atype').value = typeForTotal($('atype').value, parseTotal(t.value).value);
+    $('atype').value = typeForTotal($('atype').value, parseTotal(t.value, decimals()).value);
     update(); return touch();
   }
   if (t.dataset.lv !== undefined) { S.levels[t.dataset.lv][t.dataset.k] = t.value; update(); return touch(); }
@@ -488,7 +577,7 @@ function download(blob, name) {
 }
 const needCriterion = () => { say('Add at least one criterion title first.', true); $('criteria').querySelector('[data-f="name"]')?.focus(); };
 $('csv').onclick = () => {
-  const v = compute(S); if (!v.rows.length) return needCriterion();
+  const v = compute(S, decimals()); if (!v.rows.length) return needCriterion();
   try { download(new Blob([buildCsv(v, S.levels)], {type:'text/csv;charset=utf-8'}), 'rubric.csv'); say('Exported rubric.csv.'); }
   catch (err) { say('Could not export the CSV. Try "Copy & paste into a Sheet" instead.', true); }
 };
@@ -505,7 +594,7 @@ function loadXlsx() {
   });
 }
 async function exportXlsx(separate) {
-  const v = compute(S); if (!v.rows.length) return needCriterion();
+  const v = compute(S, decimals()); if (!v.rows.length) return needCriterion();
   say('Preparing the spreadsheet…');
   try { await loadXlsx(); } catch { return say('The XLSX library could not load (it needs an internet connection). Use the CSV or "Copy & paste into a Sheet" instead.', true); }
   try {
@@ -518,7 +607,7 @@ async function exportXlsx(separate) {
     S.levels.forEach((l,j) => { val[col(j)+'4'] = {t:'s', v:title(l)}; val[col(j)+'6'] = {t:'n', v:v.weights[j], z:'0.##%'}; });
     v.rows.forEach(r => {
       val['A'+r.row] = {t:'s', v:r.c.name}; val[maxCol+r.row] = {t:'n', v:roundPts(r.max)};
-      S.levels.forEach((_,j) => val[col(j)+r.row] = {t:'n', v:roundPts(r.pts[j]), f:xlsxPointFormula(`$${maxCol}${r.row}`, `${col(j)}$6`)});
+      S.levels.forEach((_,j) => val[col(j)+r.row] = {t:'n', v:roundPts(r.pts[j]), f:xlsxPointFormula(`$${maxCol}${r.row}`, `${col(j)}$6`, v.mode)});
     });
     tpl.A1 = {t:'s', v:'It is recommended that you do not edit rubrics in spreadsheet format'}; tpl.A2 = {t:'s', v:'v1.0-s'};
     v.rows.forEach((r,i) => {
@@ -526,7 +615,7 @@ async function exportXlsx(separate) {
       tpl['A'+b] = {t:'s', v:r.c.name}; tpl['A'+(b+1)] = {t:'s', v:r.c.desc};
       S.levels.forEach((l,j) => {
         tpl[col(j)+(b+2)] = {t:'n', v:roundPts(r.pts[j]), f: separate ? `Values!${col(j)}${r.row}`
-          : xlsxPointFormula(`$J${b+2}`, `${XLSX.utils.encode_col(10+j)}$4`)};
+          : xlsxPointFormula(`$J${b+2}`, `${XLSX.utils.encode_col(10+j)}$4`, v.mode)};
         tpl[col(j)+(b+3)] = {t:'s', v:title(l)};
         tpl[col(j)+(b+4)] = {t:'s', v:r.c.ld[j] || ''};
       });
@@ -560,7 +649,7 @@ async function exportXlsx(separate) {
   } catch (err) { say('Could not create the spreadsheet. Try the CSV export instead.', true); }
 }
 $('paste').onclick = () => {
-  const v = compute(S); if (!v.rows.length) return needCriterion();
+  const v = compute(S, decimals()); if (!v.rows.length) return needCriterion();
   $('paste-text').value = buildGrid(v, S.levels); $('copied').textContent = ''; $('modal').hidden = false;
 };
 $('close').onclick = () => $('modal').hidden = true;
@@ -614,10 +703,12 @@ if (EMBEDDED) addEventListener('keydown', e => {
 addEventListener('storage', e => {
   if (e.key === 'rbl-ask') $('askstart').checked = store.get('rbl-ask') !== '0';
   if (e.key === 'rbl-theme') applyTheme(theme());
+  if (e.key === DECIMAL_KEY) { showDecimals(); update(); }
 });
 $('ver').textContent = 'v' + VERSION;
 $('about').textContent = 'Version ' + VERSION;
 $('askstart').checked = store.get('rbl-ask') !== '0';
+showDecimals();
 // Restore: this tab's session (Bohrified remount) wins, otherwise the last saved rubric.
 {
   readLibCache = readLib();

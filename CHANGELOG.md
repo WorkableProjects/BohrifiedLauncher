@@ -1,5 +1,10 @@
 # Changelog
 
+## Rubricable 1.2.1 (October 2026)
+
+- **Decimals** setting (header, Settings, and Bohrified's settings sheet, kept in sync): Full Decimals (.01–.99), Shorthand Decimals (.1–.9), Logical Decimals (.25, .33, .5, .66, .75), Shorthand Logical Decimals (.25, .5, .75), Halves Only (.5) and No Decimals.
+- Totals, typed criterion points, even splits and level points all follow it; splits still add up to the total exactly when the chosen decimals allow, and say so when they can't. Spreadsheet formulas round the same way. Existing rubrics keep Full Decimals until you change it.
+
 ## Frames 1.0.0 (October 2026)
 
 New Bohrified-exclusive presentation app (`apps/Frames`, opens at `/app/frames`).
