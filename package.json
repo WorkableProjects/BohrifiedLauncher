@@ -7,7 +7,8 @@
   "workspaces": [
     "packages/*",
     "launcher",
-    "apps/flow"
+    "apps/flow",
+    "apps/Frames"
   ],
   "scripts": {
     "dev": "node scripts/dev.mjs",
@@ -16,9 +17,12 @@
     "serve": "node scripts/serve.mjs",
     "tunnel": "node scripts/tunnel.mjs",
     "preview": "vite preview --config launcher/vite.config.ts launcher --port 4173",
-    "typecheck": "tsc -p packages/app-sdk && tsc -p packages/persistence && tsc -p packages/ui && tsc -p packages/utilities && npm run typecheck -w launcher && npm run typecheck -w apps/flow",
+    "typecheck": "tsc -p packages/app-sdk && tsc -p packages/persistence && tsc -p packages/ui && tsc -p packages/utilities && npm run typecheck -w launcher && npm run typecheck -w apps/flow && npm run typecheck -w apps/Frames",
     "dev:flow": "npm run dev -w apps/flow",
+    "dev:frames": "npm run dev -w apps/Frames",
     "test:flow": "npm test -w apps/flow",
+    "test:frames": "npm test -w apps/Frames",
+    "test:frames:e2e": "npm run e2e -w apps/Frames",
     "test:rubricable": "vitest run --root apps/rubricable",
     "test:lifecycle": "node tests/lifecycle.e2e.mjs",
     "test:launcher": "vitest run --root launcher",
@@ -26,7 +30,7 @@
     "relay": "node scripts/session-relay.mjs",
     "test:relay": "node --test tests/relay.test.mjs tests/live-http.test.mjs",
     "test:packages": "vitest run --root packages/app-sdk && vitest run --root packages/ui",
-    "test": "npm run test:flow && npm run test:launcher && npm run test:packages && npm run test:rubricable && npm run test:relay"
+    "test": "npm run test:flow && npm run test:frames && npm run test:launcher && npm run test:packages && npm run test:rubricable && npm run test:relay"
   },
   "allowScripts": {
     "fsevents@2.3.3": true

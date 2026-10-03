@@ -33,6 +33,9 @@ bohrified/
 │   │   ├── bohr.app.ts       # Flow's BohrApp (frame adapter + session → URL)
 │   │   ├── bohr.settings.ts  # Flow's preferences, shown in Bohrified's settings
 │   │   └── src/bohr.ts       # Flow's side of the lifecycle protocol
+│   ├── Frames/               # Frames (presentations): served at /apps/frames/
+│   │   ├── bohr.app.ts / bohr.settings.ts
+│   │   └── src/{model,anim,render,transitions,present,editor,io,templates}
 │   └── rubricable/
 │       ├── bohr.app.ts
 │       ├── bohr.settings.ts

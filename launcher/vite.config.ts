@@ -5,6 +5,8 @@ import { defineConfig, type Plugin } from 'vite';
 const repo = fileURLToPath(new URL('..', import.meta.url));
 /** Where the Flow dev server runs (scripts/dev.mjs starts it with base /apps/flow/). */
 const FLOW_DEV = process.env.FLOW_DEV_URL ?? 'http://localhost:5174';
+/** Where the Frames dev server runs (scripts/dev.mjs starts it with base /apps/frames/). */
+const FRAMES_DEV = process.env.FRAMES_DEV_URL ?? 'http://localhost:5175';
 
 /** Dev only: serve Rubricable's single page as-is at /apps/rubricable/. */
 function rubricable(): Plugin {
@@ -37,6 +39,7 @@ export default defineConfig({
     fs: { allow: [repo] },
     proxy: {
       '/apps/flow': { target: FLOW_DEV, ws: true, changeOrigin: false },
+      '/apps/frames': { target: FRAMES_DEV, ws: true, changeOrigin: false },
     },
   },
   // Preview serves the assembled dist/, so it must not inherit the dev proxy.

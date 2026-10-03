@@ -1,5 +1,6 @@
 import type { AppManifest } from '@bohrified/app-sdk';
 import flowSettings from '../../apps/flow/bohr.settings';
+import framesSettings from '../../apps/Frames/bohr.settings';
 import rubricableSettings from '../../apps/rubricable/bohr.settings';
 
 /**
@@ -25,12 +26,23 @@ export const registry: readonly AppManifest[] = [
   {
     id: 'rubricable',
     name: 'Rubricable',
-    version: '1.2.0',
+    version: '1.2.1',
     keywords: ['rubric', 'grading', 'google classroom', 'feedback', 'points'],
     description: 'Build graded rubrics with fair point splits and copy them into Google Classroom.',
     icon: 'icons/rubricable.svg',
     accent: '#4F46E5',
     load: () => import('../../apps/rubricable/bohr.app'),
     settings: rubricableSettings,
+  },
+  {
+    id: 'frames',
+    name: 'Frames',
+    version: '1.0.0',
+    keywords: ['slides', 'presentation', 'deck', 'keynote', 'powerpoint', 'animation', 'transition', 'present'],
+    description: 'Presentations with motion built in: simple slides, deep customization, cinematic animation and transitions.',
+    icon: 'icons/frames.svg',
+    accent: '#FF7A59',
+    load: () => import('../../apps/Frames/bohr.app'),
+    settings: framesSettings,
   },
 ];

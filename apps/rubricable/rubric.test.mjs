@@ -8,7 +8,7 @@ const m = html.match(/\/\/ ---- rubric-core:start ----([\s\S]*?)\/\/ ---- rubric
 if (!m) throw new Error('rubric-core markers not found in index.html');
 const core = vm.runInNewContext(`${m[1]}
 ({VERSION, DEFAULT_LEVELS, TYPES, MAX_POINTS, MAX_RUBRICS, roundPts, fmt, parsePoints, parseTotal, levelIssues, typeTotal, typeForTotal,
-  distribute, uniquePts, compute, buildCsv, buildGrid, xlsxPointFormula, defaultState, sanitizeState, isEmptyState, rubricName,
+  distribute, uniquePts, compute, DECIMAL_MODES, snapPts, decimalMode, buildCsv, buildGrid, xlsxPointFormula, defaultState, sanitizeState, isEmptyState, rubricName,
   parseLibrary, upsertRubric, removeRubric, serializeLibrary, makeCriterion, csvCell})`);
 // vm objects have a foreign prototype; round-trip for deep equality.
 const plain = (x) => JSON.parse(JSON.stringify(x));
@@ -21,9 +21,9 @@ const stateWith = (total, crit) => {
 };
 
 describe('version', () => {
-  it('is 1.2 everywhere in the page', () => {
-    expect(core.VERSION).toBe('1.2.0');
-    expect(html).toContain('<title>Rubricable 1.2</title>');
+  it('is 1.2.1 everywhere in the page', () => {
+    expect(core.VERSION).toBe('1.2.1');
+    expect(html).toContain('<title>Rubricable 1.2.1</title>');
     expect(html).not.toMatch(/Rubricable 1\.1|VERSION = '1\.1'/);
   });
 });
@@ -127,6 +127,83 @@ describe('scoring', () => {
     const v = core.compute(stateWith(0.02, [{ name: 'A' }]));
     expect(v.rows[0].pts.every(p => p >= 0)).toBe(true);
     expect(new Set(v.rows[0].pts).size).toBeLessThan(v.rows[0].pts.length);
+  });
+});
+
+describe('decimal modes', () => {
+  const fracs = (xs) => xs.map(x => Math.round((x - Math.floor(x)) * 100));
+  const allowed = { full: null, short: [0,10,20,30,40,50,60,70,80,90], logical: [0,25,33,50,66,75], 'logical-short': [0,25,50,75], halves: [0,50], none: [0] };
+  it('has the six modes and falls back to full', () => {
+    expect(Object.keys(core.DECIMAL_MODES)).toEqual(['full', 'short', 'logical', 'logical-short', 'halves', 'none']);
+    expect(core.decimalMode('nope')).toBe('full');
+    expect(core.decimalMode('__proto__')).toBe('full');
+  });
+  it('snaps to the nearest allowed value', () => {
+    expect(core.snapPts(2.37, 'full')).toBe(2.37);
+    expect(core.snapPts(2.37, 'short')).toBe(2.4);
+    expect(core.snapPts(2.37, 'logical')).toBe(2.33);
+    expect(core.snapPts(2.42, 'logical')).toBe(2.5);
+    expect(core.snapPts(2.7, 'logical')).toBe(2.66);
+    expect(core.snapPts(2.71, 'logical')).toBe(2.75);
+    expect(core.snapPts(2.9, 'logical')).toBe(3);
+    expect(core.snapPts(2.37, 'logical-short')).toBe(2.25);
+    expect(core.snapPts(2.375, 'logical-short')).toBe(2.5);
+    expect(core.snapPts(2.2, 'halves')).toBe(2);
+    expect(core.snapPts(2.25, 'halves')).toBe(2.5);
+    expect(core.snapPts(2.5, 'none')).toBe(3);
+    expect(core.snapPts(2.49, 'none')).toBe(2);
+  });
+  it('rounds typed points to the mode and says so', () => {
+    expect(core.parsePoints('2.37', 'none')).toMatchObject({ value: 2, issue: expect.stringMatching(/whole points/) });
+    expect(core.parsePoints('2.5', 'halves').issue).toBe('');
+    expect(core.parseTotal('22.5', 'none').value).toBe(23);
+  });
+  it('splits totals exactly when the mode allows it', () => {
+    expect(core.distribute(10, 3, 'full')).toEqual([3.34, 3.33, 3.33]);
+    expect(core.distribute(10, 3, 'short')).toEqual([3.4, 3.3, 3.3]);
+    expect(core.distribute(10, 3, 'logical-short')).toEqual([3.5, 3.25, 3.25]);
+    expect(core.distribute(10, 3, 'halves')).toEqual([3.5, 3.5, 3]);
+    expect(core.distribute(10, 3, 'none')).toEqual([4, 3, 3]);
+    for (const mode of Object.keys(allowed)) for (const [t, n] of [[30, 7], [75, 4], [10, 3], [22.5, 2], [5, 8]]) {
+      const d = core.distribute(t, n, mode);
+      expect(d).toHaveLength(n);
+      const sum = core.roundPts(d.reduce((a, b) => a + b, 0));
+      expect(sum).toBeLessThanOrEqual(t);
+      if (allowed[mode]) expect(fracs(d).every(f => allowed[mode].includes(f))).toBe(true);
+      expect(Math.max(...d) - Math.min(...d)).toBeLessThanOrEqual(1);
+    }
+  });
+  it('logical decimals split exactly when possible and never go over', () => {
+    const d = core.distribute(10, 3, 'logical');
+    expect(core.roundPts(d.reduce((a, b) => a + b, 0))).toBe(10);
+    expect(fracs(d).every(f => allowed.logical.includes(f))).toBe(true);
+    expect(core.distribute(1, 3, 'logical')).toEqual([0.5, 0.25, 0.25]);
+    const e = core.distribute(6.67, 2, 'logical'); // no two logical values add up to x.67
+    expect(core.roundPts(e.reduce((a, b) => a + b, 0))).toBeLessThan(6.67);
+    expect(fracs(e).every(f => allowed.logical.includes(f))).toBe(true);
+  });
+  it('level points follow the mode and stay strictly descending', () => {
+    for (const mode of Object.keys(allowed)) {
+      const v = core.compute(stateWith(30, [{ name: 'A' }, { name: 'B' }, { name: 'C' }]), mode);
+      expect(v.mode).toBe(mode);
+      v.rows.forEach(r => {
+        if (allowed[mode]) expect(fracs(r.pts).every(f => allowed[mode].includes(f))).toBe(true);
+        for (let j = 1; j < r.pts.length; j++) if (r.pts[j - 1] > 0) expect(r.pts[j]).toBeLessThan(r.pts[j - 1]);
+      });
+      expect(v.sum).toBe(30);
+    }
+  });
+  it('flags an uneven split', () => {
+    // 10 - 3.33 leaves 6.67 for two criteria: not possible with logical decimals.
+    expect(core.compute(stateWith(10, [{ name: 'A', pts: '3.33' }, { name: 'B' }, { name: 'C' }]), 'logical').uneven).toBe(true);
+    expect(core.compute(stateWith(10, [{ name: 'A' }, { name: 'B' }, { name: 'C' }]), 'none').uneven).toBe(false);
+  });
+  it('spreadsheet formulas round like the mode', () => {
+    expect(core.xlsxPointFormula('A', 'B', 'short')).toBe('ROUND(A*B,1)');
+    expect(core.xlsxPointFormula('A', 'B', 'none')).toBe('ROUND(A*B,0)');
+    expect(core.xlsxPointFormula('A', 'B', 'halves')).toBe('ROUND(A*B*2,0)/2');
+    expect(core.xlsxPointFormula('A', 'B', 'logical-short')).toBe('ROUND(A*B*4,0)/4');
+    expect(core.xlsxPointFormula('A', 'B', 'logical')).toMatch(/^INT\(A\*B\)\+LOOKUP/);
   });
 });
 
