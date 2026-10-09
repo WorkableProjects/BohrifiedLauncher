@@ -45,4 +45,14 @@ export const registry: readonly AppManifest[] = [
     load: () => import('../../apps/Frames/bohr.app'),
     settings: framesSettings,
   },
+  {
+    id: 'oasis',
+    name: 'Oasis',
+    version: '1.0.0',
+    keywords: ['sis', 'student', 'students', 'gradebook', 'grades', 'assignments', 'behavior', 'roster', 'bell schedule', 'attendance'],
+    description: 'A simple tutoring student information system: classes, students, assignments, weighted grades, daily behavior and the bell schedule.',
+    icon: 'icons/oasis.svg',
+    accent: '#0D9488',
+    load: () => import('../../apps/oasis/bohr.app'),
+  },
 ];

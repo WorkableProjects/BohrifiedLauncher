@@ -8,22 +8,23 @@ const FLOW_DEV = process.env.FLOW_DEV_URL ?? 'http://localhost:5174';
 /** Where the Frames dev server runs (scripts/dev.mjs starts it with base /apps/frames/). */
 const FRAMES_DEV = process.env.FRAMES_DEV_URL ?? 'http://localhost:5175';
 
-/** Dev only: serve Rubricable's single page as-is at /apps/rubricable/. */
-function rubricable(): Plugin {
+/** Dev only: serve a single-page app (Rubricable, Oasis) as-is at /apps/<id>/. */
+function singlePage(id: string): Plugin {
+  const base = `/apps/${id}`;
   return {
-    name: 'bohrified:rubricable',
+    name: `bohrified:${id}`,
     apply: 'serve',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         const path = req.url?.split('?')[0];
-        if (path === '/apps/rubricable') {
+        if (path === base) {
           res.statusCode = 301;
-          res.setHeader('Location', '/apps/rubricable/');
+          res.setHeader('Location', `${base}/`);
           return res.end();
         }
-        if (path !== '/apps/rubricable/' && path !== '/apps/rubricable/index.html') return next();
+        if (path !== `${base}/` && path !== `${base}/index.html`) return next();
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.end(readFileSync(new URL('../apps/rubricable/index.html', import.meta.url)));
+        res.end(readFileSync(new URL(`../apps/${id}/index.html`, import.meta.url)));
       });
     },
   };
@@ -33,7 +34,7 @@ const { version } = JSON.parse(readFileSync(new URL('./package.json', import.met
 
 export default defineConfig({
   define: { __APP_VERSION__: JSON.stringify(version) },
-  plugins: [rubricable()],
+  plugins: [singlePage('rubricable'), singlePage('oasis')],
   server: {
     port: 5173,
     fs: { allow: [repo] },

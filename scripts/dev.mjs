@@ -3,7 +3,7 @@
  * Dev: the launcher on :5173, Flow's own dev server on :5174 under /apps/flow/
  * and Frames' on :5175 under /apps/frames/ (the launcher proxies them, so
  * everything is same-origin).
- * Rubricable is served straight from apps/rubricable by the launcher.
+ * Rubricable and Oasis are served straight from apps/<id> by the launcher.
  * With --host, the launcher and relay listen on the network so other devices can join.
  * The live-session relay runs on :8787 so Join Whiteboard works locally
  * (Flow and the launcher default to ws://localhost:8787 in development).
