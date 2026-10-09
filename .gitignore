@@ -10,3 +10,5 @@ test-results
 # Original source repos (imported into apps/ with history via git subtree)
 /Flow/
 /rubricable/
+# OASIS tutor data (encrypted; its own git repo on the oasis-data branch)
+/.oasis-data/

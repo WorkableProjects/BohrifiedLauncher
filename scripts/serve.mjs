@@ -14,13 +14,16 @@
  * on other devices. For hot reload while developing, use `npm run dev:host`.
  */
 import { ensureBuild } from './ensure-build.mjs';
+import { createOasisStore } from './oasis-store.mjs';
 import { lanAddresses, startRelay } from './session-relay.mjs';
 
 ensureBuild(process.argv.includes('--build'));
 
 process.on('uncaughtException', (err) => console.error('serve: unexpected error (still running):', err));
 process.on('unhandledRejection', (err) => console.error('serve: unexpected error (still running):', err));
-const relay = await startRelay({ port: Number(process.env.PORT ?? 8787), host: process.env.HOST ?? '0.0.0.0', staticDir: 'dist' });
+// OASIS keeps each tutor's encrypted data in .oasis-data/ and pushes it to GitHub (answers this computer only).
+const oasis = createOasisStore({ repoDir: process.cwd() });
+const relay = await startRelay({ port: Number(process.env.PORT ?? 8787), host: process.env.HOST ?? '0.0.0.0', staticDir: 'dist', extra: (req, res) => oasis.handle(req, res) });
 const ips = lanAddresses();
 console.log(`\nBohrified is running. Open Flow on this computer at one of:\n`);
 for (const ip of ips) console.log(`  http://${ip}:${relay.port}/`);
@@ -28,4 +31,4 @@ if (!ips.length) console.log('  (no network address found: connect to Wi-Fi or E
 console.log(`\nStudents join at  http://${ips[0] ?? '<this computer\'s IP>'}:${relay.port}/join/<CODE>\n`);
 console.log(`First test from the other device: open http://${ips[0] ?? '<IP>'}:${relay.port}/health. It should show {"ok":true,...}. If that doesn't load, it's the network or firewall, not Bohrified.\n`);
 console.log('If other devices cannot connect, allow Node through this computer\'s firewall, and make sure both are on the same network.');
-for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => relay.close().then(() => process.exit(0)));
+for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => Promise.all([relay.close(), oasis.close()]).then(() => process.exit(0)));

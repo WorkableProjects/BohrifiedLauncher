@@ -24,13 +24,14 @@
     "test:frames": "npm test -w apps/Frames",
     "test:frames:e2e": "npm run e2e -w apps/Frames",
     "test:rubricable": "vitest run --root apps/rubricable",
+    "test:oasis": "vitest run --root apps/oasis && node --test tests/oasis-store.test.mjs",
     "test:lifecycle": "node tests/lifecycle.e2e.mjs",
     "test:launcher": "vitest run --root launcher",
     "test:launcher:e2e": "node tests/launcher.e2e.mjs",
     "relay": "node scripts/session-relay.mjs",
     "test:relay": "node --test tests/relay.test.mjs tests/live-http.test.mjs",
     "test:packages": "vitest run --root packages/app-sdk && vitest run --root packages/ui",
-    "test": "npm run test:flow && npm run test:frames && npm run test:launcher && npm run test:packages && npm run test:rubricable && npm run test:relay"
+    "test": "npm run test:flow && npm run test:frames && npm run test:launcher && npm run test:packages && npm run test:rubricable && npm run test:oasis && npm run test:relay"
   },
   "allowScripts": {
     "fsevents@2.3.3": true

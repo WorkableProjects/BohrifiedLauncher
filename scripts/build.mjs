@@ -5,6 +5,7 @@
  *   dist/apps/flow/         Flow, built with base /apps/flow/
  *   dist/apps/frames/       Frames, built with base /apps/frames/
  *   dist/apps/rubricable/   Rubricable's page, as-is
+ *   dist/apps/oasis/        OASIS's page, as-is
  */
 import { execSync } from 'node:child_process';
 import { copyFileSync, mkdirSync } from 'node:fs';
@@ -16,6 +17,8 @@ run('npm run build -w apps/flow -- --base /apps/flow/ --outDir ../../dist/apps/f
 run('npm run build -w apps/Frames -- --base /apps/frames/ --outDir ../../dist/apps/frames --emptyOutDir');
 mkdirSync('dist/apps/rubricable', { recursive: true });
 copyFileSync('apps/rubricable/index.html', 'dist/apps/rubricable/index.html');
+mkdirSync('dist/apps/oasis', { recursive: true });
+copyFileSync('apps/oasis/index.html', 'dist/apps/oasis/index.html');
 // Hosts without rewrites (e.g. GitHub Pages) serve 404.html for /app/<id> deep links.
 copyFileSync('dist/index.html', 'dist/404.html');
 console.log('\nBohrified built to dist/');
