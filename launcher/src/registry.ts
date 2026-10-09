@@ -48,7 +48,7 @@ export const registry: readonly AppManifest[] = [
   {
     id: 'oasis',
     name: 'OASIS',
-    version: '1.1.0',
+    version: '1.2.0',
     keywords: ['sis', 'student', 'students', 'gradebook', 'grades', 'assignments', 'behavior', 'roster', 'bell schedule', 'attendance'],
     description: 'A simple tutoring student information system: classes, students, assignments, weighted grades, daily behavior and the bell schedule.',
     icon: 'icons/oasis.svg',

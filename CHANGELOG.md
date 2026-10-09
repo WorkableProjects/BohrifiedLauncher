@@ -1,5 +1,13 @@
 # Changelog
 
+## OASIS 1.2.0 (October 2026)
+
+- **Students tab shows grades:** every student row lists their grade in each class, and a clickable class picker at the top opens that class's statistics: class average, median, highest and lowest, scores entered, missing/excused counts, and an individual-grades table with each student's category percents and graded/missing/excused/pending counts.
+- **Graphs:** grade distribution by letter, average by category, ranked student grades and average by assignment (class view); per-student category bars and a score-on-each-assignment chart for every class (student view). Charts follow the light/dark theme and have tooltips and text alternatives.
+- **Student pages** now show each class's grade, class average, assignment-by-assignment scores and status.
+- **Reports:** the assignment's full name is now the first column (wraps instead of truncating); the separate "Description" and "#" columns are gone.
+- Chemistry 1 and 2 assignment names now match Google Classroom.
+
 ## OASIS 1.1.0 (October 2026)
 
 - **Saved to a file, backed up to GitHub.** When OASIS runs on your computer (`npm run dev` or `npm run serve`), each tutor's data is one encrypted file in `.oasis-data/` and that file is the source of truth: every edit is saved to it within a second, and other windows or computers pick up changes. Details: [docs/oasis-data.md](docs/oasis-data.md).

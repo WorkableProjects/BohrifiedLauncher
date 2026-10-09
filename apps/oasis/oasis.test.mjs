@@ -9,7 +9,7 @@ const m = html.match(/\/\/ ---- oasis-core:start ----([\s\S]*?)\/\/ ---- oasis-c
 if (!m) throw new Error('oasis-core markers not found in index.html');
 const core = vm.runInNewContext(`${m[1]}
 ({VERSION, defaults, sanitizeDb, letterFor, scaleRange, classGrade, parseScore, trunc2, pct, toMin, fromMin, fmt12, dayType, shiftBell, bellIssues, periodNow,
-  parseCSV, csvRecords, buildCsv, csvCell, normDate, importStudents, importAssignments, importGrades, TEMPLATES, MWF, DEFAULT_CATEGORIES, reportData, buildReportDoc, reportCsv, fmtDate, pctShort, esc, deriveVault, sealDb, openDb, VAULT_ITER, b64, unb64})`, { crypto: globalThis.crypto, TextEncoder, TextDecoder, btoa, atob });
+  parseCSV, csvRecords, buildCsv, csvCell, normDate, importStudents, importAssignments, importGrades, TEMPLATES, MWF, DEFAULT_CATEGORIES, reportData, buildReportDoc, reportCsv, fmtDate, pctShort, esc, deriveVault, sealDb, openDb, VAULT_ITER, b64, unb64, classStats, svgCols, hBars, median, niceMax})`, { crypto: globalThis.crypto, TextEncoder, TextDecoder, btoa, atob });
 const plain = (x) => JSON.parse(JSON.stringify(x));
 
 const setup = () => {
@@ -207,7 +207,7 @@ describe('student information is name + email only', () => {
 
 describe('branding and logins', () => {
   it('is called OASIS', () => {
-    expect(html).toContain('<title>OASIS 1.1.0</title>'); expect(html).toContain('<h1>OASIS</h1>'); expect(html).not.toMatch(/\bOasis\b/);
+    expect(html).toContain('<title>OASIS 1.2.0</title>'); expect(html).toContain('<h1>OASIS</h1>'); expect(html).not.toMatch(/\bOasis\b/);
   });
   it('keeps no readable credentials in the source', () => {
     expect(html).not.toMatch(/[0-9a-f]{32}/i); // no hex salt or hash
@@ -250,5 +250,56 @@ describe('encrypted data file', () => {
     const v = await core.deriveVault('pw', salt), db = data();
     for (let i = 0; i < 4000; i++) db.students.push({ id: 's' + i, first: 'S' + i, last: 'L' + i, email: `s${i}@example.com` });
     expect((await core.openDb(v, 'caden', await core.sealDb(v, 'caden', db))).students.length).toBe(4002);
+  });
+});
+
+describe('class statistics', () => {
+  const stats = () => {
+    const db = setup(), c = db.classes[0], [a, b] = db.students, id = (n) => db.assignments.find((x) => x.name === n).id;
+    db.grades[id('Unit 1 Test') + ':' + a.id] = { s: 45 }; db.grades[id('Unit 1 Test') + ':' + b.id] = { s: 25 };
+    db.grades[id('Quiz 1.1') + ':' + a.id] = { s: 10 }; db.grades[id('Quiz 1.1') + ':' + b.id] = { m: 1 }; db.grades[id('Density Lab') + ':' + b.id] = { x: 1 };
+    return { db, c, a, b, st: core.classStats(db, c.id) };
+  };
+  it('averages, extremes and counts', () => {
+    const { st, a, b } = stats();
+    const ga = (90 * 35 + 100 * 20) / 55, gb = (50 * 35 + 0) / 55;
+    expect(st.students.find((s) => s.id === a.id).overall).toBeCloseTo(ga); expect(st.students.find((s) => s.id === b.id).overall).toBeCloseTo(gb);
+    expect(st.average).toBeCloseTo((ga + gb) / 2); expect(st.median).toBeCloseTo((ga + gb) / 2);
+    expect(st.high.name).toBe('Ada Lovelace'); expect(st.low.name).toBe('Linus Pauling');
+    expect([st.assignments, st.entered, st.missing, st.excused, st.graded]).toEqual([3, 3, 1, 1, 2]);
+  });
+  it('builds the distribution low to high and the category/assignment averages', () => {
+    const { st } = stats();
+    expect(st.dist[0].letter).toBe('F'); expect(st.dist.at(-1).letter).toBe('A+'); expect(st.dist.reduce((t, d) => t + d.count, 0)).toBe(2);
+    expect(plain(st.catAvg.map((k) => [k.name, Math.round(k.avg)]))).toEqual([['Unit Tests', 70], ['Quizzes', 50]]);
+    expect(plain(st.assignAvg.map((x) => [x.name, x.n, x.avg == null ? null : Math.round(x.avg)])).find((x) => x[0] === 'Quiz 1.1')).toEqual(['Quiz 1.1', 2, 50]);
+  });
+  it('handles an empty class', () => {
+    const db = core.defaults(); db.classes.push({ id: 'c', name: 'X', period: 1, studentIds: [] });
+    const st = core.classStats(db, 'c'); expect(st.average).toBeNull(); expect(st.high).toBeNull(); expect(st.students).toEqual([]);
+  });
+  it('median of odd/even lists', () => { expect(core.median([3, 1, 2])).toBe(2); expect(core.median([1, 2, 3, 4])).toBe(2.5); expect(core.median([])).toBeNull(); });
+});
+
+describe('charts', () => {
+  it('draws accessible, escaped SVG columns', () => {
+    const svg = core.svgCols([{ label: 'A', value: 3, title: '<b>x</b>' }, { label: 'B', value: 0 }], { label: 'Demo', integer: true });
+    expect(svg).toContain('role="img"'); expect(svg).toContain('aria-label="Demo"'); expect(svg).not.toContain('<b>x</b>'); expect(svg).toContain('&lt;b&gt;');
+    expect((svg.match(/class="cb /g) || []).length).toBe(1); // zero-height bar draws nothing
+    expect(core.svgCols([], {})).toContain('<svg');
+  });
+  it('caps bar widths and escapes labels', () => {
+    const h = core.hBars([{ label: '<i>', value: 250, text: '250%' }, { label: 'n', value: -5, text: '-' }]);
+    expect(h).toContain('width:100%'); expect(h).toContain('width:0%'); expect(h).not.toContain('<i>');
+  });
+  it('rounds axis maximums', () => { expect(core.niceMax(7)).toBe(10); expect(core.niceMax(3)).toBe(3); expect(core.niceMax(120)).toBe(200); });
+});
+
+describe('report layout', () => {
+  it('puts the full assignment name in the first column', () => {
+    const db = setup(); db.assignments[0].name = '[PT S1/U2] Electron Configs with Orbital Diagrams … (very long name that must stay fully visible)';
+    const doc = core.buildReportDoc(db, { pairs: [{ classId: db.classes[0].id, studentId: db.students[0].id }], tutor: 'T' });
+    expect(doc).toMatch(/<th>Assignment<\/th><th>Category<\/th>/); expect(doc).not.toContain('<th>Description</th>');
+    expect(doc).toContain('<td class="nm">[PT S1/U2] Electron Configs with Orbital Diagrams … (very long name that must stay fully visible)</td>');
   });
 });
