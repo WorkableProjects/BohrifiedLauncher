@@ -1,14 +1,15 @@
 # Changelog
 
-## Oasis 1.0.0 (October 2026)
+## OASIS 1.0.0 (October 2026)
 
 New Bohrified app (`apps/oasis`, opens at `/app/oasis`): a deliberately simple student information system for tutors. Single page like Rubricable; opens standalone at `/apps/oasis/`.
-- **Sign-in** for Caden Erwin and Jayden McCarthy. The page holds only salted PBKDF2-SHA256 hashes (150,000 iterations), never the passwords; 5 wrong tries lock sign-in for 30 s; locks itself after 15 idle minutes. Each tutor's data is stored separately in the browser. Needs `https://` or `localhost` (Web Crypto).
-- **Classes** with a class period (1–6) and roster; **students** with ID, grade, contacts and notes; **assignments** with category, points and due date; **gradebook** grid (points, `M` missing = 0, `X` excused) with live overall % and letter.
+- **Sign-in** for two tutors. The page holds only salted PBKDF2-SHA256 hashes (150,000 iterations), packed and split across the file, never the passwords; 5 wrong tries lock sign-in for 30 s; locks itself after 15 idle minutes. Each tutor's data is stored separately in the browser. Needs `https://` or `localhost` (Web Crypto).
+- **Classes** with a class period (1–6) and roster; **students** (first name, last name, email only); **assignments** with category, points, assigned and due dates; **gradebook** grid (points, `M` missing = 0, `X` excused) with live overall % and letter.
+- **Student reports:** printable one-page-per-student progress reports (Aeries-style assignment list plus grade summary and category breakdown), from a class (pick students) or from a student (one or all classes). Print or save as PDF, download as HTML, or export the same data as CSV.
 - **Grade scale** (editable; A+ is 100.01%+, percentages cut off at two decimals), **assignment categories & weighting** (defaults: Unit Tests 35, Quizzes 20, CERs/Projects 20, Labs/Activities 10, Notebook/Engagement/Practice 15) with categories not yet graded re-balanced.
 - **Daily behavior** log per class and date (Excellent / On task / Off task / Disruptive / Absent, plus a note), shown on each student's page.
 - **Bell schedule**: Monday/Wednesday/Friday is the base (A Lunch); Tuesday/Thursday starts as a copy with a "shift all by N minutes" tool. **Today** highlights the current period.
-- **Import / Export:** CSV imports for students, assignments and grades with downloadable templates and in-app instructions; grade and student CSV export; JSON backup/restore.
+- **Import / Export:** CSV imports for students (name, email), assignments and grades with downloadable templates and in-app instructions; grade and student CSV export; JSON backup/restore.
 
 ## Rubricable 1.2.1 (October 2026)
 

@@ -5,7 +5,7 @@
  *   dist/apps/flow/         Flow, built with base /apps/flow/
  *   dist/apps/frames/       Frames, built with base /apps/frames/
  *   dist/apps/rubricable/   Rubricable's page, as-is
- *   dist/apps/oasis/        Oasis's page, as-is
+ *   dist/apps/oasis/        OASIS's page, as-is
  */
 import { execSync } from 'node:child_process';
 import { copyFileSync, mkdirSync } from 'node:fs';

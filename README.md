@@ -8,7 +8,7 @@ One launcher for peer tutoring apps.
 - **Flow** (whiteboard "Fl") — 1.3.0
 - **Rubricable** (GC Rubric Maker, "Rb") — 1.2.1
 - **Frames** (presentations, "Fr") — 1.0.0
-- **Oasis** (Tutor SIS, "Os") — 1.0.0
+- **OASIS** (Tutor SIS, "Os") — 1.0.0
 - **App SDK / shared packages** — 1.2.0
 
 ## Using Bohrified 1.2
@@ -51,11 +51,11 @@ npm run typecheck       # Type-check all packages and apps
 npm run test:lifecycle  # Run launcher lifecycle checks
 npm run test:launcher   # Unit tests for the launcher (library, search, window geometry)
 npm run test:launcher:e2e  # Launcher + window-manager browser test (needs a build)
-npm run test            # All unit tests (Flow, launcher, packages, Rubricable, Oasis, relay)
+npm run test            # All unit tests (Flow, launcher, packages, Rubricable, OASIS, relay)
 npm run relay           # Live-session relay for Join Whiteboard (also started by npm run dev)
 npm run dev:flow        # Run Flow independently
 npm run dev:frames      # Run Frames independently
-npm run test:oasis      # Oasis unit tests (grades, bell schedule, CSV imports, logins)
+npm run test:oasis      # OASIS unit tests (grades, bell schedule, CSV imports, logins)
 npm run test:frames     # Frames unit tests
 npm run test:frames:e2e # Frames through the launcher (needs a build)
 npm run test:flow       # Test Flow

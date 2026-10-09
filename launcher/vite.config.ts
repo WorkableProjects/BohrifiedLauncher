@@ -8,7 +8,7 @@ const FLOW_DEV = process.env.FLOW_DEV_URL ?? 'http://localhost:5174';
 /** Where the Frames dev server runs (scripts/dev.mjs starts it with base /apps/frames/). */
 const FRAMES_DEV = process.env.FRAMES_DEV_URL ?? 'http://localhost:5175';
 
-/** Dev only: serve a single-page app (Rubricable, Oasis) as-is at /apps/<id>/. */
+/** Dev only: serve a single-page app (Rubricable, OASIS) as-is at /apps/<id>/. */
 function singlePage(id: string): Plugin {
   const base = `/apps/${id}`;
   return {

@@ -9,7 +9,7 @@ const m = html.match(/\/\/ ---- oasis-core:start ----([\s\S]*?)\/\/ ---- oasis-c
 if (!m) throw new Error('oasis-core markers not found in index.html');
 const core = vm.runInNewContext(`${m[1]}
 ({VERSION, defaults, sanitizeDb, letterFor, scaleRange, classGrade, parseScore, trunc2, pct, toMin, fromMin, fmt12, dayType, shiftBell, bellIssues, periodNow,
-  parseCSV, csvRecords, buildCsv, csvCell, normDate, importStudents, importAssignments, importGrades, TEMPLATES, MWF, DEFAULT_CATEGORIES})`);
+  parseCSV, csvRecords, buildCsv, csvCell, normDate, importStudents, importAssignments, importGrades, TEMPLATES, MWF, DEFAULT_CATEGORIES, reportData, buildReportDoc, reportCsv, fmtDate, pctShort, esc})`);
 const plain = (x) => JSON.parse(JSON.stringify(x));
 
 const setup = () => {
@@ -151,14 +151,73 @@ describe('sanitizeDb', () => {
   });
 });
 
-describe('logins', () => {
-  const auth = [...html.matchAll(/(\w+):\s+\{ name: '([^']+)',\s+salt: '([0-9a-f]{32})', hash: '([0-9a-f]{64})' \}/g)];
-  it('has exactly Caden Erwin and Jayden McCarthy', () => expect(auth.map((a) => [a[1], a[2]])).toEqual([['caden', 'Caden Erwin'], ['jayden', 'Jayden McCarthy']]));
-  it('stores only PBKDF2 hashes, and the hash is what the page computes', () => {
-    expect(html).toMatch(/iterations: ITER/); expect(html).toContain('const ITER = 150000');
-    const h = pbkdf2Sync('wrong-guess', Buffer.from(auth[0][3], 'hex'), 150000, 32, 'sha256').toString('hex');
-    expect(h).not.toBe(auth[0][4]);
-    expect(auth[0][4]).not.toBe(auth[1][4]);
+describe('student reports', () => {
+  const full = () => {
+    const db = setup(), s = db.students[0], c = db.classes[0];
+    const id = (n) => db.assignments.find((a) => a.name === n).id;
+    db.grades[id('Unit 1 Test') + ':' + s.id] = { s: 46 }; db.grades[id('Quiz 1.1') + ':' + s.id] = { m: 1 }; db.grades[id('Density Lab') + ':' + s.id] = { x: 1 };
+    return { db, s, c };
+  };
+  it('lists each assignment with status, percent and whether it counts', () => {
+    const { db, s, c } = full(), d = core.reportData(db, c.id, s.id);
+    expect(d.items.map((i) => [i.name, i.status, i.earned, i.counts])).toEqual([['Quiz 1.1', 'Missing', 0, true], ['Density Lab', 'Excused', null, false], ['Unit 1 Test', 'Graded', 46, true]]);
+    expect(d.items[2].percent).toBeCloseTo(92); expect(core.pctShort(93.333)).toBe('93.3%'); expect(core.pctShort(100)).toBe('100%');
+    expect(d.cat.map((k) => k.name)).toEqual(['Unit Tests', 'Quizzes']);
+    expect(d.letter).toBe(core.letterFor(db, d.overall));
   });
-  it('contains no password-like literals', () => expect(html).not.toMatch(/password\s*[:=]\s*['"][^'"]+['"]/i));
+  it('can hide pending work', () => {
+    const { db, s, c } = full(); db.students.push({ id: 'z', first: 'Z', last: 'Z', email: '' }); db.classes[0].studentIds.push('z');
+    expect(core.reportData(db, c.id, 'z').items.length).toBe(3);
+    expect(core.reportData(db, c.id, 'z', true).items.length).toBe(0);
+    expect(core.reportData(db, c.id, s.id, true).items.length).toBe(3);
+  });
+  it('builds one page per student/class with only name and email', () => {
+    const { db, c } = full();
+    const doc = core.buildReportDoc(db, { pairs: db.students.map((s) => ({ classId: c.id, studentId: s.id })), tutor: 'Caden Erwin', note: 'Nice work', now: new Date(2026, 1, 13, 13, 1) });
+    expect(doc.match(/<section class="page">/g).length).toBe(2);
+    expect(doc).toContain('Lovelace, Ada'); expect(doc).toContain('ada@example.com'); expect(doc).toContain('02/13/2026 1:01 PM');
+    expect(doc).toContain('Nice work'); expect(doc).toContain('Caden Erwin'); expect(doc).toContain('Unit 1 Test');
+  });
+  it('escapes everything it prints', () => {
+    const { db, c } = full(); db.students[0].first = '<img src=x onerror=1>'; db.assignments[0].name = '<script>1</script>';
+    const doc = core.buildReportDoc(db, { pairs: [{ classId: c.id, studentId: db.students[0].id }], note: '<b>x</b>', tutor: '<i>' });
+    expect(doc).not.toMatch(/<img src=x|<script>1|<b>x<\/b>|<i>/);
+  });
+  it('exports a CSV of the same data', () => {
+    const { db, s, c } = full(), rows = core.parseCSV(core.reportCsv(db, [{ classId: c.id, studentId: s.id }]));
+    expect(rows[0].slice(0, 3)).toEqual(['first_name', 'last_name', 'email']); expect(rows.length).toBe(4);
+    expect(rows.map((r) => r[12]).slice(1)).toEqual(['Missing', 'Excused', 'Graded']);
+  });
+  it('formats dates the way Aeries does', () => { expect(core.fmtDate('2026-01-05')).toBe('01/05/26'); expect(core.fmtDate('')).toBe(''); });
+});
+
+describe('student information is name + email only', () => {
+  it('ignores other columns on import', () => {
+    const db = core.defaults();
+    core.importStudents(db, 'first_name,last_name,email,student_id,parent_phone\nA,B,a@b.c,99,555');
+    expect(plain(db.students[0])).toEqual({ id: db.students[0].id, first: 'A', last: 'B', email: 'a@b.c' });
+  });
+  it('matches students by email, then by name', () => {
+    const db = core.defaults();
+    core.importStudents(db, 'first_name,last_name,email\nA,B,a@b.c'); core.importStudents(db, 'first_name,last_name,email\nAl,Bee,A@B.C');
+    expect(db.students.length).toBe(1); expect(db.students[0].first).toBe('Al');
+  });
+  it('templates have no extra fields', () => expect(core.TEMPLATES.students[0]).toEqual(['first_name', 'last_name', 'email', 'class', 'period']));
+});
+
+describe('branding and logins', () => {
+  it('is called OASIS', () => {
+    expect(html).toContain('<title>OASIS 1.0.0</title>'); expect(html).toContain('<h1>OASIS</h1>'); expect(html).not.toMatch(/\bOasis\b/);
+  });
+  it('keeps no readable credentials in the source', () => {
+    expect(html).not.toMatch(/[0-9a-f]{32}/i); // no hex salt or hash
+    expect(html).not.toMatch(/Caden|Jayden|McCarthy|Erwin/); expect(html).not.toMatch(/\bAUTH\b/);
+    expect(html).not.toMatch(/password\s*[:=]\s*['"][^'"]+['"]/i);
+    expect(html).toContain('const ITER = 150000'); expect(html).toContain('PBKDF2');
+  });
+  it('spreads the packed records across the file', () => {
+    const at = ['ROW_CACHE_A', 'MOTION_TBL_A', 'GRID_PAD_A', 'ROW_CACHE_B', 'MOTION_TBL_B', 'GRID_PAD_B', 'LAYOUT_SEED'].map((n) => html.indexOf(`${n} = '`));
+    expect(at.every((i) => i > 0)).toBe(true);
+    expect(Math.max(...at) - Math.min(...at)).toBeGreaterThan(html.length * 0.3);
+  });
 });

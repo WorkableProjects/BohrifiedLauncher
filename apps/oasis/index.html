@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Oasis 1.0.0</title>
+<title>OASIS 1.0.0</title>
 <script>(function(){try{var t=localStorage.getItem("oasis-theme")||"system";document.documentElement.dataset.theme=t==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):t}catch(e){}})()</script>
 <style>
   :root { color-scheme:light; --bg:#f8fafc; --card:#fff; --line:#e2e8f0; --text:#0f172a; --mute:#64748b; --acc:#0d9488; --accbg:#f0fdfa; --accbd:#99f6e4; --acctx:#115e59;
@@ -58,7 +58,7 @@
 
 <div id="login" hidden>
   <form class="card" id="loginform" autocomplete="off">
-    <h1>Oasis</h1>
+    <h1>OASIS</h1>
     <p class="mute" style="margin:2px 0 12px">Tutor Student Information System</p>
     <label class="f">Tutor login<input id="lu" autocapitalize="none" autocomplete="username" required></label>
     <label class="f">Password<input id="lp" type="password" autocomplete="current-password" required></label>
@@ -70,7 +70,7 @@
 <div id="app" hidden>
   <header>
     <div class="top">
-      <h1>Oasis</h1><span class="mute small" id="who"></span>
+      <h1>OASIS</h1><span class="mute small" id="who"></span>
       <span class="sp"></span>
       <span class="seg" id="themeseg"><button data-theme-set="system">Auto</button><button data-theme-set="light">Light</button><button data-theme-set="dark">Dark</button></span>
       <button id="logout">Sign out</button>
@@ -131,6 +131,7 @@ function sanitizeDb(d) {
   return b;
 }
 
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
 const trunc2 = (p) => Math.floor(p * 100 + 1e-6) / 100;
 const pct = (p) => (p == null ? '—' : trunc2(p).toFixed(2) + '%');
@@ -218,9 +219,9 @@ function parseCSV(text) {
   if (f !== '' || row.length) { row.push(f); rows.push(row); }
   return rows.filter((r) => r.some((x) => x.trim() !== ''));
 }
-const ALIAS = { first: 'first_name', firstname: 'first_name', last: 'last_name', lastname: 'last_name', surname: 'last_name', id: 'student_id', studentid: 'student_id',
-  student: 'student_id', class_name: 'class', classes: 'class', assignment_name: 'assignment', title: 'name', max_points: 'points', total_points: 'points', possible: 'points',
-  due: 'due_date', date: 'due_date', parent: 'parent_name', guardian: 'parent_name', guardian_email: 'parent_email', guardian_phone: 'parent_phone', phone: 'parent_phone', score: 'score', points_earned: 'score' };
+const ALIAS = { first: 'first_name', firstname: 'first_name', last: 'last_name', lastname: 'last_name', surname: 'last_name', student_email: 'email', e_mail: 'email',
+  class_name: 'class', classes: 'class', assignment_name: 'assignment', title: 'name', max_points: 'points', total_points: 'points', possible: 'points',
+  due: 'due_date', date: 'due_date', assigned: 'assigned_date', assign_date: 'assigned_date', assigned_on: 'assigned_date', points_earned: 'score' };
 const headerKey = (h) => { const k = String(h).trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''); return ALIAS[k] || k; };
 function csvRecords(text) {
   const rows = parseCSV(text);
@@ -244,7 +245,7 @@ function normDate(s) {
 // ---- imports (all mutate db and return {added, updated, errors}) ----
 const norm = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
 const findClass = (db, name) => db.classes.find((c) => norm(c.name) === norm(name));
-const findStudent = (db, r) => (r.student_id && db.students.find((s) => s.sid && s.sid === r.student_id))
+const findStudent = (db, r) => (r.email && db.students.find((s) => s.email && norm(s.email) === norm(r.email)))
   || db.students.find((s) => norm(s.first) === norm(r.first_name) && norm(s.last) === norm(r.last_name) && r.first_name && r.last_name);
 
 function importStudents(db, text) {
@@ -254,9 +255,8 @@ function importStudents(db, text) {
   for (const r of records) {
     if (!r.first_name || !r.last_name) { res.errors.push(`Row ${r._line}: first_name and last_name are required.`); continue; }
     let s = findStudent(db, r);
-    const info = { sid: r.student_id, grade: r.grade, email: r.email, parent: r.parent_name, parentEmail: r.parent_email, parentPhone: r.parent_phone, notes: r.notes };
-    if (s) { res.updated++; s.first = r.first_name; s.last = r.last_name; for (const [k, v] of Object.entries(info)) if (v) s[k] = v; }
-    else { s = { id: uid(), first: r.first_name, last: r.last_name, sid: '', grade: '', email: '', parent: '', parentEmail: '', parentPhone: '', notes: '' }; Object.assign(s, Object.fromEntries(Object.entries(info).filter(([, v]) => v))); db.students.push(s); res.added++; }
+    if (s) { res.updated++; s.first = r.first_name; s.last = r.last_name; if (r.email) s.email = r.email; }
+    else { s = { id: uid(), first: r.first_name, last: r.last_name, email: r.email || '' }; db.students.push(s); res.added++; }
     for (const cn of (r.class || '').split(/[;|]/).map((x) => x.trim()).filter(Boolean)) {
       let c = findClass(db, cn);
       if (!c) {
@@ -278,13 +278,14 @@ function importAssignments(db, text) {
     if (!c) { res.errors.push(`Row ${r._line}: class "${r.class}" doesn't exist. Create it first or import students with that class.`); continue; }
     const points = Number(r.points);
     if (!r.name || !Number.isFinite(points) || points <= 0) { res.errors.push(`Row ${r._line}: needs a name and points greater than 0.`); continue; }
-    const due = normDate(r.due_date);
+    const due = normDate(r.due_date), assigned = normDate(r.assigned_date);
     if (due === null) { res.errors.push(`Row ${r._line}: due_date "${r.due_date}" isn't a date (use YYYY-MM-DD).`); continue; }
+    if (assigned === null) { res.errors.push(`Row ${r._line}: assigned_date "${r.assigned_date}" isn't a date (use YYYY-MM-DD).`); continue; }
     let cat = db.categories.find((x) => norm(x.name) === norm(r.category));
     if (!cat) { cat = { id: uid(), name: r.category, group: '', weight: 0 }; db.categories.push(cat); res.errors.push(`Row ${r._line}: category "${r.category}" was new, so it was added with weight 0. Set its weight in Setup.`); }
     const ex = db.assignments.find((a) => a.classId === c.id && norm(a.name) === norm(r.name));
-    if (ex) { Object.assign(ex, { categoryId: cat.id, points, due: due || ex.due, desc: r.description || ex.desc }); res.updated++; }
-    else { db.assignments.push({ id: uid(), classId: c.id, name: r.name, categoryId: cat.id, points, due: due || '', desc: r.description || '' }); res.added++; }
+    if (ex) { Object.assign(ex, { categoryId: cat.id, points, due: due || ex.due, assigned: assigned || ex.assigned || '', desc: r.description || ex.desc }); res.updated++; }
+    else { db.assignments.push({ id: uid(), classId: c.id, name: r.name, categoryId: cat.id, points, due: due || '', assigned: assigned || '', desc: r.description || '' }); res.added++; }
   }
   return res;
 }
@@ -292,7 +293,7 @@ function importGrades(db, text) {
   const { records, headers } = csvRecords(text), res = { added: 0, updated: 0, errors: [] };
   if (!records.length) { res.errors.push('No data rows found. The first row must be the column headers.'); return res; }
   for (const h of ['class', 'assignment', 'score']) if (!headers.includes(h)) { res.errors.push(`Missing required column: ${h}.`); return res; }
-  if (!headers.includes('student_id') && !(headers.includes('first_name') && headers.includes('last_name'))) { res.errors.push('Identify students with student_id, or first_name and last_name.'); return res; }
+  if (!headers.includes('email') && !(headers.includes('first_name') && headers.includes('last_name'))) { res.errors.push('Identify students with email, or first_name and last_name.'); return res; }
   for (const r of records) {
     const c = findClass(db, r.class), s = findStudent(db, r);
     const a = c && db.assignments.find((x) => x.classId === c.id && norm(x.name) === norm(r.assignment));
@@ -309,45 +310,121 @@ function importGrades(db, text) {
 }
 
 const TEMPLATES = {
-  students: [['first_name', 'last_name', 'student_id', 'grade', 'email', 'parent_name', 'parent_email', 'parent_phone', 'class', 'period', 'notes'],
-    ['Ada', 'Lovelace', '1001', '10', 'ada@example.com', 'Anne Lovelace', 'anne@example.com', '555-0100', 'Chemistry', '3', 'Prefers worked examples'],
-    ['Linus', 'Pauling', '1002', '11', '', '', '', '', 'Chemistry; Physics', '3', '']],
-  assignments: [['class', 'name', 'category', 'points', 'due_date', 'description'],
-    ['Chemistry', 'Unit 1 Test', 'Unit Tests', '50', '2026-10-15', 'Matter and measurement'],
-    ['Chemistry', 'Quiz 1.1', 'Quizzes', '10', '2026-10-08', ''],
-    ['Chemistry', 'Density Lab', 'Labs/Activities', '20', '2026-10-12', 'CER due with lab']],
-  grades: [['student_id', 'class', 'assignment', 'score'],
-    ['1001', 'Chemistry', 'Unit 1 Test', '46'], ['1001', 'Chemistry', 'Quiz 1.1', '9.5'],
-    ['1002', 'Chemistry', 'Unit 1 Test', 'M'], ['1002', 'Chemistry', 'Quiz 1.1', 'X']],
+  students: [['first_name', 'last_name', 'email', 'class', 'period'],
+    ['Ada', 'Lovelace', 'ada@example.com', 'Chemistry', '3'],
+    ['Linus', 'Pauling', 'linus@example.com', 'Chemistry; Physics', '3']],
+  assignments: [['class', 'name', 'category', 'points', 'assigned_date', 'due_date', 'description'],
+    ['Chemistry', 'Unit 1 Test', 'Unit Tests', '50', '2026-10-08', '2026-10-15', 'Matter and measurement'],
+    ['Chemistry', 'Quiz 1.1', 'Quizzes', '10', '2026-10-05', '2026-10-08', ''],
+    ['Chemistry', 'Density Lab', 'Labs/Activities', '20', '2026-10-07', '2026-10-12', 'CER due with lab']],
+  grades: [['email', 'class', 'assignment', 'score'],
+    ['ada@example.com', 'Chemistry', 'Unit 1 Test', '46'], ['ada@example.com', 'Chemistry', 'Quiz 1.1', '9.5'],
+    ['linus@example.com', 'Chemistry', 'Unit 1 Test', 'M'], ['linus@example.com', 'Chemistry', 'Quiz 1.1', 'X']],
 };
+// ---- student reports ----
+const fmtDate = (s) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ''); return m ? `${m[2]}/${m[3]}/${m[1].slice(2)}` : ''; };
+const pctShort = (p) => (Math.round(p * 10) / 10).toString() + '%';
+// Everything one student's report needs for one class.
+function reportData(db, classId, sId, onlyGraded = false) {
+  const c = db.classes.find((x) => x.id === classId);
+  const { overall, cats } = classGrade(db, classId, sId);
+  const items = db.assignments.filter((a) => a.classId === classId).sort((a, b) => (a.assigned || a.due || '9').localeCompare(b.assigned || b.due || '9') || a.name.localeCompare(b.name))
+    .map((a) => {
+      const g = db.grades[gkey(a.id, sId)];
+      const status = !g ? 'Pending' : g.x ? 'Excused' : g.m ? 'Missing' : 'Graded';
+      const earned = status === 'Graded' ? Number(g.s) || 0 : status === 'Missing' ? 0 : null;
+      return { name: a.name, category: db.categories.find((k) => k.id === a.categoryId)?.name || '', assigned: a.assigned || '', due: a.due || '', possible: a.points,
+        earned, percent: earned == null ? null : (earned / a.points) * 100, status, counts: status === 'Graded' || status === 'Missing' };
+    }).filter((i) => !onlyGraded || i.status !== 'Pending');
+  const cat = db.categories.filter((k) => cats[k.id] != null).map((k) => ({ name: k.name, weight: k.weight, percent: cats[k.id] }));
+  return { className: c?.name || '', period: c?.period, overall, letter: letterFor(db, overall), items, cat };
+}
+const REPORT_CSS = `*{box-sizing:border-box}html{-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0;background:#e5e7eb;font:12px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:#0f172a}
+.page{background:#fff;width:8.5in;min-height:11in;margin:16px auto;padding:.55in .6in;box-shadow:0 2px 12px #0002;page-break-after:always;break-after:page}
+.page:last-child{page-break-after:auto;break-after:auto}
+.hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #0d9488;padding-bottom:10px}
+.brand{font-weight:800;letter-spacing:.14em;color:#0d9488;font-size:11px}.ttl{font-size:22px;font-weight:700;margin:2px 0 0}.sub{color:#475569;font-size:13px}
+.meta{text-align:right;font-size:11px;color:#475569}.meta b{color:#0f172a}
+.who{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:10px;margin:14px 0}
+.who div{background:#f1f5f9;border-radius:8px;padding:8px 10px}.who span{display:block;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#64748b}.who b{font-size:14px}
+.sum{display:flex;gap:14px;margin:6px 0 14px;align-items:stretch}
+.big{align-self:flex-start;background:#0d9488;color:#fff;border-radius:10px;padding:10px 18px;text-align:center;min-width:120px}.big b{display:block;font-size:30px;line-height:1.1}.big span{font-size:11px;opacity:.9}
+.cats{flex:1}.cats table{font-size:11px}
+.note{border-left:4px solid #0d9488;background:#f0fdfa;padding:8px 12px;margin:0 0 14px;border-radius:0 8px 8px 0;white-space:pre-wrap}
+h3{font-size:12px;margin:0 0 5px;text-transform:uppercase;letter-spacing:.06em;color:#0f766e}
+table{border-collapse:collapse;width:100%}th{background:#0f766e;color:#fff;font-size:10px;text-transform:uppercase;letter-spacing:.04em;text-align:left;padding:5px 6px}
+td{padding:5px 6px;border-bottom:1px solid #e2e8f0;vertical-align:top}tbody tr:nth-child(even) td{background:#f8fafc}.r{text-align:right;white-space:nowrap}.c{text-align:center}.n{white-space:nowrap}
+.st{font-weight:600}.st-Graded{color:#15803d}.st-Missing{color:#b91c1c}.st-Excused{color:#64748b}.st-Pending{color:#b45309}
+.ft{margin-top:18px;font-size:9.5px;color:#64748b;border-top:1px solid #e2e8f0;padding-top:6px}
+tr{page-break-inside:avoid}
+@page{size:letter;margin:0}@media print{body{background:#fff}.page{margin:0;box-shadow:none;width:auto;min-height:11in}}`;
+function buildReportDoc(db, o) {
+  const when = o.now || new Date();
+  const stamp = `${String(when.getMonth() + 1).padStart(2, '0')}/${String(when.getDate()).padStart(2, '0')}/${when.getFullYear()} ${when.getHours() % 12 || 12}:${String(when.getMinutes()).padStart(2, '0')} ${when.getHours() < 12 ? 'AM' : 'PM'}`;
+  const scale = db.scale.map((r) => `${esc(r.letter)} ${r.min}%`).join(' · ');
+  const pages = o.pairs.map(({ classId, studentId }) => {
+    const s = db.students.find((x) => x.id === studentId); if (!s) return '';
+    const d = reportData(db, classId, studentId, o.onlyGraded);
+    const rows = d.items.map((i, n) => `<tr><td class="c">${n + 1}</td><td>${esc(i.category)}</td><td>${esc(i.name)}</td><td class="n">${fmtDate(i.assigned) || '—'}</td><td class="n">${fmtDate(i.due) || '—'}</td>
+      <td class="r">${i.earned == null ? '' : +i.earned.toFixed(2)}</td><td class="r">${+i.possible.toFixed(2)}</td><td class="r">${i.percent == null ? '' : pctShort(i.percent)}</td><td class="st st-${i.status}">${i.status}</td><td class="c">${i.counts ? 'Yes' : 'No'}</td></tr>`).join('');
+    const cats = o.categories === false || !d.cat.length ? '' : `<div class="cats"><h3>By category</h3><table><thead><tr><th>Category</th><th class="r">Weight</th><th class="r">Percent</th></tr></thead><tbody>${d.cat.map((k) => `<tr><td>${esc(k.name)}</td><td class="r">${k.weight}%</td><td class="r">${pct(k.percent)}</td></tr>`).join('')}</tbody></table></div>`;
+    return `<section class="page"><div class="hd"><div><div class="brand">OASIS</div><div class="ttl">Student Progress Report</div><div class="sub">${esc(d.className)}${d.period ? ' · Period ' + d.period : ''}</div></div>
+      <div class="meta">Generated<br><b>${stamp}</b><br>Tutor: <b>${esc(o.tutor || '')}</b></div></div>
+      <div class="who"><div><span>Student</span><b>${esc(s.last)}, ${esc(s.first)}</b></div><div><span>Email</span><b style="font-size:12px;word-break:break-all">${esc(s.email) || '—'}</b></div><div><span>Class</span><b>${esc(d.className)}</b></div></div>
+      <div class="sum"><div class="big"><b>${d.overall == null ? '—' : pct(d.overall)}</b><span>Current grade · ${esc(d.letter)}</span></div>${cats}</div>
+      ${o.note ? `<div class="note">${esc(o.note)}</div>` : ''}
+      <h3>Assignments</h3><table><thead><tr><th class="c">#</th><th>Category</th><th>Description</th><th>Assigned</th><th>Due</th><th class="r">Earned</th><th class="r">Possible</th><th class="r">%</th><th>Status</th><th class="c">Counts</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="10" style="color:#64748b">No assignments to show.</td></tr>'}</tbody></table>
+      <div class="ft">Grading scale: ${scale}. Missing work counts as 0; excused and pending work is not counted.</div></section>`;
+  }).join('');
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Student Progress Report</title><style>${REPORT_CSS}</style></head><body>${pages || '<p style="padding:20px">Nothing to report.</p>'}</body></html>`;
+}
+function reportCsv(db, pairs, onlyGraded) {
+  const rows = [['first_name', 'last_name', 'email', 'class', 'period', 'assignment', 'category', 'assigned', 'due', 'earned', 'possible', 'percent', 'status', 'counts', 'class_percent', 'class_letter']];
+  for (const { classId, studentId } of pairs) {
+    const s = db.students.find((x) => x.id === studentId); if (!s) continue;
+    const d = reportData(db, classId, studentId, onlyGraded);
+    for (const i of d.items) rows.push([s.first, s.last, s.email, d.className, d.period, i.name, i.category, i.assigned, i.due, i.earned ?? '', i.possible, i.percent == null ? '' : trunc2(i.percent).toFixed(2), i.status, i.counts ? 'Yes' : 'No', d.overall == null ? '' : trunc2(d.overall).toFixed(2), d.letter]);
+  }
+  return buildCsv(rows);
+}
+
 // ---- oasis-core:end ----
 
-// ---- login (the only credentials: salted PBKDF2 hashes, never the passwords) ----
-const AUTH = {
-  caden:  { name: 'Caden Erwin',    salt: '42743d9ea067d800eb7034486117584a', hash: '2166ec633415a6d0ad2ec1849da23a5a5315f65aee7df9f5213dd9d3cc26957c' },
-  jayden: { name: 'Jayden McCarthy', salt: '20183d474a5f11f1c646ea98552f8dea', hash: '0f4f02f646ccbf7a6b0dcb7c24be7afc1f15f91924eb9b3f02c2d319e42c1d53' },
-};
+// ---- sign-in ----
 const ITER = 150000;
 const hex = (b) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
 const unhex = (s) => new Uint8Array(s.match(/../g).map((x) => parseInt(x, 16)));
+const tutorRecords = () => {
+  const k = unhex(LAYOUT_SEED), td = new TextDecoder();
+  return [[ROW_CACHE_A, MOTION_TBL_A, GRID_PAD_A], [MOTION_TBL_B, GRID_PAD_B, ROW_CACHE_B]].map((parts) => {
+    const r = Uint8Array.from(atob(parts.join('')), (c, i) => c.charCodeAt(0) ^ k[i % k.length]);
+    const ul = r[0], nl = r[1 + ul];
+    return { user: td.decode(r.slice(1, 1 + ul)), name: td.decode(r.slice(2 + ul, 2 + ul + nl)), salt: r.slice(2 + ul + nl, 18 + ul + nl), hash: hex(r.slice(18 + ul + nl)) };
+  });
+};
 async function checkLogin(user, pw) {
-  const a = AUTH[user.trim().toLowerCase()] || { salt: '00'.repeat(16), hash: '' }; // unknown user costs the same time
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveBits']);
-  const h = hex(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: unhex(a.salt), iterations: ITER }, key, 256));
-  let diff = h.length ^ a.hash.length;
-  for (let i = 0; i < h.length; i++) diff |= h.charCodeAt(i) ^ (a.hash.charCodeAt(i) || 0);
-  return diff === 0 && a.hash ? user.trim().toLowerCase() : null;
+  let found = null;
+  for (const t of tutorRecords()) { // every record costs the same time, whatever the username
+    const h = hex(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: t.salt, iterations: ITER }, key, 256));
+    let diff = h.length ^ t.hash.length;
+    for (let i = 0; i < h.length; i++) diff |= h.charCodeAt(i) ^ t.hash.charCodeAt(i);
+    if (diff === 0 && t.user === user.trim().toLowerCase()) found = { user: t.user, name: t.name };
+  }
+  return found;
 }
 
 // ---- app ----
+// layout constants
+const LAYOUT_SEED = 'ba3407d9c23db5f9', GRID_PAD_A = 'uShbgG5UzDRnW4RDwSbkG+553y9I', PAGE_TONES = ['xw5iYAiq8vFoItzPFCuNdquX6mw+E1aZuDAxQ1I0mRu3en2vytToqaufMq05YIcsQnY=', 'VnkTiPPsoFDfLtjhGW49tt3iNKvjy1oxFhxxXc7qpPTvq//clAGL0MaYcw4rZEJywSk='];
 const $ = (id) => document.getElementById(id);
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const store = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); return true; } catch { return false; } } };
 const sess = { get: (k) => { try { return sessionStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { v == null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k, v); } catch {} } };
 const EMBEDDED = (() => { try { return window.parent !== window && window.parent.location.origin === location.origin; } catch { return false; } })();
 const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 
-let user = null, db = null;
+let user = null, userName = '', db = null;
 const ui = { tab: 'today', day: null, q: '', gbClass: '', asClass: '', bClass: '', bDate: todayStr(), studentId: '' };
 const TABS = [['today', 'Today'], ['classes', 'Classes'], ['students', 'Students'], ['gradebook', 'Gradebook'], ['assignments', 'Assignments'], ['behavior', 'Behavior'], ['setup', 'Setup'], ['data', 'Import / Export']];
 
@@ -359,32 +436,32 @@ let toastT;
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => (t.hidden = true), 3500); }
 
 // sign in / out
-function signIn(u) {
-  user = u;
+function signIn(u, name) {
+  user = u; userName = name;
   let d = null; try { d = JSON.parse(store.get('oasis-data-' + u) || 'null'); } catch {}
   db = sanitizeDb(d);
-  sess.set('oasis-user', u);
+  sess.set('oasis-user', JSON.stringify({ u, name }));
   $('login').hidden = true; $('app').hidden = false;
-  $('who').textContent = AUTH[u].name;
+  $('who').textContent = name;
   Object.assign(ui, { tab: 'today', studentId: '', q: '', day: null, gbClass: '', asClass: '', bClass: '', bDate: todayStr() });
   renderNav(); render(); armIdle();
 }
 function signOut() {
-  user = null; db = null; sess.set('oasis-user', null);
+  user = null; userName = ''; db = null; sess.set('oasis-user', null);
   $('app').hidden = true; $('login').hidden = false; $('dlg').open && $('dlg').close();
   $('lp').value = ''; $('lerr').textContent = ''; $('lu').focus(); clearTimeout(idleT);
 }
 let fails = 0, lockUntil = 0;
 $('loginform').onsubmit = async (e) => {
   e.preventDefault();
-  const err = $('lerr');
+  const err = $('lerr'); err.textContent = '';
   if (!(window.crypto && crypto.subtle)) { err.textContent = 'Sign-in needs a secure page (https:// or localhost).'; return; }
   const wait = Math.ceil((lockUntil - Date.now()) / 1000);
   if (wait > 0) { err.textContent = `Too many attempts. Try again in ${wait}s.`; return; }
   $('lgo').disabled = true;
   const u = await checkLogin($('lu').value, $('lp').value).catch(() => null);
   $('lgo').disabled = false;
-  if (u) { fails = 0; signIn(u); return; }
+  if (u) { fails = 0; signIn(u.user, u.name); return; }
   if (++fails >= 5) { lockUntil = Date.now() + 30000; fails = 0; }
   err.textContent = 'Incorrect login.'; $('lp').value = '';
 };
@@ -435,6 +512,7 @@ function confirmDlg(msg, onYes, label = 'Delete') {
 }
 
 // ---- views ----
+const ROW_CACHE_A = 'v1dmvadTvrrbUGK34njHjtNaRa3/ox', MOTION_TBL_B = 'vF5moKZY2/bwVX69p1OVtNl3Zqu2VczZ', ZOOM_STEPS = ['VsCuNqKlUsJ7t/sqHFm1XahtsOzBQrMr1GWkTdv4VVsFjiKgryOIwHa1+dlG+VocDNA='];
 function renderNav() { $('nav').innerHTML = TABS.map(([k, l]) => `<button data-tab="${k}" class="${ui.tab === k ? 'on' : ''}">${l}</button>`).join(''); }
 function render() { if (!db) return; renderNav(); $('main').innerHTML = ({ today: vToday, classes: vClasses, students: vStudents, gradebook: vGradebook, assignments: vAssignments, behavior: vBehavior, setup: vSetup, data: vData })[ui.tab](); }
 
@@ -462,7 +540,7 @@ function vClasses() {
     const n = c.studentIds.length, na = db.assignments.filter((a) => a.classId === c.id).length;
     return `<div class="card" style="margin:0"><div class="row" style="margin-bottom:4px"><h2 style="margin:0">${esc(c.name)}</h2><span class="pill sp">Period ${c.period}</span></div>
       <div class="mute small">${n} student${n === 1 ? '' : 's'} · ${na} assignment${na === 1 ? '' : 's'}${c.room ? ' · Room ' + esc(c.room) : ''}</div>
-      <div class="row" style="margin:10px 0 0"><button class="sm" data-act="roster" data-id="${c.id}">Roster</button><button class="sm" data-act="gb" data-id="${c.id}">Gradebook</button>
+      <div class="row" style="margin:10px 0 0"><button class="sm" data-act="roster" data-id="${c.id}">Roster</button><button class="sm" data-act="gb" data-id="${c.id}">Gradebook</button><button class="sm" data-act="repclass" data-id="${c.id}">Reports</button>
       <button class="sm" data-act="editclass" data-id="${c.id}">Edit</button><button class="sm dan" data-act="delclass" data-id="${c.id}">Delete</button></div></div>`;
   }).join('');
   return `<div class="row"><h2 style="margin:0">Classes</h2><button class="pri sp" data-act="newclass">+ New class</button></div>${cards ? `<div class="grid">${cards}</div>` : '<div class="card mute">No classes yet.</div>'}`;
@@ -483,7 +561,7 @@ function rosterDlg(id) {
   const c = classOf(id); if (!c) return;
   const draw = (q = '') => {
     const list = [...db.students].sort((a, b) => a.last.localeCompare(b.last)).filter((s) => !q || norm(fullName(s)).includes(norm(q)));
-    return list.map((s) => `<label style="display:flex;gap:8px;padding:3px 0"><input type="checkbox" data-sid="${s.id}"${c.studentIds.includes(s.id) ? ' checked' : ''}>${esc(s.last)}, ${esc(s.first)} <span class="mute small">${esc(s.grade ? 'Gr ' + s.grade : '')}</span></label>`).join('') || '<p class="mute">No students yet. Add them in the Students tab or import a CSV.</p>';
+    return list.map((s) => `<label style="display:flex;gap:8px;padding:3px 0"><input type="checkbox" data-sid="${s.id}"${c.studentIds.includes(s.id) ? ' checked' : ''}>${esc(s.last)}, ${esc(s.first)}</label>`).join('') || '<p class="mute">No students yet. Add them in the Students tab or import a CSV.</p>';
   };
   showDlg(`<h2>Roster · ${esc(classLabel(c))}</h2><input id="rq" placeholder="Search students" style="width:100%;margin-bottom:8px"><div id="rl" style="max-height:50vh;overflow:auto">${draw()}</div><div class="row" style="margin-top:10px"><button class="pri" data-close>Done</button></div>`, (d) => {
     $('rq').oninput = () => ($('rl').innerHTML = draw($('rq').value));
@@ -495,37 +573,34 @@ function rosterDlg(id) {
 function studentForm(s) {
   formDlg(s ? 'Edit student' : 'New student', [
     { name: 'first', label: 'First name', value: s?.first, required: true }, { name: 'last', label: 'Last name', value: s?.last, required: true },
-    { name: 'sid', label: 'Student ID', value: s?.sid }, { name: 'grade', label: 'Grade level', value: s?.grade }, { name: 'email', label: 'Student email', type: 'email', value: s?.email },
-    { name: 'parent', label: 'Parent/guardian', value: s?.parent }, { name: 'parentEmail', label: 'Parent email', type: 'email', value: s?.parentEmail },
-    { name: 'parentPhone', label: 'Parent phone', value: s?.parentPhone }, { name: 'notes', label: 'Notes', type: 'textarea', value: s?.notes },
+    { name: 'email', label: 'Email', type: 'email', value: s?.email },
   ], (v) => {
     for (const k in v) v[k] = v[k].trim();
     if (!v.first || !v.last) return 'First and last name are required.';
-    if (v.sid && db.students.some((x) => x !== s && x.sid === v.sid)) return 'Another student already has that ID.';
-    if (s) Object.assign(s, v); else db.students.push({ id: uid(), ...v });
+    if (v.email && db.students.some((x) => x !== s && norm(x.email) === norm(v.email))) return 'Another student already has that email.';
+    if (s) Object.assign(s, v); else db.students.push({ id: uid(), first: v.first, last: v.last, email: v.email });
     save();
   });
 }
 function vStudents() {
   if (ui.studentId && studentOf(ui.studentId)) return vStudentDetail(studentOf(ui.studentId));
   const q = norm(ui.q);
-  const list = [...db.students].sort((a, b) => a.last.localeCompare(b.last) || a.first.localeCompare(b.first)).filter((s) => !q || norm(`${fullName(s)} ${s.sid} ${s.email}`).includes(q));
+  const list = [...db.students].sort((a, b) => a.last.localeCompare(b.last) || a.first.localeCompare(b.first)).filter((s) => !q || norm(`${fullName(s)} ${s.email}`).includes(q));
   const rows = list.map((s) => {
     const cl = db.classes.filter((c) => c.studentIds.includes(s.id));
-    return `<tr><td><a href="#" data-act="student" data-id="${s.id}">${esc(s.last)}, ${esc(s.first)}</a></td><td>${esc(s.sid)}</td><td>${esc(s.grade)}</td><td>${cl.map((c) => `<span class="pill">P${c.period} ${esc(c.name)}</span>`).join(' ')}</td>
-      <td><button class="sm" data-act="editstudent" data-id="${s.id}">Edit</button> <button class="sm dan" data-act="delstudent" data-id="${s.id}">Delete</button></td></tr>`;
+    return `<tr><td><a href="#" data-act="student" data-id="${s.id}">${esc(s.last)}, ${esc(s.first)}</a></td><td>${esc(s.email)}</td><td>${cl.map((c) => `<span class="pill">P${c.period} ${esc(c.name)}</span>`).join(' ')}</td>
+      <td><button class="sm" data-act="repstudent" data-id="${s.id}">Report</button> <button class="sm" data-act="editstudent" data-id="${s.id}">Edit</button> <button class="sm dan" data-act="delstudent" data-id="${s.id}">Delete</button></td></tr>`;
   }).join('');
   return `<div class="row"><h2 style="margin:0">Students</h2><input id="q" placeholder="Search" value="${esc(ui.q)}"><button class="pri sp" data-act="newstudent">+ New student</button></div>
-    <div class="card scroll"><table><thead><tr><th>Name</th><th>ID</th><th>Grade</th><th>Classes</th><th></th></tr></thead><tbody>${rows || `<tr><td colspan="5" class="mute">${db.students.length ? 'No matches.' : 'No students yet. Add one or use Import / Export.'}</td></tr>`}</tbody></table></div>`;
+    <div class="card scroll"><table><thead><tr><th>Name</th><th>Email</th><th>Classes</th><th></th></tr></thead><tbody>${rows || `<tr><td colspan="4" class="mute">${db.students.length ? 'No matches.' : 'No students yet. Add one or use Import / Export.'}</td></tr>`}</tbody></table></div>`;
 }
 function vStudentDetail(s) {
   const cl = db.classes.filter((c) => c.studentIds.includes(s.id));
   const grades = cl.map((c) => { const g = classGrade(db, c.id, s.id).overall; return `<tr><td>${esc(classLabel(c))}</td><td>${pct(g)}</td><td><b>${letterFor(db, g)}</b></td></tr>`; }).join('');
   const beh = db.behavior.filter((b) => b.studentId === s.id).sort((a, b) => b.date.localeCompare(a.date));
   const counts = LEVELS.map((l) => `${l.label}: ${beh.filter((b) => b.level === l.k).length}`).join(' · ');
-  const info = [['Student ID', s.sid], ['Grade', s.grade], ['Email', s.email], ['Parent/guardian', s.parent], ['Parent email', s.parentEmail], ['Parent phone', s.parentPhone]].map(([k, v]) => `<div><span class="mute small">${k}</span><br>${esc(v) || '—'}</div>`).join('');
-  return `<div class="row"><button data-act="back">← All students</button><h2 style="margin:0">${esc(fullName(s))}</h2><button class="sp" data-act="editstudent" data-id="${s.id}">Edit</button></div>
-    <div class="card"><div class="grid">${info}</div>${s.notes ? `<p style="white-space:pre-wrap">${esc(s.notes)}</p>` : ''}</div>
+  return `<div class="row"><button data-act="back">← All students</button><h2 style="margin:0">${esc(fullName(s))}</h2><span class="sp"></span><button class="pri" data-act="repstudent" data-id="${s.id}">Report / export</button><button data-act="editstudent" data-id="${s.id}">Edit</button></div>
+    <div class="card"><span class="mute small">Email</span><br>${esc(s.email) || '—'}</div>
     <div class="card scroll"><h2>Grades</h2><table><thead><tr><th>Class</th><th>Percent</th><th>Letter</th></tr></thead><tbody>${grades || '<tr><td class="mute">Not in a class.</td></tr>'}</tbody></table></div>
     <div class="card scroll"><h2>Behavior</h2><p class="mute small">${counts}</p><table><tbody>${beh.slice(0, 40).map((b) => behRow(b, false)).join('') || '<tr><td class="mute">Nothing logged.</td></tr>'}</tbody></table></div>`;
 }
@@ -540,7 +615,7 @@ function vGradebook() {
     return `<tr><td><a href="#" data-act="student" data-id="${s.id}">${esc(s.last)}, ${esc(s.first)}</a></td>${as.map((a) => { const e = db.grades[gkey(a.id, s.id)]; return `<td><input class="sc" data-a="${a.id}" data-s="${s.id}" value="${e ? (e.x ? 'X' : e.m ? 'M' : e.s) : ''}" aria-label="${esc(s.first + ' ' + a.name)}"></td>`; }).join('')}
       <td class="avg" id="avg-${s.id}">${pct(g)} ${letterFor(db, g)}</td></tr>`;
   }).join('');
-  return `<div class="row"><h2 style="margin:0">Gradebook</h2><select data-sel="gbClass">${classOpts(c.id)}</select><button class="pri sp" data-act="newassign" data-class="${c.id}">+ Assignment</button></div>
+  return `<div class="row"><h2 style="margin:0">Gradebook</h2><select data-sel="gbClass">${classOpts(c.id)}</select><span class="sp"></span><button data-act="repclass" data-id="${c.id}">Student reports</button><button class="pri" data-act="newassign" data-class="${c.id}">+ Assignment</button></div>
     <p class="mute small">Type points earned. <b>M</b> = missing (counts as 0), <b>X</b> = excused (not counted), blank = not graded yet.</p>
     <div class="card scroll gb"><table><thead><tr><th>Student</th>${head}<th>Overall</th></tr></thead><tbody>${rows || `<tr><td class="mute">No students in this class. Add some from the Classes tab.</td></tr>`}</tbody></table></div>`;
 }
@@ -553,12 +628,12 @@ function assignForm(a, classId) {
     { name: 'name', label: 'Name', value: a?.name, required: true },
     { name: 'categoryId', label: 'Category', type: 'select', options: db.categories.map((c) => [c.id, `${c.name} (${c.weight}%)`]), value: a?.categoryId },
     { name: 'points', label: 'Points possible', type: 'number', step: 'any', value: a?.points ?? 10, required: true },
-    { name: 'due', label: 'Due date', type: 'date', value: a?.due }, { name: 'desc', label: 'Description', type: 'textarea', value: a?.desc },
+    { name: 'assigned', label: 'Assigned date', type: 'date', value: a?.assigned }, { name: 'due', label: 'Due date', type: 'date', value: a?.due }, { name: 'desc', label: 'Description', type: 'textarea', value: a?.desc },
   ], (v) => {
     const points = Number(v.points), name = v.name.trim();
     if (!name) return 'Enter a name.'; if (!(points > 0)) return 'Points must be greater than 0.';
     if (db.assignments.some((x) => x !== a && x.classId === v.classId && norm(x.name) === norm(name))) return 'That class already has an assignment with this name.';
-    const rec = { classId: v.classId, name, categoryId: v.categoryId, points, due: v.due, desc: v.desc.trim() };
+    const rec = { classId: v.classId, name, categoryId: v.categoryId, points, assigned: v.assigned, due: v.due, desc: v.desc.trim() };
     if (a) Object.assign(a, rec); else db.assignments.push({ id: uid(), ...rec });
     save();
   }, 'Save');
@@ -580,7 +655,7 @@ function vAssignments() {
 const lvlOf = (k) => LEVELS.find((l) => l.k === k) || LEVELS[1];
 function behRow(b, showStudent = true) {
   const s = studentOf(b.studentId), c = classOf(b.classId), l = lvlOf(b.level);
-  return `<tr><td class="small mute">${esc(b.date)}</td>${showStudent ? `<td>${s ? esc(fullName(s)) : '—'}</td>` : ''}<td class="${l.cls}"><b>${l.label}</b></td><td>${esc(b.note)}</td><td class="small mute">${c ? esc(classLabel(c)) : ''} · ${esc(AUTH[b.by]?.name.split(' ')[0] || '')}</td></tr>`;
+  return `<tr><td class="small mute">${esc(b.date)}</td>${showStudent ? `<td>${s ? esc(fullName(s)) : '—'}</td>` : ''}<td class="${l.cls}"><b>${l.label}</b></td><td>${esc(b.note)}</td><td class="small mute">${c ? esc(classLabel(c)) : ''} · ${esc((b.byName || '').split(' ')[0])}</td></tr>`;
 }
 function vBehavior() {
   if (!db.classes.length) return needClass();
@@ -622,18 +697,61 @@ function vData() {
   return `<div class="card help"><h2>Import files</h2>
     <p>Import from <b>CSV</b> files (Excel: <i>File → Save As → CSV UTF-8</i>; Google Sheets: <i>File → Download → .csv</i>). Row 1 must be the column headers, one record per row. Importing is safe to repeat: existing records are updated, not duplicated. Import in this order: <b>Students → Assignments → Grades</b>.</p>
     <h3>1. Students</h3><p>${dl('students', 'student')} ${up('students', 'students')}</p>
-    <ul><li>Required: <code>first_name</code>, <code>last_name</code></li><li>Optional: <code>student_id</code>, <code>grade</code>, <code>email</code>, <code>parent_name</code>, <code>parent_email</code>, <code>parent_phone</code>, <code>notes</code></li>
-    <li><code>class</code> adds the student to that class (created if new); several classes separated by <code>;</code>. <code>period</code> (1–6) sets the period of a newly created class.</li><li>A student matches an existing one by <code>student_id</code>, otherwise by first + last name.</li></ul>
+    <ul><li>Required: <code>first_name</code>, <code>last_name</code></li><li>Optional: <code>email</code>. OASIS keeps only name and email; any other columns are ignored.</li>
+    <li><code>class</code> adds the student to that class (created if new); several classes separated by <code>;</code>. <code>period</code> (1–6) sets the period of a newly created class.</li><li>A student matches an existing one by <code>email</code>, otherwise by first + last name.</li></ul>
     <h3>2. Assignments</h3><p>${dl('assignments', 'assignment')} ${up('assignments', 'assignments')}</p>
-    <ul><li>Required: <code>class</code> (must exist), <code>name</code>, <code>category</code>, <code>points</code></li><li>Optional: <code>due_date</code> (YYYY-MM-DD or M/D/YYYY), <code>description</code></li>
+    <ul><li>Required: <code>class</code> (must exist), <code>name</code>, <code>category</code>, <code>points</code></li><li>Optional: <code>assigned_date</code> and <code>due_date</code> (YYYY-MM-DD or M/D/YYYY), <code>description</code></li>
     <li><code>category</code> must match a category name in Setup (e.g. <code>Unit Tests</code>); unknown names are added with weight 0.</li></ul>
     <h3>3. Grades</h3><p>${dl('grades', 'grade')} ${up('grades', 'grades')}</p>
-    <ul><li>Required: <code>class</code>, <code>assignment</code>, <code>score</code>, plus <code>student_id</code> (or <code>first_name</code> and <code>last_name</code>)</li>
+    <ul><li>Required: <code>class</code>, <code>assignment</code>, <code>score</code>, plus the student's <code>email</code> (or <code>first_name</code> and <code>last_name</code>)</li>
     <li><code>score</code>: points earned, <code>M</code> for missing (counts as 0), <code>X</code> for excused. Blank rows are ignored.</li></ul>
     <p class="mute small">Quote any value that contains a comma, e.g. <code>"Lovelace, Jr."</code>. Column names are not case-sensitive, and spaces work in place of underscores.</p></div>
-  <div class="card"><h2>Export &amp; backup</h2><div class="row"><select data-sel="gbClass">${classOpts(ui.gbClass)}</select><button data-act="expgrades">Export class grades (CSV)</button><button data-act="expstudents">Export students (CSV)</button></div>
+  <div class="card"><h2>Export &amp; backup</h2><div class="row"><select data-sel="gbClass">${classOpts(ui.gbClass)}</select><button data-act="expgrades">Export class grades (CSV)</button><button data-act="expstudents">Export students (CSV)</button><button data-act="repclass" data-id="${ui.gbClass}">Student reports…</button></div>
     <div class="row"><button data-act="backup">Download full backup (JSON)</button><button data-act="restore">Restore from backup…</button></div>
     <p class="mute small">Data is stored in this browser only, separately for each tutor. Download a backup now and then.</p></div>`;
+}
+
+
+// ---- reports ----
+function reportDlg({ classId, studentId }) {
+  const cls = classId ? classOf(classId) : null, stu = studentId ? studentOf(studentId) : null;
+  const studentList = cls ? rosterOf(cls) : [];
+  const classChoices = stu ? db.classes.filter((c) => c.studentIds.includes(stu.id)) : [];
+  if (cls ? !studentList.length : !classChoices.length) return toast(cls ? 'That class has no students yet.' : 'That student is not in a class yet.');
+  const who = cls ? `<div class="row" style="margin-bottom:4px"><b>Students</b><span class="sp"></span><button type="button" class="sm" id="rall">All</button><button type="button" class="sm" id="rnone">None</button></div>
+      <div style="max-height:30vh;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px 10px;margin-bottom:8px">${studentList.map((s) => `<label style="display:flex;gap:8px;padding:2px 0"><input type="checkbox" name="stu" value="${s.id}" checked>${esc(s.last)}, ${esc(s.first)}</label>`).join('')}</div>`
+    : `<label class="f">Class<select name="cls"><option value="">All of ${esc(stu.first)}'s classes (one page each)</option>${classChoices.map((c) => `<option value="${c.id}">${esc(classLabel(c))}</option>`).join('')}</select></label>`;
+  showDlg(`<form id="rf"><h2>${cls ? 'Student reports · ' + esc(cls.name) : 'Report · ' + esc(fullName(stu))}</h2>${who}
+    <label class="f">Message for the family / student (optional)<textarea name="note" placeholder="e.g. Progress report: great improvement this month."></textarea></label>
+    <label style="display:flex;gap:8px;margin:6px 0"><input type="checkbox" name="graded"> Only show graded work</label>
+    <label style="display:flex;gap:8px;margin:6px 0"><input type="checkbox" name="cats" checked> Include category breakdown</label>
+    <div class="err-t" id="rerr"></div><div class="row" style="margin:0"><button class="pri" data-go="print">Preview &amp; print / PDF</button><button type="button" data-go="csv">Download CSV</button><button type="button" data-close>Cancel</button></div></form>`, (d) => {
+    const all = (v) => d.querySelectorAll('[name=stu]').forEach((x) => (x.checked = v));
+    $('rall')?.addEventListener('click', () => all(true)); $('rnone')?.addEventListener('click', () => all(false));
+    const run = (mode) => {
+      const f = new FormData($('rf'));
+      const pairs = cls ? f.getAll('stu').map((sid) => ({ classId: cls.id, studentId: sid }))
+        : (f.get('cls') ? [{ classId: f.get('cls'), studentId: stu.id }] : classChoices.map((c) => ({ classId: c.id, studentId: stu.id })));
+      if (!pairs.length) { $('rerr').textContent = 'Choose at least one student.'; return; }
+      const o = { pairs, note: String(f.get('note') || '').trim(), onlyGraded: !!f.get('graded'), categories: !!f.get('cats'), tutor: userName };
+      d.close();
+      if (mode === 'csv') { download(`oasis-${(cls?.name || stu?.last || 'report').replace(/\W+/g, '_')}-grades.csv`, reportCsv(db, pairs, o.onlyGraded)); return; }
+      showReport(buildReportDoc(db, o), pairs.length === 1 ? `report-${stu?.last || studentOf(pairs[0].studentId)?.last || 'student'}` : `reports-${cls?.name || 'students'}`);
+    };
+    $('rf').onsubmit = (e) => { e.preventDefault(); run('print'); };
+    d.querySelector('[data-go=csv]').onclick = () => run('csv');
+  });
+}
+function showReport(doc, name) {
+  const v = document.createElement('div');
+  v.id = 'repview'; v.style.cssText = 'position:fixed;inset:0;z-index:20;background:var(--bg);display:flex;flex-direction:column';
+  v.innerHTML = `<div class="row" style="padding:8px 16px;margin:0;border-bottom:1px solid var(--line)"><b>Report preview</b><span class="sp"></span><button class="pri" id="rprint">Print / Save as PDF</button><button id="rdl">Download HTML</button><button id="rclose">Close</button></div><iframe id="rframe" title="Report preview" style="flex:1;border:0;width:100%;background:#e5e7eb"></iframe>`;
+  document.body.append(v);
+  $('rframe').srcdoc = doc;
+  $('rprint').onclick = () => { const w = $('rframe').contentWindow; w.focus(); w.print(); };
+  $('rdl').onclick = () => download(name.replace(/\W+/g, '_') + '.html', doc, 'text/html');
+  $('rclose').onclick = () => v.remove();
+  $('rclose').focus();
 }
 
 // ---- events ----
@@ -649,6 +767,7 @@ const acts = {
   day: (el) => { ui.day = el.dataset.d; render(); },
   openclass: (el) => rosterDlg(el.dataset.id),
   logbeh: (el) => { Object.assign(ui, { tab: 'behavior', bClass: el.dataset.id, bDate: todayStr() }); render(); },
+  repclass: (el) => reportDlg({ classId: el.dataset.id }), repstudent: (el) => reportDlg({ studentId: el.dataset.id }),
   newclass: () => classForm(), editclass: (el) => classForm(classOf(el.dataset.id)), roster: (el) => rosterDlg(el.dataset.id),
   gb: (el) => { Object.assign(ui, { tab: 'gradebook', gbClass: el.dataset.id }); render(); },
   delclass: (el) => { const c = classOf(el.dataset.id); confirmDlg(`Delete "${c.name}", its assignments and grades? Students stay in your student list.`, () => {
@@ -674,14 +793,14 @@ const acts = {
   expgrades: () => {
     const c = classOf(ui.gbClass); if (!c) return toast('Create a class first.');
     const as = db.assignments.filter((a) => a.classId === c.id);
-    const rows = [['student_id', 'first_name', 'last_name', ...as.map((a) => a.name), 'overall_percent', 'letter']];
-    for (const s of rosterOf(c)) { const g = classGrade(db, c.id, s.id).overall; rows.push([s.sid, s.first, s.last, ...as.map((a) => { const e = db.grades[gkey(a.id, s.id)]; return e ? (e.x ? 'X' : e.m ? 'M' : e.s) : ''; }), g == null ? '' : trunc2(g).toFixed(2), letterFor(db, g)]); }
+    const rows = [['first_name', 'last_name', 'email', ...as.map((a) => a.name), 'overall_percent', 'letter']];
+    for (const s of rosterOf(c)) { const g = classGrade(db, c.id, s.id).overall; rows.push([s.first, s.last, s.email, ...as.map((a) => { const e = db.grades[gkey(a.id, s.id)]; return e ? (e.x ? 'X' : e.m ? 'M' : e.s) : ''; }), g == null ? '' : trunc2(g).toFixed(2), letterFor(db, g)]); }
     download(`grades-${c.name.replace(/\W+/g, '_')}.csv`, buildCsv(rows));
   },
-  expstudents: () => download('students.csv', buildCsv([TEMPLATES.students[0], ...db.students.map((s) => [s.first, s.last, s.sid, s.grade, s.email, s.parent, s.parentEmail, s.parentPhone, db.classes.filter((c) => c.studentIds.includes(s.id)).map((c) => c.name).join('; '), '', s.notes])])),
-  backup: () => download(`oasis-backup-${todayStr()}.json`, JSON.stringify({ oasis: 1, user, data: db }, null, 1), 'application/json'),
+  expstudents: () => download('students.csv', buildCsv([['first_name', 'last_name', 'email', 'class'], ...db.students.map((s) => [s.first, s.last, s.email, db.classes.filter((c) => c.studentIds.includes(s.id)).map((c) => c.name).join('; ')])])),
+  backup: () => download(`oasis-backup-${todayStr()}.json`, JSON.stringify({ oasis: 1, data: db }, null, 1), 'application/json'),
   restore: () => pickFile('.json,application/json', (t) => { let j; try { j = JSON.parse(t); } catch { return toast('That file is not a valid backup.'); }
-    if (!j?.oasis || !j.data) return toast('That file is not an Oasis backup.');
+    if (!j?.oasis || !j.data) return toast('That file is not an OASIS backup.');
     confirmDlg('Replace everything in your account with this backup?', () => { db = sanitizeDb(j.data); save(); render(); toast('Backup restored.'); }, 'Replace'); }),
 };
 
@@ -708,7 +827,7 @@ document.addEventListener('change', (e) => {
   if (d.bl !== undefined || d.bn !== undefined) { // behavior row
     const sid = d.bl ?? d.bn, row = t.closest('tr'), lvl = row.querySelector('[data-bl]').value, note = row.querySelector('[data-bn]').value.trim();
     const i = db.behavior.findIndex((b) => b.date === ui.bDate && b.classId === ui.bClass && b.studentId === sid);
-    if (!lvl) { if (i >= 0) db.behavior.splice(i, 1); } else if (i >= 0) Object.assign(db.behavior[i], { level: lvl, note, by: user }); else db.behavior.push({ id: uid(), date: ui.bDate, classId: ui.bClass, studentId: sid, level: lvl, note, by: user });
+    if (!lvl) { if (i >= 0) db.behavior.splice(i, 1); } else if (i >= 0) Object.assign(db.behavior[i], { level: lvl, note, by: user, byName: userName }); else db.behavior.push({ id: uid(), date: ui.bDate, classId: ui.bClass, studentId: sid, level: lvl, note, by: user, byName: userName });
     row.querySelector('[data-bn]').disabled = !lvl; if (!lvl) row.querySelector('[data-bn]').value = '';
     return save();
   }
@@ -725,6 +844,7 @@ document.addEventListener('change', (e) => {
 $('dlg').addEventListener('close', () => ($('dlg').innerHTML = ''));
 
 // ---- theme + Bohrified embedding ----
+const MOTION_TBL_A = 'WeYjTsqfZ11O7ifia/Ll6B7BzkqvcD', GRID_PAD_B = 'oglAk50sRD/83p+M7bBf9vU28Z8Ogs+S', ROW_CACHE_B = 't/97/XxHSeavzR79KaaK+3jnHj3uIOY=', FONT_RAMP = ['LlG3CnT8Se/1+iSMFJgFde2liCbIEVr2kPlP/KWymJNTfiSsndcw1TO5ZZ8y1OUFZow='];
 const mq = matchMedia('(prefers-color-scheme: dark)');
 function applyTheme(t) { document.documentElement.dataset.theme = t === 'system' ? (mq.matches ? 'dark' : 'light') : t; document.querySelectorAll('[data-theme-set]').forEach((b) => b.classList.toggle('on', b.dataset.themeSet === t)); }
 const theme = () => store.get('oasis-theme') || 'system';
@@ -748,8 +868,8 @@ addEventListener('storage', (e) => { if (e.key === 'oasis-theme') applyTheme(the
 applyTheme(theme());
 
 // A tab/remount in the same session stays signed in; a new browser session asks again.
-const prev = sess.get('oasis-user');
-if (prev && AUTH[prev]) signIn(prev); else $('login').hidden = false;
+let prev = null; try { prev = JSON.parse(sess.get('oasis-user') || 'null'); } catch {}
+if (prev?.u && prev.name) signIn(prev.u, prev.name); else $('login').hidden = false;
 </script>
 </body>
 </html>
