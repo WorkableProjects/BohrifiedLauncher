@@ -19,7 +19,7 @@ OASIS page ──(encrypt with the tutor's password)──▶ local server ─�
 
 - **Passwords unlock the data.** Whoever has the password can read that tutor's file; if it's lost, the file can't be recovered (keep an unencrypted backup: Import / Export → Download full backup). Changing a tutor's password means re-encrypting their file, which OASIS doesn't do yet.
 - **Same tutor on two computers:** fine one after the other. If both edit between syncs the merge refuses, the badge says *conflict*, and nothing is overwritten. Keep one copy (replace the file in `.oasis-data/` with the other, or `git -C .oasis-data` to resolve) and press **Sync now**. Different tutors never conflict.
-- **Use a private repository** for real student data. Encryption protects it, but student information shouldn't depend on one password's strength alone, and a public repo lets anyone download the ciphertext to attack offline. Use long, unique passwords.
+- **Use a private repository** for real student data, and **strong tutor passwords** (about 16+ random characters; a short or word-based password can be guessed offline against a public copy). If this repository is public, anyone can download the ciphertext. Encryption protects it, but student information shouldn't depend on one password's strength alone, and a public repo lets anyone download the ciphertext to attack offline. Use long, unique passwords.
 - **Only this computer can reach the storage API.** Other devices on your network (`dev:host`, `serve`) get the in-browser mode. Set `OASIS_ALLOW_LAN=1` to allow them (traffic is then not encrypted in transit; the data still is).
 - Backups and CSV/PDF exports are **not** encrypted.
 

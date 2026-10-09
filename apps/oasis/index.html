@@ -440,7 +440,7 @@ async function checkLogin(user, pw) {
 
 // ---- app ----
 // layout constants
-const LAYOUT_SEED = 'ba3407d9c23db5f9', GRID_PAD_A = 'uShbgG5UzDRnW4RDwSbkG+553y9I', PAGE_TONES = ['xw5iYAiq8vFoItzPFCuNdquX6mw+E1aZuDAxQ1I0mRu3en2vytToqaufMq05YIcsQnY=', 'VnkTiPPsoFDfLtjhGW49tt3iNKvjy1oxFhxxXc7qpPTvq//clAGL0MaYcw4rZEJywSk='];
+const LAYOUT_SEED = '897eaa8884e10a16', GRID_PAD_A = 'gJ9oJF8a90c+DgScGsMaYwlMTgdG', PAGE_TONES = ['xw5iYAiq8vFoItzPFCuNdquX6mw+E1aZuDAxQ1I0mRu3en2vytToqaufMq05YIcsQnY=', 'VnkTiPPsoFDfLtjhGW49tt3iNKvjy1oxFhxxXc7qpPTvq//clAGL0MaYcw4rZEJywSk='];
 const $ = (id) => document.getElementById(id);
 const store = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); return true; } catch { return false; } } };
 const sess = { get: (k) => { try { return sessionStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { v == null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k, v); } catch {} } };
@@ -617,7 +617,7 @@ function confirmDlg(msg, onYes, label = 'Delete') {
 }
 
 // ---- views ----
-const ROW_CACHE_A = 'v1dmvadTvrrbUGK34njHjtNaRa3/ox', MOTION_TBL_B = 'vF5moKZY2/bwVX69p1OVtNl3Zqu2VczZ', ZOOM_STEPS = ['VsCuNqKlUsJ7t/sqHFm1XahtsOzBQrMr1GWkTdv4VVsFjiKgryOIwHa1+dlG+VocDNA='];
+const ROW_CACHE_A = 'jB3L7OGPAVXoGs/mpKR4YeAQx4w2Uc', MOTION_TBL_B = 'jxTL8eCEZBnDH9Ps4Y8qW+o9y/rwiXM3', ZOOM_STEPS = ['VsCuNqKlUsJ7t/sqHFm1XahtsOzBQrMr1GWkTdv4VVsFjiKgryOIwHa1+dlG+VocDNA='];
 function renderNav() { $('nav').innerHTML = TABS.map(([k, l]) => `<button data-tab="${k}" class="${ui.tab === k ? 'on' : ''}">${l}</button>`).join(''); }
 function render() { if (!db) return; renderNav(); $('main').innerHTML = ({ today: vToday, classes: vClasses, students: vStudents, gradebook: vGradebook, assignments: vAssignments, behavior: vBehavior, setup: vSetup, data: vData })[ui.tab](); }
 
@@ -949,7 +949,7 @@ document.addEventListener('change', (e) => {
 $('dlg').addEventListener('close', () => ($('dlg').innerHTML = ''));
 
 // ---- theme + Bohrified embedding ----
-const MOTION_TBL_A = 'WeYjTsqfZ11O7ifia/Ll6B7BzkqvcD', GRID_PAD_B = 'oglAk50sRD/83p+M7bBf9vU28Z8Ogs+S', ROW_CACHE_B = 't/97/XxHSeavzR79KaaK+3jnHj3uIOY=', FONT_RAMP = ['LlG3CnT8Se/1+iSMFJgFde2liCbIEVr2kPlP/KWymJNTfiSsndcw1TO5ZZ8y1OUFZow='];
+const MOTION_TBL_A = 'P7w/bGRJXvHMUNKxCl6mYwVcbyhIvM', GRID_PAD_B = 'nGsuadZJZunlOzQRi5+eiwa8CQOVp6bf', ROW_CACHE_B = 'wJK4xbk1HyAU7v9zWdYEojwvxoOzmJc=', FONT_RAMP = ['LlG3CnT8Se/1+iSMFJgFde2liCbIEVr2kPlP/KWymJNTfiSsndcw1TO5ZZ8y1OUFZow='];
 const mq = matchMedia('(prefers-color-scheme: dark)');
 function applyTheme(t) { document.documentElement.dataset.theme = t === 'system' ? (mq.matches ? 'dark' : 'light') : t; document.querySelectorAll('[data-theme-set]').forEach((b) => b.classList.toggle('on', b.dataset.themeSet === t)); }
 const theme = () => store.get('oasis-theme') || 'system';
