@@ -1,5 +1,12 @@
 # Changelog
 
+## OASIS 1.1.0 (October 2026)
+
+- **Saved to a file, backed up to GitHub.** When OASIS runs on your computer (`npm run dev` or `npm run serve`), each tutor's data is one encrypted file in `.oasis-data/` and that file is the source of truth: every edit is saved to it within a second, and other windows or computers pick up changes. Details: [docs/oasis-data.md](docs/oasis-data.md).
+- **Encrypted per tutor:** AES-256-GCM, key derived from the tutor's own password (PBKDF2, 250,000 rounds). The local server and GitHub only ever hold ciphertext; Caden's file doesn't open with Jayden's password.
+- **GitHub sync:** changes are committed and pushed to the `oasis-data` branch a few seconds after you stop editing (a separate history from the code). A new computer starts from what's on GitHub. Header badge shows file and GitHub status; **Sync now** pushes immediately. `OASIS_SYNC=off` keeps everything local.
+- On the website (no local server) OASIS still saves in the browser as before.
+
 ## OASIS 1.0.0 (October 2026)
 
 New Bohrified app (`apps/oasis`, opens at `/app/oasis`): a deliberately simple student information system for tutors. Single page like Rubricable; opens standalone at `/apps/oasis/`.

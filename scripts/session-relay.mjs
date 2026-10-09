@@ -197,6 +197,7 @@ export function startRelay(options = {}) {
   const allowOrigin = (req) => (!cfg.origins.length || cfg.origins.includes(req.headers.origin ?? '') ? (req.headers.origin ?? '*') : null);
 
   const handle = async (req, res) => {
+    if (options.extra && (await options.extra(req, res))) return;
     if (req.url === '/api/info' || req.url === '/api/sessions' || req.url?.startsWith('/api/live/')) {
       const origin = allowOrigin(req);
       const cors = origin ? { 'access-control-allow-origin': origin, 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET, POST, OPTIONS', vary: 'origin' } : {};

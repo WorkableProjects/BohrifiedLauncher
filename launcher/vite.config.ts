@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
+import { createOasisStore } from '../scripts/oasis-store.mjs';
 
 const repo = fileURLToPath(new URL('..', import.meta.url));
 /** Where the Flow dev server runs (scripts/dev.mjs starts it with base /apps/flow/). */
@@ -30,11 +31,28 @@ function singlePage(id: string): Plugin {
   };
 }
 
+/** Dev only: OASIS's encrypted data file + GitHub sync (answers this computer only; see scripts/oasis-store.mjs). */
+function oasisData(): Plugin {
+  return {
+    name: 'bohrified:oasis-data',
+    apply: 'serve',
+    configureServer(server) {
+      const store = createOasisStore({ repoDir: repo });
+      server.middlewares.use((req, res, next) => {
+        store.handle(req, res).then((done) => done || next(), next);
+      });
+      const stop = () => void store.close().finally(() => process.exit(0));
+      process.once('SIGINT', stop);
+      process.once('SIGTERM', stop);
+    },
+  };
+}
+
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
 
 export default defineConfig({
   define: { __APP_VERSION__: JSON.stringify(version) },
-  plugins: [singlePage('rubricable'), singlePage('oasis')],
+  plugins: [singlePage('rubricable'), singlePage('oasis'), oasisData()],
   server: {
     port: 5173,
     fs: { allow: [repo] },

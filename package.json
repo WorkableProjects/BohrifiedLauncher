@@ -24,7 +24,7 @@
     "test:frames": "npm test -w apps/Frames",
     "test:frames:e2e": "npm run e2e -w apps/Frames",
     "test:rubricable": "vitest run --root apps/rubricable",
-    "test:oasis": "vitest run --root apps/oasis",
+    "test:oasis": "vitest run --root apps/oasis && node --test tests/oasis-store.test.mjs",
     "test:lifecycle": "node tests/lifecycle.e2e.mjs",
     "test:launcher": "vitest run --root launcher",
     "test:launcher:e2e": "node tests/launcher.e2e.mjs",

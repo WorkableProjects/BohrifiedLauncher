@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>OASIS 1.0.0</title>
+<title>OASIS 1.1.0</title>
 <script>(function(){try{var t=localStorage.getItem("oasis-theme")||"system";document.documentElement.dataset.theme=t==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):t}catch(e){}})()</script>
 <style>
   :root { color-scheme:light; --bg:#f8fafc; --card:#fff; --line:#e2e8f0; --text:#0f172a; --mute:#64748b; --acc:#0d9488; --accbg:#f0fdfa; --accbd:#99f6e4; --acctx:#115e59;
@@ -72,6 +72,7 @@
     <div class="top">
       <h1>OASIS</h1><span class="mute small" id="who"></span>
       <span class="sp"></span>
+      <span class="small mute" id="sync" aria-live="polite"></span><button class="sm" id="syncnow" hidden>Sync now</button>
       <span class="seg" id="themeseg"><button data-theme-set="system">Auto</button><button data-theme-set="light">Light</button><button data-theme-set="dark">Dark</button></span>
       <button id="logout">Sign out</button>
     </div>
@@ -86,7 +87,7 @@
 
 <script>
 // ---- oasis-core:start ----
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 
 // Default grading scale: letter + lowest percentage that earns it (A+ is 100.01% or higher).
 const DEFAULT_SCALE = [['A+', 100.01], ['A', 93], ['A-', 90], ['B+', 87], ['B', 83], ['B-', 80], ['C+', 77], ['C', 73], ['C-', 70], ['D+', 67], ['D', 63], ['D-', 60], ['F', 0]]
@@ -389,11 +390,33 @@ function reportCsv(db, pairs, onlyGraded) {
   return buildCsv(rows);
 }
 
+// ---- encrypted data file (used when OASIS runs locally and saves to disk) ----
+// One PBKDF2 run on the tutor's password gives 64 bytes: 32 for the AES-256-GCM key, 32 for a write token the
+// local server checks (it stores only a hash of it). The file is bound to the tutor's id (AES-GCM extra data).
+const VAULT_ITER = 250000;
+const toHex = (b) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
+const b64 = (u8) => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); };
+const unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+async function deriveVault(pw, salt, iter = VAULT_ITER) {
+  const km = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveBits']);
+  const bits = new Uint8Array(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: iter }, km, 512));
+  return { salt, iter, token: toHex(bits.slice(32)), key: await crypto.subtle.importKey('raw', bits.slice(0, 32), 'AES-GCM', false, ['encrypt', 'decrypt']) };
+}
+async function sealDb(vault, tutor, db) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: new TextEncoder().encode(tutor) }, vault.key, new TextEncoder().encode(JSON.stringify(db)));
+  return { v: 1, salt: b64(vault.salt), iter: vault.iter, iv: b64(iv), ct: b64(new Uint8Array(ct)) };
+}
+async function openDb(vault, tutor, file) {
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(file.iv), additionalData: new TextEncoder().encode(tutor) }, vault.key, unb64(file.ct));
+  return sanitizeDb(JSON.parse(new TextDecoder().decode(pt)));
+}
+
 // ---- oasis-core:end ----
 
 // ---- sign-in ----
 const ITER = 150000;
-const hex = (b) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
+const hex = toHex;
 const unhex = (s) => new Uint8Array(s.match(/../g).map((x) => parseInt(x, 16)));
 const tutorRecords = () => {
   const k = unhex(LAYOUT_SEED), td = new TextDecoder();
@@ -428,26 +451,102 @@ let user = null, userName = '', db = null;
 const ui = { tab: 'today', day: null, q: '', gbClass: '', asClass: '', bClass: '', bDate: todayStr(), studentId: '' };
 const TABS = [['today', 'Today'], ['classes', 'Classes'], ['students', 'Students'], ['gradebook', 'Gradebook'], ['assignments', 'Assignments'], ['behavior', 'Behavior'], ['setup', 'Setup'], ['data', 'Import / Export']];
 
+// Where data lives: on a local OASIS server it is one encrypted file per tutor (and goes to GitHub);
+// anywhere else (a website) it stays in this browser's storage.
+let server = null, vault = null, fileRev = 0, dirty = false, saving = false, saveT = 0, savedAt = 0, saveErr = '';
+const api = (path, opt = {}) => fetch('/api/oasis' + path, { ...opt, headers: { 'x-oasis': '1', ...(opt.headers || {}) } });
+async function detectServer() {
+  try { const r = await api('/status'); const j = r.ok ? await r.json() : null; return j?.ok ? j : null; } catch { return null; }
+}
 function save() {
   if (!user) return;
-  if (!store.set('oasis-data-' + user, JSON.stringify(db))) toast('Not saved: browser storage is unavailable');
+  if (!server) { if (!store.set('oasis-data-' + user, JSON.stringify(db))) toast('Not saved: browser storage is unavailable'); return; }
+  dirty = true; saveErr = ''; clearTimeout(saveT); saveT = setTimeout(flush, 600); renderSync();
 }
+async function flush() {
+  if (!server || !user || !vault || saving || !dirty) return;
+  saving = true; renderSync();
+  try {
+    while (dirty) {
+      dirty = false;
+      const r = await api('/data/' + user, { method: 'PUT', headers: { 'content-type': 'application/json', 'x-oasis-token': vault.token, 'x-oasis-base': String(fileRev) }, body: JSON.stringify(await sealDb(vault, user, db)) });
+      if (r.status === 409) { dirty = true; saving = false; fileConflict(); return; }
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Could not write the data file.');
+      fileRev = (await r.json()).rev; savedAt = Date.now();
+    }
+    saveErr = '';
+  } catch (e) { dirty = true; saveErr = e.message || 'Could not save.'; }
+  saving = false; renderSync();
+}
+async function loadFile() { // returns false if there is no file yet
+  const r = await api('/data/' + user); if (r.status === 404) return false;
+  if (!r.ok) throw new Error('Could not read the data file.');
+  const f = await r.json();
+  vault = await deriveVault(vaultPw, unb64(f.salt), f.iter);
+  try { db = await openDb(vault, user, f); } catch { throw new Error("This tutor's data file can't be opened with this password."); }
+  fileRev = f.rev; return true;
+}
+function fileConflict() {
+  showDlg(`<h2>The data file changed</h2><p>Another computer, or a newer copy from GitHub, saved this tutor's data while you were working. Choose which version to keep.</p>
+    <div class="row"><button class="pri" id="cl">Load the file's version</button><button class="dan" id="ck">Keep mine (overwrite)</button></div><p class="mute small">Loading discards the edits you made since the last save.</p>`, (d) => {
+    $('cl').onclick = async () => { d.close(); dirty = false; try { await loadFile(); render(); toast('Loaded the latest data file.'); } catch (e) { toast(e.message); } renderSync(); };
+    $('ck').onclick = async () => { d.close(); try { fileRev = (await (await api('/data/' + user + '/meta')).json()).rev; } catch {} flush(); };
+  });
+}
+// Header badge: local save state + GitHub state, refreshed by polling.
+let syncInfo = null;
+function renderSync() {
+  const el = $('sync'); if (!el) return;
+  $('syncnow').hidden = !(server && user && syncInfo?.enabled);
+  if (!server) { el.textContent = user ? 'Saved in this browser only' : ''; el.className = 'small mute'; return; }
+  const s = syncInfo, bad = saveErr || s?.state === 'error' || s?.state === 'conflict';
+  const file = saveErr ? 'Not saved: ' + saveErr : saving ? 'Saving…' : dirty ? 'Unsaved changes…' : 'Saved to file';
+  const gh = !s ? '' : !s.enabled ? ' · GitHub sync off' : s.state === 'conflict' ? ' · GitHub conflict: ' + s.message : s.state === 'error' ? ' · GitHub sync failed: ' + s.message
+    : s.state === 'syncing' ? ' · Syncing to GitHub…' : s.state === 'pending' ? ' · Waiting to sync to GitHub' : s.last ? ' · GitHub up to date ' + new Date(s.last).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+  el.textContent = file + gh; el.className = 'small ' + (bad ? 'bad' : 'mute');
+}
+async function pollServer() {
+  if (!server || !user) return;
+  try { syncInfo = (await (await api('/status')).json()).sync; } catch {}
+  renderSync();
+  if (!vault || dirty || saving) return;
+  try { // someone (another computer, a GitHub pull) changed the file: pick it up
+    const m = await api('/data/' + user + '/meta');
+    if (m.ok && (await m.json()).rev > fileRev) { await loadFile(); render(); toast('Updated from the data file.'); }
+  } catch {}
+}
+setInterval(pollServer, 10000);
+$('syncnow').onclick = async () => { $('syncnow').disabled = true; try { await flush(); syncInfo = (await (await api('/sync', { method: 'POST' })).json()).sync; } catch {} $('syncnow').disabled = false; renderSync(); };
+addEventListener('pagehide', () => { if (dirty) flush(); });
 let toastT;
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => (t.hidden = true), 3500); }
 
 // sign in / out
-function signIn(u, name) {
+let vaultPw = '';
+// db: already-loaded data (file mode); otherwise read from this browser's storage.
+function signIn(u, name, loaded) {
   user = u; userName = name;
-  let d = null; try { d = JSON.parse(store.get('oasis-data-' + u) || 'null'); } catch {}
-  db = sanitizeDb(d);
-  sess.set('oasis-user', JSON.stringify({ u, name }));
+  if (loaded) db = loaded; else { let d = null; try { d = JSON.parse(store.get('oasis-data-' + u) || 'null'); } catch {} db = sanitizeDb(d); }
+  if (!server) sess.set('oasis-user', JSON.stringify({ u, name })); // a file-backed session is never restored: it needs the password
   $('login').hidden = true; $('app').hidden = false;
   $('who').textContent = name;
   Object.assign(ui, { tab: 'today', studentId: '', q: '', day: null, gbClass: '', asClass: '', bClass: '', bDate: todayStr() });
-  renderNav(); render(); armIdle();
+  renderNav(); render(); renderSync(); armIdle(); if (server) pollServer();
 }
-function signOut() {
-  user = null; userName = ''; db = null; sess.set('oasis-user', null);
+// File mode: open (or create) this tutor's encrypted file with their password.
+async function openServerData(u, pw) {
+  user = u; vaultPw = pw; dirty = false; saving = false; saveErr = ''; fileRev = 0;
+  if (await loadFile()) return db;
+  vault = await deriveVault(pw, crypto.getRandomValues(new Uint8Array(16)));
+  let legacy = null; try { legacy = JSON.parse(store.get('oasis-data-' + u) || 'null'); } catch {}
+  db = sanitizeDb(legacy); dirty = true; await flush();
+  if (saveErr) throw new Error(saveErr);
+  if (legacy) toast("Moved this browser's saved data into the data file.");
+  return db;
+}
+async function signOut() {
+  if (server && user && vault && (dirty || saving)) { clearTimeout(saveT); await flush(); }
+  user = null; userName = ''; db = null; vault = null; vaultPw = ''; dirty = false; sess.set('oasis-user', null); renderSync();
   $('app').hidden = true; $('login').hidden = false; $('dlg').open && $('dlg').close();
   $('lp').value = ''; $('lerr').textContent = ''; $('lu').focus(); clearTimeout(idleT);
 }
@@ -461,7 +560,13 @@ $('loginform').onsubmit = async (e) => {
   $('lgo').disabled = true;
   const u = await checkLogin($('lu').value, $('lp').value).catch(() => null);
   $('lgo').disabled = false;
-  if (u) { fails = 0; signIn(u.user, u.name); return; }
+  if (u) {
+    fails = 0;
+    if (!server) return signIn(u.user, u.name);
+    try { $('lgo').disabled = true; const d = await openServerData(u.user, $('lp').value); signIn(u.user, u.name, d); }
+    catch (e2) { user = null; vault = null; vaultPw = ''; err.textContent = e2.message || 'Could not open the data file.'; }
+    $('lgo').disabled = false; $('lp').value = ''; return;
+  }
   if (++fails >= 5) { lockUntil = Date.now() + 30000; fails = 0; }
   err.textContent = 'Incorrect login.'; $('lp').value = '';
 };
@@ -708,7 +813,7 @@ function vData() {
     <p class="mute small">Quote any value that contains a comma, e.g. <code>"Lovelace, Jr."</code>. Column names are not case-sensitive, and spaces work in place of underscores.</p></div>
   <div class="card"><h2>Export &amp; backup</h2><div class="row"><select data-sel="gbClass">${classOpts(ui.gbClass)}</select><button data-act="expgrades">Export class grades (CSV)</button><button data-act="expstudents">Export students (CSV)</button><button data-act="repclass" data-id="${ui.gbClass}">Student reports…</button></div>
     <div class="row"><button data-act="backup">Download full backup (JSON)</button><button data-act="restore">Restore from backup…</button></div>
-    <p class="mute small">Data is stored in this browser only, separately for each tutor. Download a backup now and then.</p></div>`;
+    <p class="mute small">${server ? `Your data is saved to an encrypted file on this computer (only your password opens it)${syncInfo?.enabled ? ` and pushed to GitHub (branch <code>${esc(syncInfo.branch)}</code>)` : ''}. Backups below are <b>not</b> encrypted: keep them private.` : 'Data is stored in this browser only, separately for each tutor. Download a backup now and then.'}</p></div>`;
 }
 
 
@@ -868,8 +973,12 @@ addEventListener('storage', (e) => { if (e.key === 'oasis-theme') applyTheme(the
 applyTheme(theme());
 
 // A tab/remount in the same session stays signed in; a new browser session asks again.
-let prev = null; try { prev = JSON.parse(sess.get('oasis-user') || 'null'); } catch {}
-if (prev?.u && prev.name) signIn(prev.u, prev.name); else $('login').hidden = false;
+(async () => {
+  server = await detectServer();
+  syncInfo = server?.sync ?? null;
+  let prev = null; try { prev = JSON.parse(sess.get('oasis-user') || 'null'); } catch {}
+  if (!server && prev?.u && prev.name) signIn(prev.u, prev.name); else $('login').hidden = false;
+})();
 </script>
 </body>
 </html>

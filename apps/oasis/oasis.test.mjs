@@ -9,7 +9,7 @@ const m = html.match(/\/\/ ---- oasis-core:start ----([\s\S]*?)\/\/ ---- oasis-c
 if (!m) throw new Error('oasis-core markers not found in index.html');
 const core = vm.runInNewContext(`${m[1]}
 ({VERSION, defaults, sanitizeDb, letterFor, scaleRange, classGrade, parseScore, trunc2, pct, toMin, fromMin, fmt12, dayType, shiftBell, bellIssues, periodNow,
-  parseCSV, csvRecords, buildCsv, csvCell, normDate, importStudents, importAssignments, importGrades, TEMPLATES, MWF, DEFAULT_CATEGORIES, reportData, buildReportDoc, reportCsv, fmtDate, pctShort, esc})`);
+  parseCSV, csvRecords, buildCsv, csvCell, normDate, importStudents, importAssignments, importGrades, TEMPLATES, MWF, DEFAULT_CATEGORIES, reportData, buildReportDoc, reportCsv, fmtDate, pctShort, esc, deriveVault, sealDb, openDb, VAULT_ITER, b64, unb64})`, { crypto: globalThis.crypto, TextEncoder, TextDecoder, btoa, atob });
 const plain = (x) => JSON.parse(JSON.stringify(x));
 
 const setup = () => {
@@ -207,7 +207,7 @@ describe('student information is name + email only', () => {
 
 describe('branding and logins', () => {
   it('is called OASIS', () => {
-    expect(html).toContain('<title>OASIS 1.0.0</title>'); expect(html).toContain('<h1>OASIS</h1>'); expect(html).not.toMatch(/\bOasis\b/);
+    expect(html).toContain('<title>OASIS 1.1.0</title>'); expect(html).toContain('<h1>OASIS</h1>'); expect(html).not.toMatch(/\bOasis\b/);
   });
   it('keeps no readable credentials in the source', () => {
     expect(html).not.toMatch(/[0-9a-f]{32}/i); // no hex salt or hash
@@ -219,5 +219,36 @@ describe('branding and logins', () => {
     const at = ['ROW_CACHE_A', 'MOTION_TBL_A', 'GRID_PAD_A', 'ROW_CACHE_B', 'MOTION_TBL_B', 'GRID_PAD_B', 'LAYOUT_SEED'].map((n) => html.indexOf(`${n} = '`));
     expect(at.every((i) => i > 0)).toBe(true);
     expect(Math.max(...at) - Math.min(...at)).toBeGreaterThan(html.length * 0.3);
+  });
+});
+
+describe('encrypted data file', () => {
+  const salt = new Uint8Array(16).fill(7);
+  const data = () => { const db = setup(); db.students[0].first = 'Zelda'; return db; };
+  it('round-trips a tutor\'s data and hides it from anyone without the password', async () => {
+    const v = await core.deriveVault('umber-test-1', salt), db = data();
+    const f = await core.sealDb(v, 'caden', db);
+    expect(Object.keys(f).sort()).toEqual(['ct', 'iter', 'iv', 'salt', 'v']);
+    expect(Buffer.from(f.ct, 'base64').toString('latin1')).not.toContain('Zelda');
+    expect(JSON.stringify(f)).not.toContain('Lovelace');
+    expect(plain(await core.openDb(v, 'caden', f))).toEqual(plain(core.sanitizeDb(db)));
+  });
+  it('is not readable with another password, another tutor id, or after tampering', async () => {
+    const v = await core.deriveVault('umber-test-1', salt), f = await core.sealDb(v, 'caden', data());
+    await expect(core.openDb(await core.deriveVault('wrong', salt), 'caden', f)).rejects.toThrow();
+    await expect(core.openDb(v, 'jayden', f)).rejects.toThrow();
+    const bytes = core.unb64(f.ct); bytes[3] ^= 1;
+    await expect(core.openDb(v, 'caden', { ...f, ct: core.b64(bytes) })).rejects.toThrow();
+  });
+  it('uses a fresh IV every save and derives a separate write token', async () => {
+    const v = await core.deriveVault('umber-test-1', salt), a = await core.sealDb(v, 'caden', data()), b = await core.sealDb(v, 'caden', data());
+    expect(a.iv).not.toBe(b.iv); expect(a.ct).not.toBe(b.ct);
+    expect(v.token).toMatch(/^[0-9a-f]{64}$/);
+    expect((await core.deriveVault('umber-test-2', salt)).token).not.toBe(v.token);
+  });
+  it('handles large data (base64 in chunks)', async () => {
+    const v = await core.deriveVault('pw', salt), db = data();
+    for (let i = 0; i < 4000; i++) db.students.push({ id: 's' + i, first: 'S' + i, last: 'L' + i, email: `s${i}@example.com` });
+    expect((await core.openDb(v, 'caden', await core.sealDb(v, 'caden', db))).students.length).toBe(4002);
   });
 });
