@@ -38,7 +38,7 @@ It builds if needed, serves Bohrified on this computer, and opens a free Cloudfl
 1. On the host, open Flow at **that link**, choose **Student view → Start live session**, and share the link Flow shows (`…/join/<CODE>`).
 2. Joiners open the same link from any network. The home screen also shows the live-session bubble. `npm run tunnel` prints a **QR code** too: scan it with a phone or iPad camera instead of typing the link. (Link shorteners such as is.gd and tinyurl refuse tunnel addresses, so there's no short link; sending the link in a chat or email works fine since nobody types it.)
 
-Sessions run through your own computer, so this uses no Netlify credits. Notes: the link is temporary (a new one each run, until you press Ctrl+C), anyone with it can open the app, the first run downloads Cloudflare's small tunnel program (the `cloudflared` package), and the host needs internet. Everyone in the same room on the same network can keep using `npm run serve` instead.
+Sessions run through your own computer. Notes: the link is temporary (a new one each run, until you press Ctrl+C), anyone with it can open the app, the first run downloads Cloudflare's small tunnel program (the `cloudflared` package), and the host needs internet. Everyone in the same room on the same network can keep using `npm run serve` instead.
 
 ## Join
 

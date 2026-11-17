@@ -113,7 +113,7 @@ The same sheet also has a section for each app's own preferences. The app curren
 
 ## Live sessions, tokens and diagnostics (Bohrified 1.2)
 
-- **Live sessions.** Flow's sync (`engine/sync.ts`) speaks to a `Transport` (`engine/transport.ts`): a BroadcastChannel for a student window on the same computer, or a reconnecting WebSocket to the session relay for a student elsewhere. Reconnecting always means "ask for the board again". The Join Whiteboard page (`launcher/src/join.ts`) embeds Flow's read-only viewer (`?view=join&code=…`) and shows the state it reports. Details, configuration and Netlify notes: [live-sessions.md](live-sessions.md).
+- **Live sessions.** Flow's sync (`engine/sync.ts`) speaks to a `Transport` (`engine/transport.ts`): a BroadcastChannel for a student window on the same computer, a reconnecting WebSocket to the session relay (local copies), or a peer-to-peer WebRTC connection through PeerJS for Online sessions, where the tutor's browser hosts the session. Reconnecting always means "ask for the board again". The Join Whiteboard page (`launcher/src/join.ts`) embeds Flow's read-only viewer (`?view=join&code=…`) and shows the state it reports. Details and configuration: [live-sessions.md](live-sessions.md).
 - **Design tokens.** `packages/ui/src/tokens.css` is the single source for semantic colour, text styles, 4 pt spacing, concentric radii, glass and motion. Bohrified's shell consumes it; Flow and Rubricable, which also ship on their own, keep their own styles.
 - **Diagnostics and budgets.** `packages/app-sdk/src/budgets.ts`, `launcher/src/diagnostics.ts` (loaded on demand) and [performance/budgets.md](performance/budgets.md).
 

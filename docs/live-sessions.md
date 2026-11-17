@@ -2,7 +2,7 @@
 
 A tutor shares their Flow whiteboard with a student on another device:
 
-1. In Flow, the tutor opens **Student view → Start live session** and gets a six-character code (and a link such as `https://your-site/join/K7QX2M`).
+1. In Flow, the tutor opens **Student view → Start live session** and gets a six-character code (and a link such as `https://workableprojects.github.io/BohrifiedLauncher/join/K7QX2M`).
 2. The student opens Bohrified's **Join Whiteboard** page (`/join`), enters the code or pastes the link, and watches the board live. The student cannot edit.
 3. The page shows the connection state (Connecting, Waiting for tutor, Live, Paused, Reconnecting, Session ended), the session code, the tutor's first name and the lesson title, with **Leave** and **Rejoin**.
 
@@ -11,28 +11,30 @@ The tutor can **pause** sharing (students keep their last view and are told it's
 ## How it works
 
 ```
-Flow (tutor) ──▶ relay / /api/live ◀── Join Whiteboard ▸ Flow viewer (student)
+Online:  Flow (tutor) ══ WebRTC (PeerJS) ══ Flow viewer (student) on Join Whiteboard
+Local:   Flow (tutor) ──▶ relay /session/<CODE> ◀── Flow viewer (student)
 ```
 
-Two interchangeable carriers move the same messages; the app picks one per deployment (`liveBackend()` in `packages/app-sdk/src/live.ts`):
+The app picks the carrier per deployment (`liveBackend()` in `packages/app-sdk/src/live.ts`):
 
 | Where | Carrier | Needs |
 |---|---|---|
-| **Netlify** (production default) | HTTP: tutor and student poll a Netlify Function at `/api/live/<CODE>` | nothing: deploy and it works |
-| **Local** (`npm run dev`) | WebSocket to the relay on `ws://localhost:8787` | nothing |
-| Self-hosted | `VITE_LIVE_SESSION_URL` = `wss://…` relay, or `https://…` endpoint | a host running `scripts/session-relay.mjs` |
+| **Online** (hosted site, default) | Peer-to-peer WebRTC through PeerJS. The tutor's browser hosts the session under the PeerJS id `bohrified-live-<CODE>`; students connect to it directly | nothing: static hosting (GitHub Pages) is enough |
+| **Local** (`npm run dev`, `npm run serve`) | WebSocket to the relay (`ws://localhost:8787` in dev, `<origin>/api/live` when served by `npm run serve`) | nothing |
+| Override | `VITE_LIVE_SESSION_URL` = `wss://…` relay, or `https://…` endpoint serving `/api/live` | a host running `scripts/session-relay.mjs` |
 
-- Netlify can't hold a WebSocket open, so on the hosted site `netlify/functions/live.mjs` answers short requests instead (`netlify/lib/live-core.mjs`, state in Netlify Blobs). The sender batches messages into one POST (~80 ms); each side polls for what is addressed to it (about every 0.6 s while things change, 1.8 s when idle). Latency is a fraction of a second, fine for a whiteboard; it is not as instant as a socket.
-- Neither carrier reads whiteboards. The WebSocket relay stores nothing on disk; the function keeps messages for about a minute and forgets idle sessions after 10 minutes.
-- The tutor's first connection creates the room with a random **tutor key** (kept in that browser tab's `sessionStorage`). Anyone else who learns the code can only join as a student. Students can only send `hello` / `viewer` / `bye` / `edit`; `edit` goes to the tutor only and is applied only if the tutor let that device draw (see [Letting a device draw](#letting-a-device-draw)).
-- The messages are the same ones Flow already uses between a tutor and a student window on one computer (`engine/sync.ts`); only the transport differs (`engine/transport.ts`: `channelTransport`, `socketTransport`, `pollTransport`).
-- Limits over HTTP: a single message over ~3.5 MB (a board with very large images) isn't carried; function invocations count against the Netlify plan (each watcher polls, so a class of 30 is roughly 50 requests a second at peak while the tutor draws, far fewer when idle).
+- **Online is peer-to-peer.** PeerJS is lazy-loaded by Flow only when a session starts (`peerTransport` in `engine/transport.ts`, `lazyPeer` in `state/live.ts`). The free public PeerJS server (`0.peerjs.com`) only does signalling; after that, messages travel directly between the tutor and each student. PeerJS's public STUN/TURN servers help with NAT traversal. Messages larger than 60,000 characters are split into chunks and reassembled.
+- **Limits of peer-to-peer.** A few strict networks (some school or corporate firewalls) block WebRTC entirely. For those, use **Same network** or `npm run tunnel`. If the tutor reloads, its browser retries claiming the session id for up to 2 minutes, so students get the board back without a new code.
+- **The tutor enforces the rules.** Students can only send `hello` / `viewer` / `bye` / `edit`, at most 64 students join a session, and the tutor reports the number of connected devices (`peers`) to the room. Anyone who learns the code can only join as a student. `edit` messages are applied only if the tutor let that device draw (see [Letting a device draw](#letting-a-device-draw)).
+- The messages are the same ones Flow already uses between a tutor and a student window on one computer (`engine/sync.ts`); only the transport differs. Transports in `engine/transport.ts`: `channelTransport` (same computer), `socketTransport` (local relay), `pollTransport` (an HTTP endpoint set with `VITE_LIVE_SESSION_URL`), and `peerTransport` (Online).
+- Nothing reads or stores whiteboards on a server. Peer-to-peer sessions have no server copy: the board lives in the tutor's browser tab. The local relay keeps rooms in memory only and forgets idle sessions after `ROOM_TTL_MIN` minutes (default 10).
 
 ## Configuration
 
 | Variable | Where | Purpose |
 |---|---|---|
-| `VITE_LIVE_SESSION_URL` | build environment | Optional. `ws(s)://` = WebSocket relay; `http(s)://` = endpoint serving `/api/live`. Unset: local relay in dev, the site's own `/api/live` in production. |
+| `VITE_LIVE_SESSION_URL` | build environment | Optional. `ws(s)://` = WebSocket relay; `http(s)://` = endpoint serving `/api/live`. Unset: Online uses peer-to-peer; local copies use their own relay. |
+| `VITE_ONLINE_SITE_URL` | build environment | Optional. The hosted site that **Online** points joiners to, for a copy running on your own computer. Default `https://workableprojects.github.io/BohrifiedLauncher` (`DEFAULT_ONLINE_SITE`). |
 | `PORT`, `HOST` | relay | Listen address (default `0.0.0.0:8787`). |
 | `ALLOWED_ORIGINS` | relay | Comma-separated site origins allowed to connect. Set this when self-hosting. |
 | `MAX_ROOMS`, `MAX_STUDENTS`, `MAX_MESSAGE_MB`, `ROOM_TTL_MIN` | relay | Limits (defaults 500, 64, 16, 10). |
@@ -41,13 +43,13 @@ There are no secrets in the frontend. Session codes and tutor keys are generated
 
 ### Local development
 
-`npm run dev` starts the relay on `ws://localhost:8787` along with the launcher and Flow; no configuration needed. Open `http://localhost:5173`, start a session in Flow, then open `/join` in a second window. Run the relay alone with `npm run relay`. To try the Netlify path locally, run `netlify dev` (serves the function) or set `VITE_LIVE_SESSION_URL=http://localhost:8787` (the relay also answers `/api/live`).
+`npm run dev` starts the relay on `ws://localhost:8787` along with the launcher and Flow; no configuration needed. Open `http://localhost:5173`, start a session in Flow, then open `/join` in a second window. Run the relay alone with `npm run relay`. To test the HTTP endpoint path locally, set `VITE_LIVE_SESSION_URL=http://localhost:8787` (the relay also answers `/api/live`).
 
 ### Three ways to share
 
-- **Online** (default): through the hosted Netlify site. Anyone, on any network, joins at `/join/<CODE>`. Uses a little Netlify usage.
-- **Same network** (`npm run serve`): your computer serves Bohrified to devices on the same Wi-Fi or hotspot. No internet, no Netlify.
-- **Tunnel** (`npm run tunnel`): your computer serves Bohrified and opens a free public Cloudflare link, so people on *other* networks can join without the hosted site. No Netlify usage. See [same-room.md](same-room.md#different-networks-npm-run-tunnel).
+- **Online** (default): through the hosted site (GitHub Pages). Anyone, on any network, joins at `/join/<CODE>`. Peer-to-peer; no server carries the board.
+- **Same network** (`npm run serve`): your computer serves Bohrified to devices on the same Wi-Fi or hotspot. No internet needed. Not available on the hosted site (only on a copy served from your computer).
+- **Tunnel** (`npm run tunnel`): your computer serves Bohrified and opens a free public Cloudflare link, so people on *other* networks can join without the hosted site. See [same-room.md](same-room.md#different-networks-npm-run-tunnel).
 
 Online and Same network are chosen in Flow's Student view; with a tunnel you simply open Flow at the tunnel link (it counts as Online, and runs through your computer).
 
@@ -57,12 +59,12 @@ Online and Same network are chosen in Flow's Student view; with a tunnel you sim
 |---|---|---|
 | For | video calls, people on other networks | people in the same room / on the same Wi-Fi or hotspot |
 | Joiners go to | the Bohrified site, `/join/<CODE>` (nothing to type but the code) | `/join` → *In the same room?* → address, port, code (or open the link Flow shows) |
-| Runs through | the hosted site's function, even when Flow runs on your own computer | your computer (`npm run serve`) |
+| Runs through | the tutor's browser (WebRTC), even when Flow runs on your own computer | your computer (`npm run serve`) |
 | Needs internet | yes | no |
 
 Why two: a page on the hosted `https://` site can't talk to a computer's `http://` address (browsers block it), and a hotspot's address isn't reachable from other networks at all. So **Online** works from anywhere precisely because everyone meets at the hosted site, and **Same network** works by joiners opening your computer's own copy of Bohrified. Flow remembers the choice; a link carries `?via=local` so the joiner's viewer uses the same route as the tutor.
 
-If your hosted site isn't `https://bohrified.netlify.app`, set `VITE_ONLINE_SITE_URL=https://your-site.netlify.app` when building a copy that runs on your own computer, so its **Online** option points at your site.
+The default hosted site is `https://workableprojects.github.io/BohrifiedLauncher`. If yours is different, set `VITE_ONLINE_SITE_URL=https://your-site.example/BohrifiedLauncher` when building a copy that runs on your own computer, so its **Online** option points at your site.
 
 ### Hosting from your own computer (school screens, other devices)
 
@@ -73,7 +75,7 @@ Step-by-step: [same-room.md](same-room.md).
 - **`npm run serve`**: builds if needed and serves the app, the Join page and live sessions from one port (default 8787, or `PORT=9000 npm run serve`). It prints the addresses, e.g. `http://192.168.1.20:8787/`.
 - **`npm run dev:host`**: the dev setup (hot reload) listening on the network, at `http://<IP>:5173/`.
 
-Open Flow **at that IP address** on the host computer (not `localhost`) so the link it copies works elsewhere, then students or the school screen open `http://<IP>:8787/join/<CODE>`. If a device can't connect, allow Node through the firewall and check both are on the same network (a guest or school Wi-Fi that isolates devices will block it). The address only works for devices that can reach this computer's network; for devices on other networks, use the Netlify site instead.
+Open Flow **at that IP address** on the host computer (not `localhost`) so the link it copies works elsewhere, then students or the school screen open `http://<IP>:8787/join/<CODE>`. If a device can't connect, allow Node through the firewall and check both are on the same network (a guest or school Wi-Fi that isolates devices will block it). The address only works for devices that can reach this computer's network; for devices on other networks, use **Online** (the hosted site) instead.
 
 ### Letting a device draw
 
@@ -85,10 +87,12 @@ Joiners are view-only by default. To write from a second device (say your iPad w
 - Permission is held by the host's Flow: if the host reloads, switch the device on again. Ending the session or a device leaving clears it.
 - It's a shared board, not separate copies: simultaneous edits to the same object follow last-change-wins.
 
-### Production on Netlify
+### Production on GitHub Pages
 
-Nothing extra: `netlify.toml` routes `/join` and `/join/*` to the app shell and registers the `netlify/functions` directory; the function stores sessions in Netlify Blobs (included with every site). Deploy and open `/join`. Check `https://your-site.netlify.app/api/live/health` returns `{"ok":true,…}`.
+The hosted site is built and deployed by `.github/workflows/pages.yml` on every push to `main`. It runs `BASE_PATH=/BohrifiedLauncher/ npm run build` (`scripts/build.mjs`), which also writes `dist/404.html` (so deep links such as `/join/<CODE>` and `/app/*` load through the single-page fallback) and `dist/.nojekyll`.
+
+One-time setup: in the repository, open **Settings → Pages** and set **Source** to **GitHub Actions**. Then open `https://workableprojects.github.io/BohrifiedLauncher/join`. There is no server or function to run: Online sessions are peer-to-peer.
 
 ## Tests
 
-`npm run test:relay` exercises the relay (room rules, role filtering, large messages, expiry, origin list, frame parser) and the HTTP protocol (`tests/live-http.test.mjs`). Session code and link parsing is covered in `packages/app-sdk/src/live.test.ts`.
+`npm run test:relay` exercises the relay (room rules, role filtering, large messages, expiry, origin list, frame parser) and the HTTP protocol (`tests/live-http.test.mjs`). Session code and link parsing is covered in `packages/app-sdk/src/live.test.ts`. The peer-to-peer transport is covered in `apps/flow/src/engine/peerTransport.test.ts`.

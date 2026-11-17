@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **Hosting moved from Netlify to GitHub Pages.** The site deploys from `.github/workflows/pages.yml` on every push to `main` (one-time setup: Settings → Pages → Source: GitHub Actions). The build runs under `/BohrifiedLauncher/` (`BASE_PATH`) and writes `404.html` for deep links and `.nojekyll`. Default hosted site: `https://workableprojects.github.io/BohrifiedLauncher` (override with `VITE_ONLINE_SITE_URL`).
+- **Online live sessions are peer-to-peer.** The tutor's browser hosts the session over WebRTC through PeerJS (lazy-loaded in Flow, id `bohrified-live-<CODE>`); students connect directly. The public PeerJS server only does signalling, and its public STUN/TURN helps NAT traversal. Large messages are chunked. The tutor enforces the relay rules (students send only `hello`, `viewer`, `bye`, `edit`; max 64 students), and after a reload retries claiming its id for up to 2 minutes. Strict networks that block WebRTC should use Same network or the tunnel.
+- **Removed Netlify:** `netlify.toml`, `netlify/` (the HTTP live function) and the `@netlify/blobs` dependency are gone. The HTTP protocol module now lives in `scripts/lib/live-core.mjs` and is served only by the local relay (`npm run serve` / `npm run dev`).
+- **Same network** mode is available only on a copy served from your own computer (localhost or LAN), not on the hosted site.
+
 ## Rubricable 1.2.1 (October 2026)
 
 - **Decimals** setting (header, Settings, and Bohrified's settings sheet, kept in sync): Full Decimals (.01–.99), Shorthand Decimals (.1–.9), Logical Decimals (.25, .33, .5, .66, .75), Shorthand Logical Decimals (.25, .5, .75), Halves Only (.5) and No Decimals.

@@ -43,7 +43,7 @@ Open http://localhost:5173.
 npm run dev             # Start Bohrified and Flow
 npm run dev -- --host   # Same, reachable from other devices on your network (also: npm run dev:host)
 npm run serve           # Host the built app on your network (rebuilds if stale); same-room joining
-npm run tunnel          # Host + open a public Cloudflare link so people on other networks can join (no Netlify)
+npm run tunnel          # Host + open a public Cloudflare link so people on other networks can join
 npm run build           # Build all apps
 npm run preview         # Preview the production build
 npm run typecheck       # Type-check all packages and apps
