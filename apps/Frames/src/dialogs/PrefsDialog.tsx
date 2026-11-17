@@ -24,7 +24,7 @@ export function PrefsDialog({ onClose }: { onClose: () => void }) {
       </div>
       {GROUPS.map((g) => (
         <section key={g}>
-          <h3 style={{ margin: '22px 0 0', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--label-2)' }}>{g}</h3>
+          <h3 style={{ margin: '24px 0 0', fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>{g}</h3>
           {PREFS_META.filter((m) => m.group === g).map((m) => (
             <div key={m.id} className="setting">
               <div><b>{m.label}</b><p>{m.description}</p></div>
@@ -36,7 +36,7 @@ export function PrefsDialog({ onClose }: { onClose: () => void }) {
         </section>
       ))}
       <section>
-        <h3 style={{ margin: '22px 0 0', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--label-2)' }}>Storage</h3>
+        <h3 style={{ margin: '24px 0 0', fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>Storage</h3>
         <div className="setting">
           <div><b>Remove unused media</b><p>Deletes images and videos in this presentation that no slide uses. This clears undo history.</p></div>
           <Btn className="ghost" variant="ghost" label="Clean up" disabled={ui.get().screen !== 'editor'} onClick={async () => { const n = await cleanUpMedia(); toast(n ? `Removed ${n} unused file${n === 1 ? '' : 's'}` : 'Nothing to remove'); }} />

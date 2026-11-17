@@ -100,7 +100,7 @@ export function SlidesPanel() {
         />
       </div>
       <div className="slides-foot">
-        <Btn icon="plus" label="New slide" variant="tint" onClick={() => cmd.addSlide()} />
+        <Btn icon="plus" label="New slide" variant="ghost" onClick={() => cmd.addSlide()} />
       </div>
     </aside>
   );
