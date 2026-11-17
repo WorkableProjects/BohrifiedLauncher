@@ -47,45 +47,52 @@ export function Toolbar() {
 
   return (
     <header className="topbar" role="toolbar" aria-label="Frames toolbar">
-      <div className="tb-group left">
-        <Btn icon="chevron-left" title="All presentations" onClick={() => void goHome()} />
-        <input
-          className="title-in"
-          aria-label="Presentation title"
-          value={title ?? deck.title}
-          onChange={(e) => setTitle(e.target.value)}
-          onBlur={() => {
-            if (title !== null && title.trim() && title !== deck.title) doc.commit('Rename', (d) => { d.title = title.trim(); }, 'title');
-            setTitle(null);
-          }}
-          onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') { setTitle(null); (e.target as HTMLInputElement).blur(); } }}
-        />
+      <div className="tb-row tb-main">
+        <div className="tb-group left">
+          <Btn icon="chevron-left" title="All presentations" onClick={() => void goHome()} />
+          <input
+            className="title-in"
+            aria-label="Presentation title"
+            value={title ?? deck.title}
+            onChange={(e) => setTitle(e.target.value)}
+            onBlur={() => {
+              if (title !== null && title.trim() && title !== deck.title) doc.commit('Rename', (d) => { d.title = title.trim(); }, 'title');
+              setTitle(null);
+            }}
+            onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') { setTitle(null); (e.target as HTMLInputElement).blur(); } }}
+          />
+          <span className="sep" />
+          <Btn icon="undo" title={`Undo ${doc.undoLabel ? doc.undoLabel.toLowerCase() : ''}`} disabled={!doc.canUndo} onClick={cmd.undo} />
+          <Btn icon="redo" title={`Redo ${doc.redoLabel ? doc.redoLabel.toLowerCase() : ''}`} disabled={!doc.canRedo} onClick={cmd.redo} />
+        </div>
+        <div className="tb-group right">
+          <Btn icon="settings" title="Preferences" onClick={() => ui.set({ dialog: 'prefs' })} />
+          <Btn icon="download" label="Export" variant="ghost" title="Export" onClick={() => ui.set({ dialog: 'export' })} />
+          <Btn icon="present" label="Present" variant="tint" className="present-btn" title={`Present (${shortcutLabel('present')})`} onClick={() => startPresenting(false)} />
+        </div>
       </div>
-      <div className="tb-group center">
-        <Btn icon="undo" title={`Undo ${doc.undoLabel ? doc.undoLabel.toLowerCase() : ''}`} disabled={!doc.canUndo} onClick={cmd.undo} />
-        <Btn icon="redo" title={`Redo ${doc.redoLabel ? doc.redoLabel.toLowerCase() : ''}`} disabled={!doc.canRedo} onClick={cmd.redo} />
-        <span className="sep" />
-        <MenuButton items={addItems} trigger={({ ref, toggle }) => <Btn btnRef={ref} icon="plus" label="Add" title="Add a slide" onClick={toggle} />} />
-        <Btn icon="type" label="Text" title={`Add text (${shortcutLabel('text')})`} active={tool === 'text'} onClick={() => cmd.insertText()} />
-        <MenuButton items={imageItems} trigger={({ ref, toggle }) => <Btn btnRef={ref} icon="image" label="Image" title="Add an image" onClick={toggle} />} />
-        <MenuButton align="center" trigger={({ ref, open, toggle }) => (
-          <Btn btnRef={ref} icon="shapes" label="Shape" title="Add a shape" active={open || tool === 'shape'} onClick={toggle} />
-        )}>{(close) => <ShapePicker onDone={close} />}</MenuButton>
-        <MenuButton items={lineItems} trigger={({ ref, toggle }) => <Btn btnRef={ref} icon="line" label="Line" title="Add a line" active={tool === 'line'} onClick={toggle} />} />
-        <MenuButton items={[
-          { label: 'Video or audio…', icon: 'film', onClick: mediaIn.open },
-        ]} trigger={({ ref, toggle }) => <Btn btnRef={ref} icon="film" label="Media" title="Add video or audio" onClick={toggle} />} />
-        <MenuButton align="center" trigger={({ ref, toggle }) => <Btn btnRef={ref} icon="table" label="Table" title="Add a table" onClick={toggle} />}>{(close) => <TablePicker onDone={close} />}</MenuButton>
-        <MenuButton items={chartItems} trigger={({ ref, toggle }) => <Btn btnRef={ref} icon="chart" label="Chart" title="Add a chart" onClick={toggle} />} />
-        <span className="sep" />
-        <ArrangeButton disabled={!sel.length} />
-        <Btn icon="sparkles" label="Animate" title="Animate" active={inspectorOpen && inspector === 'animate'} onClick={() => ui.set({ inspectorOpen: true, inspector: 'animate' })} />
-      </div>
-      <div className="tb-group right">
-        <Btn icon="download" label="Export" title="Export" onClick={() => ui.set({ dialog: 'export' })} />
-        <Btn icon="present" label="Present" variant="tint" title={`Present (${shortcutLabel('present')})`} onClick={() => startPresenting(false)} />
-        <Btn icon="settings" title="Preferences" onClick={() => ui.set({ dialog: 'prefs' })} />
-        <Btn icon="sliders" title={inspectorOpen ? 'Hide inspector' : 'Show inspector'} active={inspectorOpen} onClick={() => ui.set({ inspectorOpen: !inspectorOpen })} />
+      <div className="tb-row tb-insert">
+        <div className="tb-group center">
+          <MenuButton items={addItems} trigger={({ ref, toggle }) => <Btn btnRef={ref} icon="plus" label="Slide" title="Add a slide from a layout" onClick={toggle} />} />
+          <span className="sep" />
+          <Btn icon="type" label="Text" title={`Add text (${shortcutLabel('text')})`} active={tool === 'text'} onClick={() => cmd.insertText()} />
+          <MenuButton items={imageItems} trigger={({ ref, toggle }) => <Btn btnRef={ref} icon="image" label="Image" title="Add an image" onClick={toggle} />} />
+          <MenuButton align="center" trigger={({ ref, open, toggle }) => (
+            <Btn btnRef={ref} icon="shapes" label="Shape" title="Add a shape" active={open || tool === 'shape'} onClick={toggle} />
+          )}>{(close) => <ShapePicker onDone={close} />}</MenuButton>
+          <MenuButton items={lineItems} trigger={({ ref, toggle }) => <Btn btnRef={ref} icon="line" label="Line" title="Add a line" active={tool === 'line'} onClick={toggle} />} />
+          <MenuButton items={[
+            { label: 'Video or audio…', icon: 'film', onClick: mediaIn.open },
+          ]} trigger={({ ref, toggle }) => <Btn btnRef={ref} icon="film" label="Media" title="Add video or audio" onClick={toggle} />} />
+          <MenuButton align="center" trigger={({ ref, toggle }) => <Btn btnRef={ref} icon="table" label="Table" title="Add a table" onClick={toggle} />}>{(close) => <TablePicker onDone={close} />}</MenuButton>
+          <MenuButton items={chartItems} trigger={({ ref, toggle }) => <Btn btnRef={ref} icon="chart" label="Chart" title="Add a chart" onClick={toggle} />} />
+          <span className="sep" />
+          <ArrangeButton disabled={!sel.length} />
+          <Btn icon="sparkles" label="Animate" title="Animate" active={inspectorOpen && inspector === 'animate'} onClick={() => ui.set({ inspectorOpen: true, inspector: 'animate' })} />
+        </div>
+        <div className="tb-group end">
+          <Btn icon="sliders" label="Properties" title={inspectorOpen ? 'Hide properties panel' : 'Show properties panel'} active={inspectorOpen} onClick={() => ui.set({ inspectorOpen: !inspectorOpen })} />
+        </div>
       </div>
       {imageIn.el}
       {mediaIn.el}

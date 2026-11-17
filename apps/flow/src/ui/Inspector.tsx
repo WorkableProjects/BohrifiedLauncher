@@ -75,7 +75,7 @@ export function Inspector({ open, onClose, anchor, appearance }: { open: boolean
   if (tool === 'eraser') {
     return (
       <Popover open={open} onClose={onClose} anchor={anchor} label="Eraser options" className="w-[300px] p-4">
-        <p className="mb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Eraser</p>
+        <p className="mb-2 text-footnote font-semibold text-label-2">Eraser</p>
         <Row label="Size">
           <input
             type="range"
@@ -95,7 +95,7 @@ export function Inspector({ open, onClose, anchor, appearance }: { open: boolean
   if (tool === 'note') {
     return (
       <Popover open={open} onClose={onClose} anchor={anchor} label="Sticky note color" className="p-3">
-        <p className="mb-1 px-1 text-footnote font-semibold tracking-wide text-label-2 uppercase">Note color</p>
+        <p className="mb-1 px-1 text-footnote font-semibold text-label-2">Note color</p>
         <div className="flex gap-1">
           {NOTE_TINTS.map((c) => (
             <button

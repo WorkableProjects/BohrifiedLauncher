@@ -57,7 +57,7 @@ export function Home() {
     >
       <div className="home-in">
         <h1><img src="./favicon.svg" width="40" height="40" alt="" /> Frames</h1>
-        <p className="sub">Presentations with motion built in.</p>
+        <p className="sub">Presentations with motion built in</p>
         <div className="home-actions">
           <Btn icon="plus" label="Blank presentation" variant="tint" onClick={() => void newPresentation()} />
           <Btn icon="template" label="Templates" className="ghost" variant="ghost" onClick={() => ui.set({ dialog: 'templates' })} />

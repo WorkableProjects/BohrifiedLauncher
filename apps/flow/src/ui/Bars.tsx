@@ -144,6 +144,7 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
   const background = useBoard((b) => b.page.background);
   const timerOpen = useUI((s) => s.timerOpen);
   const curtain = useUI((s) => s.curtain.on);
+  const mirror = useUI((s) => s.mirror.on);
   const [menu, setMenu] = useState<null | 'share' | 'paper' | 'settings' | 'apps'>(null);
   const shareRef = useRef<HTMLButtonElement>(null);
   const appsRef = useRef<HTMLButtonElement>(null);
@@ -169,7 +170,7 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
           </ToolButton>
         )}
         <ToolButton ref={appsRef} icon="apps" label="Apps" iconSize={19} active={menu === 'apps'} onClick={() => toggle('apps')}>
-          {(timerOpen || curtain) && menu !== 'apps' && <span aria-hidden className="absolute top-2 right-2 h-2 w-2 rounded-full bg-tint shadow-[0_0_0_2px_var(--bg)]" />}
+          {(timerOpen || curtain || mirror) && menu !== 'apps' && <span aria-hidden className="absolute top-2 right-2 h-2 w-2 rounded-full bg-tint shadow-[0_0_0_2px_var(--bg)]" />}
         </ToolButton>
         <Divider />
         <ToolButton ref={shareRef} icon="share" label="Share & export" active={menu === 'share'} onClick={() => toggle('share')} />
@@ -177,19 +178,20 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
       </div>
 
       <Popover open={menu === 'apps'} onClose={close} anchor={appsRef} placement="bottom" label="Apps" className="w-[320px] max-w-[calc(100vw-24px)] p-2">
-        <p className="px-2 pt-1 pb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Apps</p>
+        <p className="px-2 pt-1 pb-2 text-footnote font-semibold text-label-2">Lesson apps</p>
         <div className="grid grid-cols-2 gap-1.5 [&>*:last-child:nth-child(odd)]:col-span-2">
           <AppTile icon="timer" color="#FF9500" label="Timer" detail={timerOpen ? 'On' : 'Countdown'} on={timerOpen} onClick={() => ui.set({ timerOpen: !timerOpen })} />
           <AppTile icon="curtain" color="#5856D6" label="Screen Hider" detail={curtain ? 'On' : 'Reveal steps'} on={curtain} shortcut="C" onClick={() => ui.set({ curtain: { ...ui.get().curtain, on: !curtain } })} />
+          <AppTile icon="tablet" color="#AF52DE" label="Mirror" detail={mirror ? 'On' : 'Flipped copy on top'} on={mirror} onClick={() => { close(); ui.set((s) => ({ mirror: { ...s.mirror, on: !mirror } })); }} />
           <AppTile icon="equation" color="var(--brand)" label="LaTeX Equation" detail="Typeset math" onClick={() => { close(); openEquation(); }} />
-          <AppTile icon="atom" color="#34C759" label="Chemistry Tools" detail="Periodic table, models & more" onClick={() => { close(); openChemistry(); }} />
+          <AppTile icon="atom" color="#34C759" label="Chemistry Tools" detail="Elements & models" onClick={() => { close(); openChemistry(); }} />
           <AppTile icon="eye" color="#FF3B30" label="Spotlight" detail={spotlight ? 'On' : 'Dim all but one area'} on={spotlight} shortcut="F" onClick={() => { close(); toggleSpotlight(); }} />
           <AppTile icon="textBox" color="#007AFF" label="Text" detail="Rich text & notes" shortcut="T" onClick={() => { close(); setTool(ui.get().textKind); }} />
         </div>
       </Popover>
 
       <Popover open={menu === 'paper'} onClose={close} anchor={paperRef} placement="bottom" label="Paper" className="w-[300px] p-2">
-        <p className="px-2 pt-1 pb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Paper for this page</p>
+        <p className="px-2 pt-1 pb-2 text-footnote font-semibold text-label-2">Paper for this page</p>
         <BubbleGroup active={background} variant="soft" className="grid grid-cols-5 gap-1 [&>span]:rounded-2xl!">
           {BACKGROUNDS.map((b) => (
             <button
@@ -220,7 +222,7 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
 
       <Popover open={menu === 'settings'} onClose={close} anchor={settingsRef} placement="bottom" label="Settings" className="w-[340px] max-w-[calc(100vw-24px)] p-4">
         <div className="mb-3 sm:hidden">
-          <p className="mb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Paper</p>
+          <p className="mb-2 text-footnote font-semibold text-label-2">Paper</p>
           <Segmented<Background>
             label="Paper"
             value={background}
@@ -228,7 +230,7 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
             options={BACKGROUNDS.map((b) => ({ value: b.value, label: <Icon name={b.icon} size={17} />, title: b.label }))}
           />
         </div>
-        <p className="mb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Appearance</p>
+        <p className="mb-2 text-footnote font-semibold text-label-2">Appearance</p>
         <Segmented<AppearancePref>
           label="Appearance"
           value={s.appearance}
@@ -239,7 +241,7 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
             { value: 'system', label: 'Auto' },
           ]}
         />
-        <p className="mt-4 mb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Accent</p>
+        <p className="mt-4 mb-2 text-footnote font-semibold text-label-2">Accent</p>
         <AccentPicker />
         <div className="mt-3 flex min-h-11 items-center justify-between gap-3 mobile:hidden">
           <div>
@@ -255,7 +257,7 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
           </div>
           <Toggle checked={s.snapObjects} onChange={(v) => ui.set({ snapObjects: v })} label="Snap to objects" />
         </div>
-        <p className="mt-4 mb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Device</p>
+        <p className="mt-4 mb-2 text-footnote font-semibold text-label-2">Device</p>
         <Segmented<DevicePref>
           label="Device"
           value={s.device ?? 'desktop'}
@@ -374,7 +376,7 @@ export function SelectionBar() {
         <ToolButton icon="trash" label="Delete" shortcut="⌫" iconSize={19} className="text-danger!" tabIndex={tab} onClick={deleteSelection} />
       </div>
       <Popover open={arrangeOpen && visible && count > 1} onClose={() => setArrangeOpen(false)} anchor={arrangeRef} placement="top" label="Arrange" className="w-[300px] p-2">
-        <p className="px-2 pt-1 pb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Align {count} items</p>
+        <p className="px-2 pt-1 pb-2 text-footnote font-semibold text-label-2">Align {count} items</p>
         <div className="grid grid-cols-3 gap-1.5">
           {ALIGN.map((a) => (
             <button key={a.mode} type="button" onClick={() => alignSelection(a.mode)} className="spring min-h-11 rounded-xl bg-fill px-2 text-subhead font-semibold text-label hover:bg-fill-2 active:scale-[0.96]">
@@ -382,7 +384,7 @@ export function SelectionBar() {
             </button>
           ))}
         </div>
-        <p className="px-2 pt-3 pb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Distribute</p>
+        <p className="px-2 pt-3 pb-2 text-footnote font-semibold text-label-2">Distribute</p>
         <div className="grid grid-cols-2 gap-1.5">
           <button type="button" disabled={count < 3} onClick={() => distributeSelection('x')} className="spring min-h-11 rounded-xl bg-fill px-2 text-subhead font-semibold text-label hover:bg-fill-2 active:scale-[0.96] disabled:opacity-35">Horizontally</button>
           <button type="button" disabled={count < 3} onClick={() => distributeSelection('y')} className="spring min-h-11 rounded-xl bg-fill px-2 text-subhead font-semibold text-label hover:bg-fill-2 active:scale-[0.96] disabled:opacity-35">Vertically</button>

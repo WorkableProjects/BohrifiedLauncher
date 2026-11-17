@@ -70,6 +70,8 @@ export interface UIState {
   sharingOpen: boolean;
   /** Transient HUD message (e.g. "Shape snapped"). */
   toast: string | null;
+  /** Portrait split: write in the bottom half, a flipped copy shows in the top half. */
+  mirror: { on: boolean; flip: 'mirror' | 'rotate' };
 }
 
 const PREFS_KEY = 'flow:prefs:v1';
@@ -104,6 +106,7 @@ const initial: UIState = {
   shortcutsOpen: false,
   sharingOpen: false,
   toast: null,
+  mirror: { on: false, flip: 'mirror' },
 };
 
 function loadPrefs(): Partial<UIState> {

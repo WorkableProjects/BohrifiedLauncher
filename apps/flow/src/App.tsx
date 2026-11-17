@@ -20,6 +20,7 @@ import { ShortcutsSheet } from './ui/ShortcutsSheet';
 import { usePresence } from './hooks/usePresence';
 import { GlassProvider } from './ui/GlassProvider';
 import { PagesPanel } from './ui/PagesPanel';
+import { MirrorView } from './ui/MirrorView';
 import { Timer } from './ui/Timer';
 import { ToolDock } from './ui/ToolDock';
 import { FpsMeter, frameSink } from './ui/FpsMeter';
@@ -29,6 +30,7 @@ export default function App({ onHome }: { onHome: () => void }) {
   const appearance = useAppearance();
   const liquid = useUI((s) => s.liquidGlass && s.device !== 'mobile');
   const timer = usePresence(useUI((s) => s.timerOpen));
+  const mirror = useUI((s) => s.mirror.on);
   const stage = useRef<HTMLDivElement>(null);
   const [editing, setEditing] = useState<EditRequest | null>(null);
   const sync = useRef<TutorSync | null>(null);
@@ -60,7 +62,8 @@ export default function App({ onHome }: { onHome: () => void }) {
   return (
     <GlassProvider root={stage} enabled={liquid}>
       {/* Stage: the Liquid Glass root. Glass bars must be its direct children. */}
-      <main ref={stage} className="fixed inset-0 overflow-hidden" data-liquid="off">
+      {mirror && <MirrorView stage={stage} />}
+      <main ref={stage} className={`fixed inset-x-0 bottom-0 overflow-hidden ${mirror ? 'top-1/2' : 'top-0'}`} data-liquid="off">
         <BoardCanvas appearance={appearance} events={events} />
         <Curtain />
         {editing && <TextEditor key={editing.element.id} request={editing} appearance={appearance} onDone={() => setEditing(null)} />}
