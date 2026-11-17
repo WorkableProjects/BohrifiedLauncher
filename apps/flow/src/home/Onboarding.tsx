@@ -59,7 +59,7 @@ export function Onboarding() {
       <div className="sheet pop-in w-full max-w-[640px] rounded-[30px]! p-6 sm:p-8" style={{ ['--origin' as string]: '50% 60%' }}>
         <div className="flex flex-col items-center text-center">
           <Logo size={72} className="drop-shadow-[0_8px_24px_var(--tint-glow)]" />
-          <h1 id="welcome-title" className="mt-5 text-title-1 font-bold tracking-title">Welcome to Flow</h1>
+          <h1 id="welcome-title" className="mt-5 text-title-1 font-semibold tracking-title">Welcome to Flow</h1>
           <p className="mt-2 max-w-md text-body text-label-2">
             {step === 'name' ? 'A fluid whiteboard for tutoring. What should we call you?' : `${name ? `Nice to meet you, ${name}. ` : ''}How will you use Flow?`}
           </p>

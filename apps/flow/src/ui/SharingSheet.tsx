@@ -126,7 +126,7 @@ export function SharingSheet() {
         ) : (
           <>
             <p className="mt-1 text-caption text-label-2">Session code</p>
-            <p className="text-largeTitle font-bold tracking-[0.12em] text-label tabular-nums" aria-label={`Session code ${live.code.split('').join(' ')}`} style={{ fontSize: 34 }}>{spaced(live.code)}</p>
+            <p className="text-largeTitle font-semibold tracking-[0.12em] text-label tabular-nums" aria-label={`Session code ${live.code.split('').join(' ')}`} style={{ fontSize: 34 }}>{spaced(live.code)}</p>
             {live.mode === 'local' && (
               local ? (
                 <p className="mt-1 text-footnote text-label-2">Address <b className="text-label">{local.host}</b> · Port <b className="text-label">{local.port}</b>{local.hint ? ' · open Flow at this address so the link below works for others' : ''}</p>

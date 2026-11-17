@@ -159,8 +159,8 @@ export function Home({ onOpen }: { onOpen: () => void }) {
 
         {/* Hero */}
         <section className="mt-6 sm:mt-10">
-          <p className="text-subhead font-semibold text-label-2">{name ? `${greeting()}, ${name}` : greeting()}</p>
-          <h1 className="mt-1 text-large-title font-bold tracking-title sm:text-[44px] sm:leading-[1.1]">
+          {!name && <p className="text-subhead font-semibold text-label-2">{greeting()}</p>}
+          <h1 className="mt-1 text-large-title font-semibold tracking-title sm:text-[44px] sm:leading-[1.1]">
             {name ? (
               <>
                 Welcome, <span className="text-tint">{name}</span>.
@@ -183,14 +183,14 @@ export function Home({ onOpen }: { onOpen: () => void }) {
               onClick={importFile}
               className="spring flex h-[50px] items-center gap-2 rounded-full bg-cell px-6 text-headline font-semibold text-on-tint-soft shadow-[0_0_0_0.5px_var(--hairline)] active:scale-[0.97]"
             >
-              <Icon name="folder" size={18} /> Open File…
+              <Icon name="folder" size={18} /> Open file…
             </button>
           </div>
         </section>
 
         {/* Templates */}
         <section className="mt-10" aria-labelledby="start-with">
-          <h2 id="start-with" className="text-title-2 font-bold tracking-title">Start with</h2>
+          <h2 id="start-with" className="text-title-2 font-semibold tracking-title">Start with</h2>
           <ul className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-5">
             {TEMPLATES.map((t) => (
               <li key={t.bg} className={t.bg === 'lined' ? 'max-sm:hidden' : ''}>
@@ -215,7 +215,7 @@ export function Home({ onOpen }: { onOpen: () => void }) {
         {/* Recents */}
         <section className="mt-10" aria-labelledby="recents">
           <div className="flex flex-wrap items-end justify-between gap-3">
-            <h2 id="recents" className="text-title-2 font-bold tracking-title">Recent Lessons</h2>
+            <h2 id="recents" className="text-title-2 font-semibold tracking-title">Recent lessons</h2>
             {lessons && lessons.length > 3 && (
               <label className="flex h-9 w-full items-center gap-2 rounded-[10px] bg-fill px-2.5 text-label-2 sm:w-64">
                 <Icon name="search" size={15} />
@@ -251,7 +251,7 @@ export function Home({ onOpen }: { onOpen: () => void }) {
       </div>
 
       <Popover open={settings} onClose={() => setSettings(false)} anchor={settingsRef} placement="bottom" label="Settings" className="w-[320px] max-w-[calc(100vw-24px)] p-4">
-        <p className="mb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Device</p>
+        <p className="mb-2 text-footnote font-semibold text-label-2">Device</p>
         <Segmented<DevicePref>
           label="Device"
           value={device ?? 'desktop'}
@@ -261,7 +261,7 @@ export function Home({ onOpen }: { onOpen: () => void }) {
             { value: 'desktop', label: <span className="flex items-center gap-1.5"><Icon name="desktop" size={15} />Desktop</span> },
           ]}
         />
-        <p className="mt-4 mb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Appearance</p>
+        <p className="mt-4 mb-2 text-footnote font-semibold text-label-2">Appearance</p>
         <Segmented<AppearancePref>
           label="Appearance"
           value={appearance}
@@ -272,10 +272,10 @@ export function Home({ onOpen }: { onOpen: () => void }) {
             { value: 'system', label: 'Auto' },
           ]}
         />
-        <p className="mt-4 mb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Accent</p>
+        <p className="mt-4 mb-2 text-footnote font-semibold text-label-2">Accent</p>
         <AccentPicker />
         <div className="mt-4 border-t border-hairline pt-3">
-          <p className="mb-2 text-footnote font-semibold tracking-wide text-label-2 uppercase">Profile</p>
+          <p className="mb-2 text-footnote font-semibold text-label-2">Profile</p>
           <label className="flex min-h-11 items-center gap-3">
             <Icon name="person" size={22} className="text-label-2" />
             <input

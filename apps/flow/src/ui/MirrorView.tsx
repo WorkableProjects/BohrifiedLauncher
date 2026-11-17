@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { ui, useUI } from '../state/ui';
 import { Icon } from '../icons/Icon';
+import { Segmented } from './controls';
 
 /**
  * Mirror mode (portrait): the board is the bottom half; this top half shows
@@ -36,16 +37,36 @@ export function MirrorView({ stage }: { stage: React.RefObject<HTMLElement | nul
     return () => cancelAnimationFrame(raf);
   }, [stage, flip]);
 
-  const btn = 'flex h-9 items-center gap-1.5 rounded-full bg-bg/80 px-3 text-subhead font-medium text-label shadow backdrop-blur';
+  const setFlip = (v: 'mirror' | 'rotate') => ui.set((s) => ({ mirror: { ...s.mirror, flip: v } }));
   return (
-    <section className="fixed inset-x-0 top-0 h-1/2 overflow-hidden border-b-2 border-fill-2 bg-bg" aria-label="Mirror view">
+    <section className="fixed inset-x-0 top-0 h-1/2 overflow-hidden bg-bg-2" aria-label="Mirror view">
       <canvas ref={ref} className="absolute inset-0 h-full w-full" aria-hidden />
-      <div className="absolute right-3 bottom-3 flex gap-2">
-        <button type="button" className={btn} onClick={() => ui.set((s) => ({ mirror: { ...s.mirror, flip: s.mirror.flip === 'mirror' ? 'rotate' : 'mirror' } }))}>
-          {flip === 'mirror' ? 'Mirror' : 'Face-to-face'}
-        </button>
-        <button type="button" className={btn} aria-label="Exit mirror mode" onClick={() => ui.set((s) => ({ mirror: { ...s.mirror, on: false } }))}>
-          <Icon name="close" size={14} />
+      {/* The fold: a hairline with a small grip, so the two halves read as one sheet. */}
+      <div aria-hidden className="absolute inset-x-0 bottom-0 h-px bg-hairline" />
+      <div aria-hidden className="absolute bottom-0 left-1/2 h-1 w-10 -translate-x-1/2 translate-y-1/2 rounded-full bg-fill-2" />
+      <div className="glass absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1 p-1" style={{ borderRadius: 24 }} role="toolbar" aria-label="Mirror">
+        <span className="flex h-11 w-9 items-center justify-center text-label-2" title="Mirror">
+          <Icon name="tablet" size={17} />
+        </span>
+        <div className="w-[232px] whitespace-nowrap">
+          <Segmented<'mirror' | 'rotate'>
+            label="Mirror style"
+            value={flip}
+            onChange={setFlip}
+            options={[
+              { value: 'mirror', label: 'Reflect', title: 'A true reflection' },
+              { value: 'rotate', label: 'Face-to-face', title: 'Turned so someone across the table reads it' },
+            ]}
+          />
+        </div>
+        <button
+          type="button"
+          className="spring flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-label hover:bg-fill active:scale-[0.92]"
+          aria-label="Exit mirror mode"
+          title="Exit mirror mode"
+          onClick={() => ui.set((s) => ({ mirror: { ...s.mirror, on: false } }))}
+        >
+          <Icon name="close" size={15} />
         </button>
       </div>
     </section>
