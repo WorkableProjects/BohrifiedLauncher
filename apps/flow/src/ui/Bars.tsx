@@ -144,6 +144,7 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
   const background = useBoard((b) => b.page.background);
   const timerOpen = useUI((s) => s.timerOpen);
   const curtain = useUI((s) => s.curtain.on);
+  const mirror = useUI((s) => s.mirror.on);
   const [menu, setMenu] = useState<null | 'share' | 'paper' | 'settings' | 'apps'>(null);
   const shareRef = useRef<HTMLButtonElement>(null);
   const appsRef = useRef<HTMLButtonElement>(null);
@@ -169,7 +170,7 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
           </ToolButton>
         )}
         <ToolButton ref={appsRef} icon="apps" label="Apps" iconSize={19} active={menu === 'apps'} onClick={() => toggle('apps')}>
-          {(timerOpen || curtain) && menu !== 'apps' && <span aria-hidden className="absolute top-2 right-2 h-2 w-2 rounded-full bg-tint shadow-[0_0_0_2px_var(--bg)]" />}
+          {(timerOpen || curtain || mirror) && menu !== 'apps' && <span aria-hidden className="absolute top-2 right-2 h-2 w-2 rounded-full bg-tint shadow-[0_0_0_2px_var(--bg)]" />}
         </ToolButton>
         <Divider />
         <ToolButton ref={shareRef} icon="share" label="Share & export" active={menu === 'share'} onClick={() => toggle('share')} />
@@ -181,6 +182,7 @@ export function ActionsBar({ appearance }: { appearance: Appearance }) {
         <div className="grid grid-cols-2 gap-1.5 [&>*:last-child:nth-child(odd)]:col-span-2">
           <AppTile icon="timer" color="#FF9500" label="Timer" detail={timerOpen ? 'On' : 'Countdown'} on={timerOpen} onClick={() => ui.set({ timerOpen: !timerOpen })} />
           <AppTile icon="curtain" color="#5856D6" label="Screen Hider" detail={curtain ? 'On' : 'Reveal steps'} on={curtain} shortcut="C" onClick={() => ui.set({ curtain: { ...ui.get().curtain, on: !curtain } })} />
+          <AppTile icon="tablet" color="#AF52DE" label="Mirror" detail={mirror ? 'On' : 'Split screen, flipped copy'} on={mirror} onClick={() => { close(); ui.set((s) => ({ mirror: { ...s.mirror, on: !mirror } })); }} />
           <AppTile icon="equation" color="var(--brand)" label="LaTeX Equation" detail="Typeset math" onClick={() => { close(); openEquation(); }} />
           <AppTile icon="atom" color="#34C759" label="Chemistry Tools" detail="Periodic table, models & more" onClick={() => { close(); openChemistry(); }} />
           <AppTile icon="eye" color="#FF3B30" label="Spotlight" detail={spotlight ? 'On' : 'Dim all but one area'} on={spotlight} shortcut="F" onClick={() => { close(); toggleSpotlight(); }} />
