@@ -744,6 +744,10 @@ watchNearby((sessions) => {
   );
 });
 
+// Static hrefs in index.html are root-absolute; point them at the site base so middle-click works under a subpath.
+$<HTMLAnchorElement>('#brand').href = base;
+$<HTMLAnchorElement>('#join-link').href = `${base}join`;
+
 $('#join-link').addEventListener('click', (e) => {
   if (e.metaKey || e.ctrlKey || e.shiftKey || (e as MouseEvent).button !== 0) return;
   e.preventDefault();

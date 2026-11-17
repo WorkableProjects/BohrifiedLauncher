@@ -25,7 +25,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci --omit=optional
+      # Not `--omit=optional`: rolldown/esbuild ship their native build bindings as optional deps.
+      - run: npm ci
       - id: pages
         uses: actions/configure-pages@v5
       - run: npm run build
