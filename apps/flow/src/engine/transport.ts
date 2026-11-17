@@ -2,7 +2,7 @@
  * How live-sync messages travel. Flow's tutor and viewer talk to a
  * `Transport`: a same-origin BroadcastChannel for the "student view" window
  * on the same computer, or a WebSocket through the session relay, or HTTP polling
- * (for hosts like Netlify that can't hold a WebSocket), for a
+ * (for a server that can't hold a WebSocket), or WebRTC peer-to-peer (static hosts like GitHub Pages), for a
  * student on another device. Both carry the same messages.
  */
 
@@ -319,6 +319,287 @@ export function pollTransport<M>(opts: PollOptions): Transport<M> {
       handlers.clear();
       statusHandlers.clear();
       if (opts.role === 'student') void doFetch(base, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ role: 'student', client, messages: [{ t: 'bye' }] }), keepalive: true }).catch(() => {});
+    },
+  };
+}
+
+/* ───────────────────────── Peer-to-peer (WebRTC) ───────────────────────── */
+
+/**
+ * The minimum of PeerJS this transport uses, so tests can pass a fake.
+ * (`import('peerjs').Peer` satisfies it.)
+ */
+export interface PeerLike {
+  readonly id: string;
+  readonly disconnected: boolean;
+  readonly destroyed: boolean;
+  on(event: 'open', fn: (id: string) => void): void;
+  on(event: 'connection', fn: (conn: DataConnLike) => void): void;
+  on(event: 'disconnected' | 'close', fn: () => void): void;
+  on(event: 'error', fn: (err: { type?: string; message?: string }) => void): void;
+  connect(id: string, options?: { reliable?: boolean; serialization?: string; metadata?: unknown }): DataConnLike;
+  reconnect(): void;
+  destroy(): void;
+}
+export interface DataConnLike {
+  readonly open: boolean;
+  readonly metadata?: unknown;
+  on(event: 'open' | 'close', fn: () => void): void;
+  on(event: 'data', fn: (data: unknown) => void): void;
+  on(event: 'error', fn: (err: unknown) => void): void;
+  send(data: unknown): void;
+  close(): void;
+}
+export type PeerFactory = (id?: string) => PeerLike;
+
+export interface PeerOptions {
+  code: string;
+  role: 'tutor' | 'student';
+  /** Builds a PeerJS peer (lazy-loaded so the library only downloads when a session starts). */
+  createPeer?: PeerFactory;
+  maxStudents?: number;
+  /** How long a student waits for the tutor's connection to open before retrying. */
+  connectTimeoutMs?: number;
+  /** How long a tutor keeps retrying when its session id is still held (e.g. right after a reload). */
+  claimWindowMs?: number;
+}
+
+/** The public signalling id for a session. Codes are random; the prefix keeps them apart from other PeerJS users. */
+export const peerIdFor = (code: string) => `bohrified-live-${code}`;
+
+/** Data channels cap message size; bigger messages are split into chunks of this many characters. */
+export const PEER_CHUNK = 60_000;
+const STUDENT_MAY_SEND = new Set(['hello', 'viewer', 'bye', 'edit']);
+
+type Chunk = { t: '_c'; id: string; i: number; n: number; d: string };
+
+function chunked(m: unknown): unknown[] {
+  const text = JSON.stringify(m);
+  if (text.length <= PEER_CHUNK) return [m];
+  const id = Math.random().toString(36).slice(2, 10);
+  const n = Math.ceil(text.length / PEER_CHUNK);
+  const out: Chunk[] = [];
+  for (let i = 0; i < n; i++) out.push({ t: '_c', id, i, n, d: text.slice(i * PEER_CHUNK, (i + 1) * PEER_CHUNK) });
+  return out;
+}
+
+/** Reassembles chunked messages from one connection. */
+function assembler<M>(deliver: (m: M) => void) {
+  const parts = new Map<string, string[]>();
+  return (data: unknown) => {
+    const c = data as Chunk;
+    if (!c || typeof c !== 'object') return;
+    if (c.t !== '_c') return deliver(data as M);
+    if (typeof c.id !== 'string' || !Number.isInteger(c.n) || c.n > 2000 || typeof c.d !== 'string') return;
+    const got = parts.get(c.id) ?? new Array<string>(c.n);
+    got[c.i] = c.d;
+    parts.set(c.id, got);
+    if (got.filter((x) => x !== undefined).length < c.n) return;
+    parts.delete(c.id);
+    try {
+      deliver(JSON.parse(got.join('')) as M);
+    } catch { /* malformed */ }
+  };
+}
+
+const defaultPeer: PeerFactory = () => {
+  throw new Error('createPeer is required');
+};
+
+/**
+ * Live sessions with no server of our own (for static hosts like GitHub Pages):
+ * the tutor's browser *is* the relay. Its PeerJS id is derived from the session
+ * code; each student opens a WebRTC data channel to it. A free public PeerJS
+ * server only introduces the browsers; the board travels directly between them
+ * (or through PeerJS's public TURN server when a network blocks direct links).
+ *
+ * The tutor applies the relay's rules itself: students may only send
+ * hello / viewer / bye / edit, a student count is announced as `peers`, and
+ * the room is capped. Statuses and refusal codes match `socketTransport`.
+ */
+export function peerTransport<M>(opts: PeerOptions): Transport<M> {
+  const create = opts.createPeer ?? defaultPeer;
+  const maxStudents = opts.maxStudents ?? 64;
+  const timeoutMs = opts.connectTimeoutMs ?? 15_000;
+  const claimWindow = opts.claimWindowMs ?? 120_000;
+  const handlers = new Set<(m: M) => void>();
+  const statusHandlers = new Set<(s: LinkStatus, detail?: string) => void>();
+  const tutorId = peerIdFor(opts.code);
+  let status: LinkStatus = 'connecting';
+  let closed = false;
+  let peer: PeerLike | null = null;
+  let attempt = 0;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let everOpen = false;
+
+  const set = (s: LinkStatus, detail?: string) => {
+    if (s === status && s !== 'refused') return;
+    status = s;
+    statusHandlers.forEach((fn) => fn(s, detail));
+  };
+  const emit = (m: M) => handlers.forEach((fn) => fn(m));
+  const refuse = (code: number) => {
+    clearTimeout(timer);
+    set('refused', String(code));
+    peer?.destroy();
+    peer = null;
+  };
+  const sendOn = (conn: DataConnLike, m: unknown) => {
+    if (!conn.open) return;
+    try {
+      for (const part of chunked(m)) conn.send(part);
+    } catch (err) {
+      console.warn('Flow: live send failed', err);
+    }
+  };
+
+  /* ── Tutor: hosts the session ── */
+  const students = new Set<DataConnLike>();
+  const announce = () => {
+    const p = { t: 'peers', tutors: 1, students: students.size };
+    emit(p as M);
+    for (const s of students) sendOn(s, p);
+  };
+  const startTutor = () => {
+    const started = Date.now();
+    const claim = () => {
+      if (closed) return;
+      const p = create(tutorId);
+      peer = p;
+      p.on('open', () => {
+        attempt = 0;
+        everOpen = true;
+        set('open');
+        announce();
+      });
+      p.on('connection', (conn) => {
+        conn.on('open', () => {
+          if (students.size >= maxStudents) {
+            sendOn(conn, { t: '_full' });
+            setTimeout(() => conn.close(), 200);
+            return;
+          }
+          students.add(conn);
+          announce();
+        });
+        conn.on('data', assembler<{ t?: string }>((m) => {
+          if (students.has(conn) && m && typeof m.t === 'string' && STUDENT_MAY_SEND.has(m.t)) emit(m as M);
+        }));
+        const gone = () => {
+          if (students.delete(conn)) announce();
+        };
+        conn.on('close', gone);
+        conn.on('error', gone);
+      });
+      p.on('disconnected', () => {
+        // Lost the signalling server only: open data channels keep working; re-register so new students can join.
+        if (!closed && !p.destroyed) setTimeout(() => !closed && !p.destroyed && p.reconnect(), backoffMs(Math.min(attempt++, 4)));
+      });
+      p.on('error', (err) => {
+        if (closed || peer !== p) return;
+        if (err.type === 'unavailable-id') {
+          // The id is still held, most often by this tab before a reload. Wait for it to be released.
+          p.destroy();
+          if (Date.now() - started > claimWindow) return refuse(CLOSE_FORBIDDEN);
+          set(everOpen ? 'reconnecting' : 'connecting');
+          timer = setTimeout(claim, backoffMs(Math.min(attempt++, 3)));
+        } else if (err.type === 'browser-incompatible') refuse(CLOSE_FORBIDDEN);
+        else if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error' || err.type === 'socket-closed') {
+          set('reconnecting');
+          if (p.disconnected && !p.destroyed) timer = setTimeout(() => !closed && !p.destroyed && p.reconnect(), backoffMs(attempt++));
+        }
+      });
+    };
+    claim();
+  };
+
+  /* ── Student: connects to the tutor ── */
+  let conn: DataConnLike | null = null;
+  const startStudent = () => {
+    const p = create();
+    peer = p;
+    const dial = () => {
+      if (closed || status === 'refused' || peer !== p) return;
+      clearTimeout(timer);
+      if (p.disconnected && !p.destroyed) p.reconnect();
+      const c = p.connect(tutorId, { reliable: true, serialization: 'json', metadata: { role: 'student' } });
+      conn = c;
+      let opened = false;
+      const retry = () => {
+        if (closed || status === 'refused' || conn !== c) return;
+        conn = null;
+        clearTimeout(timer);
+        try {
+          c.close();
+        } catch { /* ignore */ }
+        set('reconnecting');
+        timer = setTimeout(dial, backoffMs(attempt++));
+      };
+      timer = setTimeout(() => !opened && retry(), timeoutMs);
+      c.on('open', () => {
+        opened = true;
+        clearTimeout(timer);
+        attempt = 0;
+        everOpen = true;
+        set('open');
+      });
+      c.on('data', assembler<{ t?: string }>((m) => {
+        if (m?.t === '_full') return refuse(CLOSE_FULL);
+        emit(m as M);
+      }));
+      c.on('close', retry);
+      c.on('error', retry);
+    };
+    p.on('open', () => dial());
+    p.on('disconnected', () => {
+      if (!closed && !p.destroyed) setTimeout(() => !closed && !p.destroyed && p.disconnected && p.reconnect(), backoffMs(Math.min(attempt, 4)));
+    });
+    p.on('error', (err) => {
+      if (closed || peer !== p) return;
+      if (err.type === 'peer-unavailable') {
+        // Nobody is hosting this code. Before the first connection that means a wrong code;
+        // afterwards the tutor is probably reloading, so keep trying.
+        if (!everOpen) return refuse(CLOSE_NOT_FOUND);
+        conn = null;
+        set('reconnecting');
+        clearTimeout(timer);
+        timer = setTimeout(dial, backoffMs(attempt++));
+      } else if (err.type === 'browser-incompatible') refuse(CLOSE_FORBIDDEN);
+      else if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error') set(everOpen ? 'reconnecting' : 'connecting');
+    });
+  };
+
+  if (opts.role === 'tutor') startTutor();
+  else startStudent();
+
+  return {
+    get status() {
+      return status;
+    },
+    send(m) {
+      if (closed || status === 'refused') return;
+      if (opts.role === 'tutor') for (const s of students) sendOn(s, m);
+      else if (conn) sendOn(conn, m);
+    },
+    onMessage(fn) {
+      handlers.add(fn);
+      return () => void handlers.delete(fn);
+    },
+    onStatus(fn) {
+      statusHandlers.add(fn);
+      fn(status);
+      return () => void statusHandlers.delete(fn);
+    },
+    close() {
+      if (closed) return;
+      closed = true;
+      clearTimeout(timer);
+      handlers.clear();
+      statusHandlers.clear();
+      const p = peer;
+      peer = null;
+      // Give the last messages (the tutor's "ended", a student's "bye") a moment to leave.
+      setTimeout(() => p?.destroy(), 300);
     },
   };
 }

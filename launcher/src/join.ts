@@ -199,7 +199,8 @@ export function createJoinPage(root: HTMLElement, opts: { base: string; configur
   return {
     show(code) {
       root.hidden = false;
-      via = new URLSearchParams(location.search).get('via') === 'local' ? 'local' : via;
+      const v = new URLSearchParams(location.search).get('via');
+      via = v === 'local' || v === 'online' ? v : via;
       document.title = 'Join Whiteboard · Bohrified';
       if (!code) return renderForm();
       const normalized = parseJoinInput(code);

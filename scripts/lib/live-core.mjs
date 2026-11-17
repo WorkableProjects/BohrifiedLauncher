@@ -1,7 +1,7 @@
 /**
  * Live sessions over plain HTTP: the same tutor ↔ student messages as the
  * WebSocket relay (scripts/session-relay.mjs), carried by short requests so
- * they work on hosts that cannot hold a WebSocket open, such as Netlify.
+ * they work through networks or proxies that block WebSockets.
  *
  *   POST /api/live/<CODE>   { role, key?, client, messages: [...] }   send
  *   GET  /api/live/<CODE>?role=&key=&client=&since=<cursor>           poll
@@ -13,7 +13,7 @@
  * the caller since `cursor`, plus how many tutors and students are present.
  *
  * Everything goes through a tiny async `store` so the same code runs on
- * Netlify Blobs (production), in memory (local relay, tests):
+ * any backing store; the relay and tests keep it in memory:
  *   get(key) → string | null · set(key, text) · delete(key) · list(prefix) → string[]
  */
 
@@ -21,7 +21,6 @@ export const CODE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/;
 // `edit` reaches tutors only; the tutor's app decides whether that device may draw.
 const STUDENT_MAY_SEND = new Set(['hello', 'viewer', 'bye', 'edit']);
 export const LIMITS = {
-  /** Netlify Functions accept request bodies up to 6 MB. */
   maxBodyBytes: 4 * 1024 * 1024,
   /** Messages are only needed until every poller has seen them; snapshots are re-sent on `hello`. */
   messageTtlMs: 60_000,
@@ -38,7 +37,7 @@ const fail = (status, error) => json(status, { error });
 const pad = (n) => String(n).padStart(13, '0');
 const rand = () => Math.random().toString(36).slice(2, 8);
 
-/** In-memory store with the same shape as the Netlify Blobs adapter. */
+/** In-memory store. */
 export function memoryStore() {
   const map = new Map();
   return {
@@ -58,19 +57,6 @@ export function memoryStore() {
   };
 }
 
-/** Adapt a Netlify Blobs store (`getStore({ consistency: 'strong' })`). */
-export function blobsStore(store) {
-  return {
-    get: (key) => store.get(key, { type: 'text' }),
-    set: (key, text) => store.set(key, text),
-    delete: (key) => store.delete(key),
-    async list(prefix) {
-      const keys = [];
-      for await (const page of store.list({ prefix, paginate: true })) for (const b of page.blobs) keys.push(b.key);
-      return keys.sort();
-    },
-  };
-}
 
 /** Handle one request. `now` is injectable for tests. */
 export async function handleLive(req, store, now = Date.now) {
