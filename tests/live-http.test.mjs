@@ -1,9 +1,9 @@
 /**
- * Live sessions over HTTP (the Netlify path): `node --test tests/live-http.test.mjs`
+ * Live sessions over HTTP (the relay's /api/live): `node --test tests/live-http.test.mjs`
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { handleLive, listSessions, memoryStore, LIMITS } from '../netlify/lib/live-core.mjs';
+import { handleLive, listSessions, memoryStore, LIMITS } from '../scripts/lib/live-core.mjs';
 
 const KEY = 'tutorkey123';
 function setup() {
@@ -22,7 +22,7 @@ function setup() {
 
 describe('live sessions over HTTP', () => {
   it('health', async () => {
-    const { call } = { call: (await import('../netlify/lib/live-core.mjs')).handleLive };
+    const { call } = { call: (await import('../scripts/lib/live-core.mjs')).handleLive };
     const res = await call(new Request('https://x.test/api/live/health'), memoryStore());
     assert.equal((await res.json()).ok, true);
   });

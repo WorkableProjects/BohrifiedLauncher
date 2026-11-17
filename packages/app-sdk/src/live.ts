@@ -72,8 +72,11 @@ export function relayUrl(raw: string | undefined | null, pageProtocol = 'https:'
   }
 }
 
-/** How this deployment carries live sessions: a WebSocket relay, or HTTP polling (Netlify Functions, or a relay's /api/live). */
-export type LiveBackend = { kind: 'ws' | 'http'; url: string };
+/**
+ * How this deployment carries live sessions: a WebSocket relay, HTTP polling (a relay's /api/live),
+ * or peer-to-peer WebRTC between the browsers (`url` is unused), which needs no server of our own.
+ */
+export type LiveBackend = { kind: 'ws' | 'http' | 'p2p'; url: string };
 
 /**
  * Where a live session runs.
@@ -83,7 +86,7 @@ export type LiveBackend = { kind: 'ws' | 'http'; url: string };
 export type LiveMode = 'online' | 'local';
 
 /** The hosted site, used by copies running on a local computer. Override with VITE_ONLINE_SITE_URL. */
-export const DEFAULT_ONLINE_SITE = 'https://bohrified.netlify.app';
+export const DEFAULT_ONLINE_SITE = 'https://workableprojects.github.io/BohrifiedLauncher';
 
 const LOCAL_HOST = /^(localhost|127\.0\.0\.1|\[::1\])$/;
 
@@ -112,10 +115,10 @@ export interface LiveEnv {
 /**
  * Pick the live-session backend.
  *  • `VITE_LIVE_SESSION_URL` set: ws(s):// → WebSocket relay; http(s):// → HTTP endpoint.
- *  • Otherwise, in `online` mode from a local computer: the hosted site's function, `<onlineSite>/api/live`.
- *  • Otherwise (`local` mode, or the page is itself the hosted site): this page's own host. In
- *    development that is the relay on ws://<host>:8787; in production, `<origin>/api/live`
- *    (the Netlify Function, or `npm run serve`).
+ *  • Otherwise, in `online` mode: peer-to-peer (WebRTC). The tutor's browser hosts the session, so
+ *    static hosting (GitHub Pages) is enough, and it works the same from a local copy.
+ *  • Otherwise (`local` mode): this computer. In development, the relay on ws://<host>:8787; in
+ *    production, `<origin>/api/live` served by `npm run serve`. Unavailable on a public static host.
  * Returns null when the configured address is unusable.
  */
 export function liveBackend(raw: string | undefined | null, env: LiveEnv): LiveBackend | null {
@@ -135,7 +138,8 @@ export function liveBackend(raw: string | undefined | null, env: LiveEnv): LiveB
     }
   }
   const mode = env.mode ?? 'online';
-  if (mode === 'online' && env.onlineSite && isLocalHost(env.hostname)) return { kind: 'http', url: `${env.onlineSite.replace(/\/$/, '')}/api/live` };
+  if (mode === 'online') return { kind: 'p2p', url: '' };
+  if (!isLocalHost(env.hostname) && !env.dev) return null;
   if (env.dev) return { kind: 'ws', url: `ws://${env.hostname && /^[\w.-]+$/.test(env.hostname) ? env.hostname : 'localhost'}:8787` };
   return env.origin ? { kind: 'http', url: `${env.origin.replace(/\/$/, '')}/api/live` } : null;
 }

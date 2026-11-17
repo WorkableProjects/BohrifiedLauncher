@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { DEFAULT_ONLINE_SITE, isLocalHost, joinPath, liveBackend, newSessionCode, sessionSocketUrl, type LiveBackend, type LiveMode } from '@bohrified/app-sdk';
-import { pollTransport, socketTransport, type LinkStatus, type Transport } from '../engine/transport';
+import { peerTransport, pollTransport, socketTransport, type LinkStatus, type PeerLike, type Transport } from '../engine/transport';
 import type { Device, SharingState, SyncMessage, TutorSync } from '../engine/sync';
 import { ui } from './ui';
 
@@ -13,6 +13,47 @@ import { ui } from './ui';
 
 const MODE_KEY = 'flow:live:mode:v1';
 const ONLINE_SITE: string = import.meta.env.VITE_ONLINE_SITE_URL || DEFAULT_ONLINE_SITE;
+/** The Bohrified site root this copy of Flow belongs to (Flow is served at `<root>apps/flow/`). */
+const SITE_ROOT = import.meta.env.BASE_URL.replace(/apps\/flow\/?$/, '');
+
+/** PeerJS loads only when a peer-to-peer session starts. */
+let peerLib: Promise<typeof import('peerjs')> | null = null;
+const loadPeer = () => (peerLib ??= import('peerjs'));
+
+/**
+ * A PeerJS peer, created synchronously for `peerTransport` while the library loads:
+ * calls made before it arrives are replayed on the real peer.
+ */
+function lazyPeer(id?: string): PeerLike {
+  type Ev = Parameters<PeerLike['on']>;
+  const pending: Ev[] = [];
+  let real: PeerLike | null = null;
+  let destroyed = false;
+  const lazy: PeerLike = {
+    get id() { return real?.id ?? id ?? ''; },
+    get disconnected() { return real ? real.disconnected : true; },
+    get destroyed() { return real ? real.destroyed : destroyed; },
+    on: ((...a: Ev) => (real ? (real.on as (...x: Ev) => void)(...a) : pending.push(a))) as PeerLike['on'],
+    connect: (...a) => {
+      if (!real) throw new Error('peer not ready');
+      return real.connect(...a);
+    },
+    reconnect: () => real?.reconnect(),
+    destroy: () => {
+      destroyed = true;
+      real?.destroy();
+    },
+  };
+  loadPeer().then(({ Peer }) => {
+    if (destroyed) return;
+    const p = (id ? new Peer(id, { debug: 0 }) : new Peer({ debug: 0 })) as unknown as PeerLike;
+    real = p;
+    for (const a of pending) (p.on as (...x: Ev) => void)(...a);
+  }, () => {
+    for (const [ev, fn] of pending) if (ev === 'error') (fn as (e: { type: string }) => void)({ type: 'browser-incompatible' });
+  });
+  return lazy;
+}
 
 /** The tutor's choice, remembered on this device. Online is the default: anyone, on any network, can join. */
 export function savedMode(): LiveMode {
@@ -25,7 +66,7 @@ export function savedMode(): LiveMode {
 
 /**
  * How live sessions travel on this deployment for `mode`, or null when they aren't available:
- * online → the hosted site's function (or this page's own, when it *is* the hosted site);
+ * online → peer-to-peer between the browsers (works on any static host, and from a local copy);
  * local → this computer's relay (`npm run dev` / `npm run serve`). `VITE_LIVE_SESSION_URL` overrides both.
  */
 export function liveRelay(mode: LiveMode = state.mode): LiveBackend | null {
@@ -37,6 +78,7 @@ export function liveRelay(mode: LiveMode = state.mode): LiveBackend | null {
 export function openLiveTransport(code: string, role: 'tutor' | 'student', key?: string, mode: LiveMode = state.mode): Transport<SyncMessage> | null {
   const backend = liveRelay(mode);
   if (!backend) return null;
+  if (backend.kind === 'p2p') return peerTransport<SyncMessage>({ code, role, createPeer: lazyPeer });
   return backend.kind === 'ws'
     ? socketTransport<SyncMessage>({ url: sessionSocketUrl(backend.url, code, role, key) })
     : pollTransport<SyncMessage>({ url: backend.url, code, role, key });
@@ -58,8 +100,8 @@ export async function localAddress(): Promise<{ host: string; port: string; hint
 /** The link to share for a code, for the mode it was started in. */
 export function shareLink(code: string, mode: LiveMode, local?: { host: string; port: string } | null): string {
   if (mode === 'local') return local ? `http://${local.host}${local.port === '80' ? '' : `:${local.port}`}${joinPath('/', code)}?via=local` : '';
-  const site = isLocalHost(location.hostname) ? ONLINE_SITE : location.origin;
-  return joinPath(site + '/', code);
+  const site = isLocalHost(location.hostname) ? ONLINE_SITE.replace(/\/?$/, '/') : location.origin + SITE_ROOT;
+  return joinPath(site, code);
 }
 
 export interface LiveState {

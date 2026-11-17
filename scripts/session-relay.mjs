@@ -30,9 +30,9 @@
  *   ROOM_TTL_MIN      default 10
  *   STATIC_DIR        also serve this built site (e.g. dist) on the same port: see scripts/serve.mjs
  *
- * Netlify cannot host WebSockets, so on Netlify live sessions run over HTTP
- * through the Netlify Function in netlify/functions/live.mjs (no setup). This
- * relay also answers that same HTTP protocol under /api/live, so a self-hosted
+ * The hosted site (GitHub Pages) runs live sessions peer-to-peer and does not
+ * use this relay. The relay also answers an HTTP protocol under /api/live
+ * (scripts/lib/live-core.mjs), so a self-hosted
  * deployment can point VITE_LIVE_SESSION_URL at either ws(s):// or http(s)://.
  */
 import { createHash } from 'node:crypto';
@@ -41,7 +41,7 @@ import { createReadStream, statSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { handleLive, listSessions, memoryStore } from '../netlify/lib/live-core.mjs';
+import { handleLive, listSessions, memoryStore } from './lib/live-core.mjs';
 
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 const CODE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/;
@@ -60,7 +60,7 @@ export function lanAddresses() {
 }
 
 /**
- * Serve a built site (dist/) the way netlify.toml does: real files as-is,
+ * Serve a built site (dist/) the way the hosted site does: real files as-is,
  * /app/*, /join and /join/* fall back to the shell. Returns true when handled.
  */
 function serveStatic(root, req, res) {
@@ -192,7 +192,7 @@ export function startRelay(options = {}) {
     room.timer.unref?.();
   };
 
-  // The HTTP flavour of the protocol (what Netlify serves): same rules, in memory, for local use and tests.
+  // The HTTP flavour of the protocol (scripts/lib/live-core.mjs): same rules, in memory, for local use and tests.
   const httpStore = memoryStore();
   const allowOrigin = (req) => (!cfg.origins.length || cfg.origins.includes(req.headers.origin ?? '') ? (req.headers.origin ?? '*') : null);
 

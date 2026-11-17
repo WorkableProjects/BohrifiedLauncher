@@ -29,6 +29,7 @@
   "dependencies": {
     "@bohrified/app-sdk": "*",
     "mathjax-full": "^3.2.2",
+    "peerjs": "^1.5.5",
     "perfect-freehand": "^1.2.3",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"

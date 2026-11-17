@@ -75,14 +75,18 @@ describe('join messages', () => {
 });
 
 describe('liveBackend', () => {
-  const site = 'https://bohrified.netlify.app';
-  const hosted = { dev: false, origin: site, protocol: 'https:', hostname: 'bohrified.netlify.app', onlineSite: site };
+  const site = 'https://workableprojects.github.io/BohrifiedLauncher';
+  const hosted = { dev: false, origin: site, protocol: 'https:', hostname: 'workableprojects.github.io', onlineSite: site };
   const laptop = { dev: true, origin: 'http://localhost:5173', protocol: 'http:', hostname: 'localhost', onlineSite: site };
 
-  it('uses the hosted site by default, from anywhere', () => {
-    expect(liveBackend('', hosted)).toEqual({ kind: 'http', url: `${site}/api/live` });
-    expect(liveBackend(undefined, laptop)).toEqual({ kind: 'http', url: `${site}/api/live` });
-    expect(liveBackend(undefined, { ...laptop, hostname: '192.168.1.20' })).toEqual({ kind: 'http', url: `${site}/api/live` });
+  it('goes peer-to-peer by default, from anywhere', () => {
+    const p2p = { kind: 'p2p', url: '' };
+    expect(liveBackend('', hosted)).toEqual(p2p);
+    expect(liveBackend(undefined, laptop)).toEqual(p2p);
+    expect(liveBackend(undefined, { ...laptop, hostname: '192.168.1.20' })).toEqual(p2p);
+  });
+  it('local mode is unavailable on a public static host', () => {
+    expect(liveBackend(undefined, { ...hosted, mode: 'local' })).toBeNull();
   });
   it('local mode uses this computer: the dev relay on the page host, or the page own /api/live', () => {
     expect(liveBackend(undefined, { ...laptop, mode: 'local' })).toEqual({ kind: 'ws', url: 'ws://localhost:8787' });
@@ -105,7 +109,7 @@ describe('liveBackend', () => {
 describe('isLocalHost', () => {
   it('recognises own-computer and private-network hosts', () => {
     for (const h of ['localhost', '127.0.0.1', '[::1]', '192.168.0.5', '10.1.2.3', '172.20.0.1', '172.31.255.1', '169.254.1.1', 'laptop.local']) expect(isLocalHost(h)).toBe(true);
-    for (const h of ['bohrified.netlify.app', '8.8.8.8', '172.32.0.1', '', undefined]) expect(isLocalHost(h)).toBe(false);
+    for (const h of ['workableprojects.github.io', '8.8.8.8', '172.32.0.1', '', undefined]) expect(isLocalHost(h)).toBe(false);
   });
 });
 

@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-// @ts-expect-error plain JS module shared with the Netlify Function
-import { handleLive, memoryStore } from '../../../../netlify/lib/live-core.mjs';
+// @ts-expect-error plain JS module shared with the local relay
+import { handleLive, memoryStore } from '../../../../scripts/lib/live-core.mjs';
 import { CLOSE_NOT_FOUND, pollTransport, type LinkStatus, type Transport } from './transport';
 
-/** The HTTP protocol served in-process, so the client and the Netlify handler are tested together. */
+/** The HTTP protocol served in-process, so the client and the relay's HTTP handler are tested together. */
 const serve = (store: unknown) => ((url: string, init?: RequestInit) => handleLive(new Request(url, init), store)) as unknown as typeof fetch;
 const wait = (cond: () => boolean, ms = 3000) =>
   new Promise<void>((res, rej) => {
