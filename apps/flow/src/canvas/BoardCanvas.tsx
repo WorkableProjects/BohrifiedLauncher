@@ -119,9 +119,10 @@ export function BoardCanvas({ appearance, readOnly = false, events }: BoardCanva
 
   return (
     <>
-      <canvas ref={sceneRef} className="absolute inset-0 h-full w-full" aria-hidden />
+      <canvas ref={sceneRef} data-board-layer className="absolute inset-0 h-full w-full" aria-hidden />
       <canvas
         ref={liveRef}
+        data-board-layer
         className="absolute inset-0 h-full w-full touch-none"
         role="img"
         aria-label="Whiteboard canvas"
